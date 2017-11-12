@@ -9,20 +9,20 @@ contract BrickblockToken is PausableToken {
   string public constant name = "BrickblockToken";
   string public constant symbol = "BBT";
   uint8 public constant decimals = 18;
-  uint256 public constant initalSupply = 50 * (10 ** 6) * (10 ** uint256(decimals));
+  uint256 public constant initialSupply = 50 * (10 ** 6) * (10 ** uint256(decimals));
   uint8 public constant founderShare = 49;
   uint8 public constant investorShare = 51;
   bool public tokenSaleActive;
-  
+
   function BrickblockToken() {
-    totalSupply = initalSupply;
-    balances[this] = initalSupply;
+    totalSupply = initialSupply;
+    balances[this] = initialSupply;
     tokenSaleActive = true;
     // need to start paused to make sure that there can be no transfers
     // this ensures that 1. tokenClaims will only work once 2. keep in line with management's wishes
     paused = true;
   }
-  
+
   // openZeppelin function to recover public key from signed message
   function recover(bytes32 hash, bytes sig) private constant returns (address) {
     bytes32 r;
@@ -53,25 +53,25 @@ contract BrickblockToken is PausableToken {
       return ecrecover(hash, v, r, s);
     }
   }
-  
+
   // need to put brickblock funds into owner address
   function finalizeTokenSale() public onlyOwner {
     require(tokenSaleActive);
     // owner should own 51% of tokens
-    uint256 claimedTokens = initalSupply - balances[this];
+    uint256 claimedTokens = initialSupply - balances[this];
     uint256 newTotalSupply = claimedTokens.mul(100).div(investorShare);
     uint256 ownerClaimedTokens = newTotalSupply.mul(founderShare).div(100);
-    
+
     balances[this] = balances[this].sub(ownerClaimedTokens);
     balances[owner] = balances[owner].add(ownerClaimedTokens);
-    
+
     // nuke the remaining balance...
     balances[this] = balances[this].sub(balanceOf(this));
-    
+
     //set new state
     totalSupply = newTotalSupply;
     tokenSaleActive = false;
-    
+
   }
 
   // claim tokens based on signed message containing token amount and address

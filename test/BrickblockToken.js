@@ -124,7 +124,7 @@ describe('at the end of the ico', () => {
       const claimableAmount1 = new BigNumber(web3.toWei(5e6))
       const claimer2 = accounts[2]
       const claimableAmount2 = new BigNumber(web3.toWei(1e6))
-      
+
       // claim tokens for one claimer
       const signature1 = await createSignedMessage(owner, claimer1, claimableAmount1)
       const signature2 = await createSignedMessage(owner, claimer2, claimableAmount2)
@@ -138,7 +138,7 @@ describe('at the end of the ico', () => {
       const preOwnerBalance = await bbt.balanceOf(owner)
       // finish the ico...
       await bbt.finalizeTokenSale()
-      
+
       const postOwnerBalance = await bbt.balanceOf(owner)
       const tokenDepotBalance = await bbt.balanceOf(bbt.address)
       const totalSupply = await bbt.totalSupply.call()
@@ -149,7 +149,7 @@ describe('at the end of the ico', () => {
       assert(true, paused, 'the token contract should still be paused')
       assert(true, !tokenSaleActive, 'the token sale should be over')
     })
-    
+
     it('should not be able to call finalizeTokenSale again', async () => {
       try {
         bbt.finalizeTokenSale()
@@ -184,7 +184,7 @@ describe('after the the ico', () => {
       const postTokenSaleActive = await bbt.tokenSaleActive()
       assert(!postTokenSaleActive, 'the token sale should no longer be active')
     })
-    
+
     it('should transfer tokens when not paused', async () => {
       const bbt = await BrickblockToken.deployed()
       await bbt.unpause()
@@ -193,7 +193,7 @@ describe('after the the ico', () => {
       const newBalance = await bbt.balanceOf.call(accounts[1])
       assert.equal(newBalance.minus(originalBalance), 1000, 'The new balance should be 1000 after the transfer')
     })
-    
+
   })
-  
+
 })
