@@ -19,9 +19,6 @@ contract BrickblockUmbrella is Ownable {
     bool _active;
   }
 
-  address accessTokenAddress;
-  // fee percentage used to calculate ACT fee from total value
-  uint256 public feePercentage = 5;
   // List of all brokers ever added: active or inactive
   Broker[] public brokers;
   // List of all tokens ever added: active or inactive
@@ -58,13 +55,6 @@ contract BrickblockUmbrella is Ownable {
     _;
   }
 
-  modifier isContract(address addr) {
-    uint _size;
-    assembly { _size := extcodesize(addr) }
-    require(_size > 0);
-    _;
-  }
-
   // Instantiate the BrickblockUmbrella contract.
   function BrickblockUmbrella()
     public
@@ -72,33 +62,6 @@ contract BrickblockUmbrella is Ownable {
     // ensure that 1st element of tokens is not active
     tokens.push(Token(address(0), false));
     brokers.push(Broker(address(0), false));
-  }
-
-  function changeAccessTokenAddress(address _newAddress)
-    public
-    isContract(_newAddress)
-    onlyOwner
-    returns (bool)
-  {
-    require(_newAddress != address(this));
-    require(_newAddress != owner);
-    accessTokenAddress = _newAddress;
-  }
-
-  function calculateFee(uint256 _value)
-    public
-    view
-    returns (uint256)
-  {
-    return feePercentage.mul(_value).div(1000);
-  }
-
-  function burnAccessTokens(uint256 _value, address _from)
-    private
-    returns (bool)
-  {
-    BrickblockAccessToken act = BrickblockAccessToken(accessTokenAddress);
-    return act.burnFrom(_value, _from);
   }
 
   // List all active broker addresses
@@ -220,9 +183,6 @@ contract BrickblockUmbrella is Ownable {
     onlyActiveBroker
     returns (address)
   {
-    require(accessTokenAddress != address(0));
-    uint256 _fee = calculateFee(_supply);
-    require(burnAccessTokens(_fee, msg.sender));
     address _tokenAddress = new POAToken(
       _name,
       _symbol,

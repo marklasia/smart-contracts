@@ -1,13 +1,12 @@
 pragma solidity ^0.4.18;
 
-import "zeppelin-solidity/contracts/token/StandardToken.sol";
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+import "zeppelin-solidity/contracts/token/PausableToken.sol";
 import "./BrickblockAccessToken.sol";
 import "./BrickblockWhitelist.sol";
 
 
 // Proof-of-Asset contract representing a token backed by a foreign asset.
-contract POAToken is StandardToken, Ownable {
+contract POAToken is PausableToken {
 
   BrickblockWhitelist brickblockWhitelist;
   BrickblockAccessToken brickblockAccessToken;
@@ -34,12 +33,6 @@ contract POAToken is StandardToken, Ownable {
 
   uint256 public constant feePercentage = 5;
 
-  struct Account {
-    uint256 balance;
-    uint256 claimedPayout;
-  }
-
-  mapping(address => Account) accounts;
   mapping(address => uint256) claimedPayouts;
 
   uint256 public totalPayout = 0;
@@ -117,6 +110,7 @@ contract POAToken is StandardToken, Ownable {
     creationBlock = block.number;
     totalSupply = _supply;
     balances[owner] = _supply;
+    paused = true;
   }
 
   // TODO: this function is temporary until registry contract is created... remove later!
@@ -139,6 +133,14 @@ contract POAToken is StandardToken, Ownable {
     return true;
   }
 
+  function unpause()
+    public
+    onlyOwner
+  {
+    require(stage != Stages.Terminated);
+    super.unpause();
+  }
+
   function calculateFee(uint256 _value)
     public
     view
@@ -148,12 +150,12 @@ contract POAToken is StandardToken, Ownable {
   }
 
   // Used to charge fees for broker transactions
-  function burnAccessTokens(uint256 _value, address _broker)
+  function burnAccessTokens(uint256 _value, address _burnAddress)
     private
     returns (bool)
   {
     require(address(brickblockAccessToken) != address(0));
-    return brickblockAccessToken.burnFrom(_value, _broker);
+    return brickblockAccessToken.burnFrom(_value, _burnAddress);
   }
 
   // Buy PoA tokens from the contract.
@@ -177,10 +179,7 @@ contract POAToken is StandardToken, Ownable {
   }
 
   // Activate the PoA contract, providing a valid proof-of-assets.
-  // Called by the broker or custodian after assets have been received into the DTF account.
-  // This verifies that the provided signature matches the expected symbol/amount and
-  // was made with the custodians private key.
-  // TODO: don't need this here...
+  // broker needs to pay access tokens here
   function activate()
     public
     onlyCustodian
@@ -188,23 +187,23 @@ contract POAToken is StandardToken, Ownable {
     atStage(Stages.Pending)
     returns (bool)
   {
-    broker.transfer(this.balance);
+    uint256 _fee = calculateFee(totalSupply);
+    require(burnAccessTokens(_fee, msg.sender));
     enterStage(Stages.Active);
+    broker.transfer(this.balance);
+    paused = false;
     return true;
   }
 
   // end the token due to asset getting sold/lost/act of god
   function terminate()
     public
-    onlyBroker
+    onlyOwner
     atStage(Stages.Active)
-    payable
     returns (bool)
   {
     require(stage == Stages.Pending || stage == Stages.Active);
-    require(msg.value == totalSupply);
-    uint256 _fee = calculateFee(msg.value);
-    require(burnAccessTokens(_fee, msg.sender));
+    paused = true;
     enterStage(Stages.Terminated);
   }
 
@@ -213,12 +212,12 @@ contract POAToken is StandardToken, Ownable {
   function reclaim()
     public
     checkTimeout
+    atStage(Stages.Failed)
     returns (bool)
   {
-    require(stage == Stages.Failed || stage == Stages.Terminated);
     uint256 balance = balances[msg.sender];
     balances[msg.sender] = 0;
-    totalSupply.sub(balance);
+    totalSupply = totalSupply.sub(balance);
     msg.sender.transfer(balance);
     return true;
   }
@@ -230,7 +229,7 @@ contract POAToken is StandardToken, Ownable {
     payable
     public
     atStage(Stages.Active)
-    onlyBroker
+    onlyCustodian
     returns (bool)
   {
     require(msg.value > 0);
@@ -268,21 +267,39 @@ contract POAToken is StandardToken, Ownable {
     return _payoutAmount;
   }
 
-  // TODO: needs to only work during Active stage i think...
-  // Transfer +_value+ from sender to account +_to+.
+  function settleTransferClaims(address _from, address _to)
+    private
+    returns (bool)
+  {
+    // send any remaining unclaimed ETHER payouts for _from and _to
+    uint256 fromPayoutAmount = currentPayout(msg.sender);
+    uint256 toPayoutAmount = currentPayout(msg.sender);
+    if (fromPayoutAmount > 0) {
+      claimedPayouts[msg.sender] = totalPayout;
+      msg.sender.transfer(fromPayoutAmount);
+    }
+
+    if (toPayoutAmount > 0) {
+      claimedPayouts[_to] = totalPayout;
+      _to.transfer(toPayoutAmount);
+    }
+  }
+
+  // TODO: verify that there are no issues with sending to _to here
   function transfer(address _to, uint256 _value)
     public
     returns (bool)
   {
-    // send any remaining unclaimed ETHER payouts to msg.sender
-    uint256 payoutAmount = currentPayout(msg.sender);
-    if (payoutAmount > 0) {
-      msg.sender.transfer(payoutAmount);
-      // set claimed payouts to max for both accounts
-      claimedPayouts[msg.sender] = totalPayout;
-      claimedPayouts[_to] = totalPayout;
-    }
+    settleTransferClaims(msg.sender, _to);
     super.transfer(_to, _value);
+  }
+
+  function transferFrom(address _from, address _to, uint256 _value)
+    public
+    returns (bool)
+  {
+    settleTransferClaims(_from, _to);
+    super.transferFrom(_from, _to, _value);
   }
 
   function()

@@ -1,6 +1,5 @@
 const BrickblockUmbrella = artifacts.require('BrickblockUmbrella.sol')
 const POAToken = artifacts.require('POAToken.sol')
-const BrickblockAccessToken = artifacts.require('BrickblockAccessToken.sol')
 const BigNumber = require('bignumber.js')
 
 // assumes even length arrays of addresses and statuses for Broker or Token
@@ -263,7 +262,6 @@ describe('when adjusting tokens', () => {
   contract('BrickblockUmbrella', accounts => {
     let bbu
     let savedToken
-    let accessToken
     const owner = accounts[0]
     const activeBroker = accounts[1]
     const inactiveBroker = accounts[2]
@@ -274,25 +272,10 @@ describe('when adjusting tokens', () => {
 
     before('setup contract state', async () => {
       bbu = await BrickblockUmbrella.deployed()
-      accessToken = await BrickblockAccessToken.deployed()
-      await accessToken.changeUmbrellaAddress(bbu.address)
-      await accessToken.mint(activeBroker, amount)
-      await accessToken.mint(inactiveBroker, amount)
-      await accessToken.mint(zeroApprovalBroker, amount)
-      await accessToken.approve.sendTransaction(bbu.address, amount, {
-        from: activeBroker
-      })
-      await accessToken.approve.sendTransaction(bbu.address, amount, {
-        from: inactiveBroker
-      })
-      await accessToken.approve.sendTransaction(bbu.address, amount, {
-        from: brokeBroker
-      })
       await bbu.addBroker(activeBroker)
       await bbu.addBroker(inactiveBroker)
       await bbu.addBroker(brokeBroker)
       await bbu.deactivateBroker(inactiveBroker)
-      await bbu.changeAccessTokenAddress(accessToken.address)
     })
 
     it('should start with a placeholder token in tokens', async () => {
@@ -306,10 +289,8 @@ describe('when adjusting tokens', () => {
       )
     })
 
-    it('should add a token when sending as an active broker with enough ACT and approved for contract to spend', async () => {
+    it('should add a token when sending as an active broker', async () => {
       const watcher = bbu.TokenAdded()
-      const fee = await bbu.calculateFee(1e18)
-      const preBrokerBalance = await accessToken.balanceOf(activeBroker)
       await bbu.addToken.sendTransaction('test', 'TST', custodian, 1000, 1e18, {
         from: activeBroker
       })
@@ -318,16 +299,10 @@ describe('when adjusting tokens', () => {
         events.length > 0 && events[0].event === 'TokenAdded',
         'there should be an event named TokenAdded'
       )
-      const postBrokerBalance = await accessToken.balanceOf(activeBroker)
       const loggedAddress = events[0].args._token
       const savedTokenAddress = await bbu.getToken(loggedAddress)
       const savedTokenIndex = await bbu.tokenIndexMap(loggedAddress)
       const formattedSavedTokenAddress = tupleToObject(savedTokenAddress)
-      assert.equal(
-        preBrokerBalance.minus(postBrokerBalance).toString(),
-        fee.toString(),
-        'the broker balance should be deducted by the fee amount'
-      )
       assert(
         savedTokenIndex != 0,
         'the token index should never be set to 0 unless it was never set'
@@ -340,44 +315,6 @@ describe('when adjusting tokens', () => {
       // TODO: we shouldn't be setting variables that other tests rely on like this
       // we should use lifecycle events (such as "before")
       savedToken = loggedAddress
-    })
-
-    it('should NOT add a token when the broker does NOT have enough ACT', async () => {
-      try {
-        await bbu.addToken.sendTransaction(
-          'test2',
-          'TS2',
-          custodian,
-          1000,
-          1e18,
-          { from: brokeBroker }
-        )
-        assert(false, 'broke brokers should NOT be able to add tokens')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode should be in the error'
-        )
-      }
-    })
-
-    it('should NOT add a token when the broker has not approved contract to spend enough ACT', async () => {
-      try {
-        await bbu.addToken.sendTransaction(
-          'test2',
-          'TS2',
-          custodian,
-          1000,
-          1e18,
-          { from: zeroApprovalBroker }
-        )
-        assert(false, 'broke brokers should NOT be able to add tokens')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode should be in the error'
-        )
-      }
     })
 
     it('should NOT add a token from a deactivated broker', async () => {
