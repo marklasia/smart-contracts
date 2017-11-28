@@ -41,8 +41,9 @@ describe('when in Funding stage', () => {
     // for now this is the same... need to talk about this
     const brokerAddress = accounts[0]
     const custodianAddress = accounts[1]
-    const whitelistedBuyerAddress = accounts[2]
-    const nonWhitelistedBuyerAddress = accounts[3]
+    const whitelistedBuyerAddress1 = accounts[2]
+    const whitelistedBuyerAddress2 = accounts[3]
+    const nonWhitelistedBuyerAddress = accounts[4]
     const amount = new BigNumber(1e18)
     let poa
     let wht
@@ -70,7 +71,7 @@ describe('when in Funding stage', () => {
       await act.approve.sendTransaction(poa.address, 50e18, {
         from: brokerAddress
       })
-      await wht.addAddress(whitelistedBuyerAddress)
+      await wht.addAddress(whitelistedBuyerAddress1)
     })
 
     it('should initalize with the right values', async () => {
@@ -100,12 +101,12 @@ describe('when in Funding stage', () => {
     })
 
     it('should buy when whitelisted', async () => {
-      const preBuyerTokenBalance = await poa.balanceOf(whitelistedBuyerAddress)
+      const preBuyerTokenBalance = await poa.balanceOf(whitelistedBuyerAddress1)
       const preOwnerTokenBalance = await poa.balanceOf(ownerAddress)
       await poa.buy.sendTransaction({
-        from: whitelistedBuyerAddress, value: amount
+        from: whitelistedBuyerAddress1, value: amount
       })
-      const postBuyerTokenBalance = await poa.balanceOf(whitelistedBuyerAddress)
+      const postBuyerTokenBalance = await poa.balanceOf(whitelistedBuyerAddress1)
       const postOwnerTokenBalance = await poa.balanceOf(ownerAddress)
       assert.equal(postBuyerTokenBalance.minus(preBuyerTokenBalance).toString(), amount.toString(), 'the buyer balance should be incremented by the buy amount')
       assert.equal(preOwnerTokenBalance.minus(postOwnerTokenBalance).toString(), amount.toString(), 'the owner balance should be decremented by the buy amount')
@@ -125,7 +126,7 @@ describe('when in Funding stage', () => {
     it('should NOT buy if more than is available', async () => {
       try {
         await poa.buy.sendTransaction({
-          from: whitelistedBuyerAddress,
+          from: whitelistedBuyerAddress1,
           value: amount.mul(2)
         })
         assert(false, 'the contract should throw here')
@@ -160,7 +161,7 @@ describe('when in Funding stage', () => {
     it('should NOT allow reclaiming', async () => {
       try {
         await poa.reclaim.sendTransaction({
-          from: whitelistedBuyerAddress
+          from: whitelistedBuyerAddress1
         })
         assert(false, 'the contract should throw')
       } catch(error) {
@@ -182,7 +183,7 @@ describe('when in Funding stage', () => {
     it('should NOT allow claiming', async () => {
       try {
         await poa.claim.sendTransaction({
-          from: whitelistedBuyerAddress
+          from: whitelistedBuyerAddress1
         })
         assert(false, 'the contract should throw')
       } catch(error) {
@@ -190,17 +191,24 @@ describe('when in Funding stage', () => {
       }
     })
 
-    it('should NOT allow transfers???', async () => {
-      assert(false, 'figure out how this should work... talk to the others!')
+    it('should NOT allow transfers', async () => {
+      try {
+        await poa.transfer.sendTransaction(whitelistedBuyerAddress2, amount, {
+          from: whitelistedBuyerAddress1
+        })
+        assert(false, 'the contract should throw here')
+      } catch(error) {
+        assert(/invalid opcode/.test(error), 'the error message should contain invalid opcode')
+      }
     })
 
     it('should enter Pending stage once all tokens have been bought', async () => {
-      const preBuyerTokenBalance = await poa.balanceOf(whitelistedBuyerAddress)
+      const preBuyerTokenBalance = await poa.balanceOf(whitelistedBuyerAddress1)
       const preOwnerTokenBalance = await poa.balanceOf(ownerAddress)
       await poa.buy.sendTransaction({
-        from: whitelistedBuyerAddress, value: amount
+        from: whitelistedBuyerAddress1, value: amount
       })
-      const postBuyerTokenBalance = await poa.balanceOf(whitelistedBuyerAddress)
+      const postBuyerTokenBalance = await poa.balanceOf(whitelistedBuyerAddress1)
       const postOwnerTokenBalance = await poa.balanceOf(ownerAddress)
       assert.equal(postBuyerTokenBalance.minus(preBuyerTokenBalance).toString(), amount.toString(), 'the buyer balance should be incremented by the buy amount')
       assert.equal(preOwnerTokenBalance.minus(postOwnerTokenBalance).toString(), amount.toString(), 'the owner balance should be decremented by the buy amount')
@@ -215,8 +223,9 @@ describe('when in Pending stage', () => {
     const ownerAddress = accounts[0]
     const brokerAddress = accounts[0]
     const custodianAddress = accounts[1]
-    const whitelistedBuyerAddress = accounts[2]
-    const nonWhitelistedBuyerAddress = accounts[3]
+    const whitelistedBuyerAddress1 = accounts[2]
+    const whitelistedBuyerAddress2 = accounts[3]
+    const nonWhitelistedBuyerAddress = accounts[4]
     const amount = new BigNumber(1e18)
     let poa
     let wht
@@ -226,7 +235,7 @@ describe('when in Pending stage', () => {
       poa = await POAToken.new(
         'TestToken',
         'TST',
-        ownerAddress,
+        brokerAddress,
         custodianAddress,
         100,
         amount
@@ -235,16 +244,17 @@ describe('when in Pending stage', () => {
       act = await BrickblockAccessToken.new()
       umb = await BrickblockUmbrellaStub.new()
       await poa.changeWhitelist(wht.address)
+      await poa.changeAccessToken(act.address)
       await act.changeUmbrellaAddress(umb.address)
       await umb.changeAccessTokenAddress(act.address)
-      await umb.addBroker(brokerAddress)
-      await act.mint(brokerAddress, 50e18)
+      await umb.addFakeToken(poa.address)
+      await act.mint(custodianAddress, 50e18)
       await act.approve.sendTransaction(poa.address, 50e18, {
-        from: brokerAddress
+        from: custodianAddress
       })
-      await wht.addAddress(whitelistedBuyerAddress)
+      await wht.addAddress(whitelistedBuyerAddress1)
       await poa.buy.sendTransaction({
-        from: whitelistedBuyerAddress,
+        from: whitelistedBuyerAddress1,
         value: amount
       })
     })
@@ -257,7 +267,7 @@ describe('when in Pending stage', () => {
     it('should NOT allow buying', async () => {
       try {
         await poa.buy.sendTransaction({
-          from: whitelistedBuyerAddress
+          from: whitelistedBuyerAddress1
         })
         assert(false, 'the contract should throw')
       } catch(error) {
@@ -268,7 +278,7 @@ describe('when in Pending stage', () => {
     it('should NOT enter Active stage if not custodian', async () => {
       try {
         await poa.activate.sendTransaction({
-          from: whitelistedBuyerAddress
+          from: whitelistedBuyerAddress1
         })
         assert(false, 'the contract should throw')
       } catch(error) {
@@ -279,7 +289,7 @@ describe('when in Pending stage', () => {
     it('should NOT allow reclaiming', async () => {
       try {
         await poa.reclaim.sendTransaction({
-          from: whitelistedBuyerAddress
+          from: whitelistedBuyerAddress1
         })
         assert(false, 'the contract should throw')
       } catch(error) {
@@ -290,7 +300,7 @@ describe('when in Pending stage', () => {
     it('should NOT allow payouts', async () => {
       try {
         await poa.payout.sendTransaction({
-          from: brokerAddress
+          from: custodianAddress
         })
         assert(false, 'the contract should throw')
       } catch(error) {
@@ -301,7 +311,7 @@ describe('when in Pending stage', () => {
     it('should NOT allow claiming', async () => {
       try {
         await poa.claim.sendTransaction({
-          from: whitelistedBuyerAddress
+          from: whitelistedBuyerAddress1
         })
         assert(false, 'the contract should throw')
       } catch(error) {
@@ -309,11 +319,18 @@ describe('when in Pending stage', () => {
       }
     })
 
-    it('should NOT allow transfers???', async () => {
-      assert(false, 'figure out how this should work... talk to the others!')
+    it('should NOT allow transfers', async () => {
+      try {
+        await poa.transfer.sendTransaction(whitelistedBuyerAddress2, amount, {
+          from: whitelistedBuyerAddress1
+        })
+        assert(false, 'the contract should throw here')
+      } catch(error) {
+        assert(/invalid opcode/.test(error), 'the error message should contain invalid opcode')
+      }
     })
 
-    it('should enter Active stage if custodian', async () => {
+    it('should enter Active stage if sent from custodian and broker has sufficient ACT balance', async () => {
       await poa.activate.sendTransaction({
         from: custodianAddress
       })
@@ -353,9 +370,9 @@ describe('when in Active stage', () => {
       await act.changeUmbrellaAddress(umb.address)
       await umb.changeAccessTokenAddress(act.address)
       await umb.addFakeToken(poa.address)
-      await act.mint(brokerAddress, 50e18)
+      await act.mint(custodianAddress, 50e18)
       await act.approve.sendTransaction(poa.address, 50e18, {
-        from: brokerAddress
+        from: custodianAddress
       })
       await wht.addAddress(whitelistedBuyerAddress1)
       await wht.addAddress(whitelistedBuyerAddress2)
@@ -389,12 +406,12 @@ describe('when in Active stage', () => {
       assert(calculatedFee.toNumber(), expectedFee.toNumber(), 'the fees should match')
     })
 
-    it('should run payout when broker', async () => {
+    it('should run payout when custodian', async () => {
       const preTotalPayout = await poa.totalPayout()
       const preBrokerTokenBalance = await act.balanceOf(brokerAddress)
       const fee = await poa.calculateFee(amount)
       await poa.payout.sendTransaction({
-        from: brokerAddress,
+        from: custodianAddress,
         value: amount
       })
       const postTotalPayout = await poa.totalPayout()
@@ -403,10 +420,10 @@ describe('when in Active stage', () => {
       assert(preBrokerTokenBalance.minus(postBrokerTokenBalance).toString(), fee.toString(), 'the broker token balance should be decremented by the fee value')
     })
 
-    it('should NOT run payout when NOT broker', async () => {
+    it('should NOT run payout when NOT custodian', async () => {
       try {
         await poa.payout.sendTransaction({
-          from: custodianAddress,
+          from: brokerAddress,
           value: amount
         })
         assert(false, 'the contract should throw here')
@@ -449,13 +466,14 @@ describe('when in Active stage', () => {
   })
 })
 
+// TODO: write test for failed!
 describe('when a contract does NOT meet its funding goal', () => {
   contract('POAToken', accounts => {
     const ownerAddress = accounts[0]
     let poa
 
     before('setup contract state', async () => {
-      poa = POAToken.new()
+      poa = await POAToken.new()
     })
 
     it('should derp', async () => {
@@ -464,14 +482,14 @@ describe('when a contract does NOT meet its funding goal', () => {
   })
 })
 
-// TODO: this may not be needed
+// TODO: write tests for terminated!
 describe('when a contract has problems after becoming Active (acts of god etc?)', () => {
   contract('POAToken', accounts => {
     const ownerAddress = accounts[0]
     let poa
 
     before('setup contract state', async () => {
-      poa = POAToken.new()
+      poa = await POAToken.new()
     })
 
     it('should derp', async () => {

@@ -179,7 +179,6 @@ contract POAToken is PausableToken {
   }
 
   // Activate the PoA contract, providing a valid proof-of-assets.
-  // broker needs to pay access tokens here
   function activate()
     public
     onlyCustodian
@@ -190,7 +189,7 @@ contract POAToken is PausableToken {
     uint256 _fee = calculateFee(totalSupply);
     require(burnAccessTokens(_fee, msg.sender));
     enterStage(Stages.Active);
-    broker.transfer(this.balance);
+    custodian.transfer(this.balance);
     paused = false;
     return true;
   }
