@@ -6,6 +6,18 @@ const BrickblockUmbrellaStub = artifacts.require('BrickblockUmbrellaStub.sol')
 const POATokenStub = artifacts.require('POATokenStub.sol')
 const BigNumber = require('bignumber.js')
 
+// function generateAddresses(number) {
+//   accounts = []
+//   for(let i = 0; i < number; i++) {
+//     const account = web3.eth.accounts.create()
+//     accounts.push(account)
+//   }
+//   let addresses = accounts.map(account => {
+//     return account.address
+//   })
+//   return addresses
+// }
+
 describe('after the contract is created', () => {
   contract('BrickblockAccessToken', accounts => {
     let act
@@ -321,6 +333,174 @@ describe('when burning', () => {
       } catch(error) {
         assert(/invalid opcode/.test(error), 'the error should contain invalid opcode')
       }
+    })
+  })
+})
+
+describe('when selling', () => {
+  contract('BrickblockAccessToken', accounts => {
+    const owner = accounts[0]
+    const buyer = accounts[1]
+    const seller1 = accounts[2]
+    const seller2 = accounts[3]
+    const seller3 = accounts[4]
+    const seller4 = accounts[5]
+    const amount1 = new BigNumber(2e18)
+    const amount2 = new BigNumber(1e18)
+    const amount3 = new BigNumber(5e17)
+    const amount4 = new BigNumber(24e16)
+    let act
+
+    before('setup BrickblockAccessToken and related contracts state', async () => {
+      act = await BrickblockAccessToken.deployed()
+      await act.mint(seller1, amount1)
+      await act.mint(seller2, amount2)
+      await act.mint(seller3, amount3)
+      await act.mint(seller4, amount4)
+    })
+
+    it('should sell to seller1', async () => {
+      const buyAmount = new BigNumber(1e18)
+      const preTotalSupply = await act.totalSupply()
+      const preSeller1Balance = await act.balanceOf(seller1)
+      const preSeller1Payable = await act.payableBalanceOf(seller1)
+      const tokenPurchase = await act.buyTokens({
+        from: buyer,
+        value: buyAmount
+      })
+      console.log('single seller: ', tokenPurchase)
+      const postTotalSupply = await act.totalSupply()
+      const postSeller1Balance = await act.balanceOf(seller1)
+      const postSeller1Payable = await act.payableBalanceOf(seller1)
+      const lastSeller = await act.lastSeller()
+
+      assert.equal(
+        preTotalSupply.minus(postTotalSupply).toString(),
+        buyAmount.toString(),
+        'the totalSupply should be decremented by buyAmount'
+      )
+      assert.equal(
+        preSeller1Balance.minus(postSeller1Balance).toString(),
+        buyAmount.toString(),
+        'the seller account should be decremented by buyAmount'
+      )
+      assert.equal(
+        postSeller1Payable.minus(preSeller1Payable).toString(),
+        buyAmount.toString(),
+        'the seller payableBalance should be incremented by buyAmount'
+      )
+      assert.equal(
+        lastSeller,
+        seller2,
+        'the last seller should now be seller2'
+      )
+    })
+
+    it('should sell to all sellers to meet full buy requirement', async () => {
+      const currentSeller = await act.currentSeller()
+      assert.equal(
+        currentSeller,
+        seller2,
+        `${seller2} should be the currentSeller`
+      )
+      const buyAmount = new BigNumber(1e18).add(amount2).add(amount3)
+      const preTotalSupply = await act.totalSupply()
+      const sellers = [seller1, seller2, seller3]
+      let sellerBalances = {}
+      for(let seller of sellers) {
+        const preTokenBalance = await act.balanceOf(seller)
+        const prePayableBalance = await act.payableBalanceOf(seller)
+        sellerBalances[seller] = {
+          preTokenBalance,
+          prePayableBalance
+        }
+      }
+      const tokenPurchase = await act.buyTokens({
+        from: buyer,
+        value: buyAmount
+      })
+      console.log('tokenPurchaseTransaction: ', tokenPurchase)
+      for(let seller of sellers) {
+        const preToken = sellerBalances[seller].preTokenBalance
+        const postToken = await act.balanceOf(seller)
+        const prePayable = sellerBalances[seller].prePayableBalance
+        const postPayable = await act.payableBalanceOf(seller)
+        sellerBalances[seller].postTokenBalance = postToken
+        sellerBalances[seller].postPayableBalance = postPayable
+        sellerBalances[seller].tokenDiff = preToken.minus(postToken)
+        sellerBalances[seller].payableDiff = postPayable.minus(prePayable)
+      }
+      const postTotalSupply = await act.totalSupply()
+      const lastSeller = await act.lastSeller()
+      console.log(sellerBalances)
+
+      for (let seller of sellers) {
+        const {
+          preTokenBalance,
+          tokenDiff,
+          payableDiff
+        } = sellerBalances[seller]
+        console.log(
+          'preToken',
+          preTokenBalance.div(1e18).toString(),
+          'tokenDiff',
+          tokenDiff.div(1e18).toString(),
+          'payableDiff',
+          payableDiff.div(1e18).toString()
+        )
+        assert.equal(
+          tokenDiff.toString(),
+          preTokenBalance.toString(),
+          `${seller} token balance should be decremented by ${preTokenBalance.toString()}`
+        )
+        assert.equal(
+          payableDiff.toString(),
+          preTokenBalance.toString(),
+          `${seller} payable balance should be incremented by ${preTokenBalance.toString()}`
+        )
+      }
+      assert.equal(
+        preTotalSupply.minus(postTotalSupply).toString(),
+        buyAmount.toString(),
+        'the totalSupply should be decremented by buyAmount'
+      )
+    })
+  })
+})
+
+describe('when stress testing', () => {
+  contract('BrickblockAccessToken', accounts => {
+    const owner = accounts[0]
+    const buyer = accounts[1]
+    const seller1 = accounts[2]
+    const seller2 = accounts[3]
+    const seller3 = accounts[4]
+    const seller4 = accounts[5]
+    const amount1 = new BigNumber(1e18)
+    const amount2 = new BigNumber(1e18)
+    const amount3 = new BigNumber(1e18)
+    const amount4 = new BigNumber(1e18)
+    let act
+
+    before('setup BrickblockAccessToken and related contracts state', async () => {
+      act = await BrickblockAccessToken.new(1e6, 4e16)
+      await act.mint(seller1, amount1)
+      await act.mint(seller2, amount2)
+      await act.mint(seller3, amount3)
+      await act.mint(seller4, amount4)
+    })
+
+    it.only('should not die please!', async () => {
+      const tokenPurchase = await act.buyTokens({
+        from: buyer,
+        value: 4e18
+      })
+      console.log(
+        'GAS USED: ',
+        tokenPurchase.receipt.gasUsed,
+        'HOPS: ',
+        tokenPurchase.logs.length / 2
+      )
     })
   })
 })

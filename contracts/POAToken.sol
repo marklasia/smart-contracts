@@ -143,7 +143,7 @@ contract POAToken is PausableToken {
 
   function calculateFee(uint256 _value)
     public
-    view
+    pure
     returns (uint256)
   {
     return feePercentage.mul(_value).div(1000);
@@ -155,7 +155,7 @@ contract POAToken is PausableToken {
     returns (bool)
   {
     require(address(brickblockAccessToken) != address(0));
-    return brickblockAccessToken.burnFrom(_value, _burnAddress);
+    return brickblockAccessToken.burnFrom.value(_value)(_value, _burnAddress);
   }
 
   // Buy PoA tokens from the contract.
@@ -184,9 +184,11 @@ contract POAToken is PausableToken {
     onlyCustodian
     checkTimeout
     atStage(Stages.Pending)
+    payable
     returns (bool)
   {
     uint256 _fee = calculateFee(totalSupply);
+    require(msg.value == _fee);
     require(burnAccessTokens(_fee, msg.sender));
     enterStage(Stages.Active);
     custodian.transfer(this.balance);
@@ -232,10 +234,12 @@ contract POAToken is PausableToken {
     returns (bool)
   {
     require(msg.value > 0);
-    uint256 _fee = calculateFee(msg.value);
+    uint256 _payoutAmount = msg.value.mul(1e3).div(feePercentage.add(1e3));
+    uint256 _fee = msg.value.sub(_payoutAmount);
+    //uint256 _fee = calculateFee(msg.value);
     require(burnAccessTokens(_fee, msg.sender));
-    totalPayout = totalPayout.add(msg.value.mul(10e18).div(totalSupply));
-    Payout(msg.value);
+    totalPayout = totalPayout.add(_payoutAmount.mul(1e18).div(totalSupply));
+    Payout(_payoutAmount);
     return true;
   }
 
@@ -271,11 +275,11 @@ contract POAToken is PausableToken {
     returns (bool)
   {
     // send any remaining unclaimed ETHER payouts for _from and _to
-    uint256 fromPayoutAmount = currentPayout(msg.sender);
-    uint256 toPayoutAmount = currentPayout(msg.sender);
+    uint256 fromPayoutAmount = currentPayout(_from);
+    uint256 toPayoutAmount = currentPayout(_from);
     if (fromPayoutAmount > 0) {
-      claimedPayouts[msg.sender] = totalPayout;
-      msg.sender.transfer(fromPayoutAmount);
+      claimedPayouts[_from] = totalPayout;
+      _from.transfer(fromPayoutAmount);
     }
 
     if (toPayoutAmount > 0) {
