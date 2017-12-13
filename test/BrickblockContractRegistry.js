@@ -32,5 +32,15 @@ describe('when setting addresses', () => {
         'the address should be set to the grc address'
       )
     })
+
+    it('should NOT set an address when NOT owner', async () => {
+      try {
+        await bbr.updateContract('otherTestName', grc.address)
+        assert(false, 'the contract should throw here')
+      } catch (error) {
+        console.log(error)
+        assert(/invalid opcode/.test(error), 'the error should contain invalid opcode')
+      }
+    })
   })
 })
