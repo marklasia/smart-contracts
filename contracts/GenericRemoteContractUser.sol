@@ -1,8 +1,8 @@
 pragma solidity 0.4.18;
 
+import "./BrickblockContractRegistry.sol";
+import "./GenericRemoteContract.sol";
 
-import './BrickblockContractRegistry.sol';
-import './GenericRemoteContract.sol';
 
 contract GenericRemoteContractUser {
 
@@ -14,7 +14,9 @@ contract GenericRemoteContractUser {
     _;
   }
 
-  function GenericRemoteContractUser() {
+  function GenericRemoteContractUser()
+    public
+  {
     owner = msg.sender;
   }
 
@@ -23,9 +25,8 @@ contract GenericRemoteContractUser {
     returns (uint256)
   {
     require(contractRegistry != address(0));
-    GenericRemoteContract genericRemoteContract =
-    GenericRemoteContract(
-      contractRegistry.getContractAddress('GenericRemoteContract')
+    GenericRemoteContract genericRemoteContract = GenericRemoteContract(
+      contractRegistry.getContractAddress("GenericRemoteContract")
     );
     return genericRemoteContract.add(_num1, _num2);
   }
@@ -35,9 +36,8 @@ contract GenericRemoteContractUser {
     returns (uint256)
   {
     require(contractRegistry != address(0));
-    GenericRemoteContract genericRemoteContract =
-    GenericRemoteContract(
-      contractRegistry.getContractAddress('GenericRemoteContract')
+    GenericRemoteContract genericRemoteContract = GenericRemoteContract(
+      contractRegistry.getContractAddress("GenericRemoteContract")
     );
     return genericRemoteContract.testNumber();
   }

@@ -490,7 +490,7 @@ describe('when stress testing', () => {
       await act.mint(seller4, amount4)
     })
 
-    it.only('should not die please!', async () => {
+    it('should not die please!', async () => {
       const tokenPurchase = await act.buyTokens({
         from: buyer,
         value: 4e18
