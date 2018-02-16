@@ -55,7 +55,9 @@ async function createToken(aToken) {
             console.error('This is strange ...', err)
             reject(err)
           }
+
           if (event.transactionHash !== txid) return // these are not the txs you are looking for
+
           resolve(event.args.token) // the address of the token created
           watcher.stopWatching()
         }
@@ -82,6 +84,7 @@ async function makePending(aToken) {
           reject(err)
           return
         }
+
         console.log(
           `Stage Change Event [${aToken.symbol}]`,
           web3.toDecimal(event.args.stage)
@@ -132,6 +135,7 @@ async function activatePoA(aToken) {
           reject(err)
           return
         }
+
         console.log(
           `Waiting for Activation. Stage is : ${aToken.symbol}[${web3.toDecimal(
             event.args.stage

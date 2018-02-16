@@ -17,6 +17,7 @@ function getEtherBalance(address) {
   return new Promise((resolve, reject) => {
     web3.eth.getBalance(address, (err, res) => {
       if (err) reject(err)
+
       resolve(res)
     })
   })
@@ -29,6 +30,7 @@ function warpBlocks(blocks) {
       for (let i = 0; i < blocks - 1; i++) {
         await warpTool.warp()
       }
+
       resolve(true)
     })
   })

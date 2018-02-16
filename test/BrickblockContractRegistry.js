@@ -1,6 +1,10 @@
-const BrickblockContractRegistry = artifacts.require('BrickblockContractRegistry')
+const BrickblockContractRegistry = artifacts.require(
+  'BrickblockContractRegistry'
+)
 const GenericRemoteContract = artifacts.require('GenericRemoteContract')
-const BrokenGenericRemoteContract = artifacts.require('BrokenGenericRemoteContract')
+const BrokenGenericRemoteContract = artifacts.require(
+  'BrokenGenericRemoteContract'
+)
 const GenericRemoteContractUser = artifacts.require('GenericRemoteContractUser')
 const assert = require('assert')
 const BigNumber = require('bignumber.js')
@@ -17,9 +21,7 @@ describe('when using the contract registry', () => {
 
     before('setup bbr', async () => {
       bbr = await BrickblockContractRegistry.new()
-      brokenGrc = await BrokenGenericRemoteContract.new(
-        initialTestNumber
-      )
+      brokenGrc = await BrokenGenericRemoteContract.new(initialTestNumber)
       grcu = await GenericRemoteContractUser.new(bbr.address)
     })
 
@@ -43,10 +45,7 @@ describe('when using the contract registry', () => {
       it('should get the testNumber from remote contract', async () => {
         const testNumber = await grcu.remoteTestNumber()
 
-        assert.equal(
-          testNumber.toString(),
-          initialTestNumber.toString()
-        )
+        assert.equal(testNumber.toString(), initialTestNumber.toString())
       })
 
       it('should set the testNumber on remote contract', async () => {
@@ -61,10 +60,7 @@ describe('when using the contract registry', () => {
           preNumber.toString() != postNumber.toString(),
           'the number should be different'
         )
-        assert.equal(
-          newNumber.toString(),
-          postNumber.toString()
-        )
+        assert.equal(newNumber.toString(), postNumber.toString())
       })
 
       it('should return an incorrect value when adding on broken contract', async () => {
@@ -79,9 +75,7 @@ describe('when using the contract registry', () => {
 
     describe('when updating the broken contract in the registry', () => {
       it('should change the contract address in registry', async () => {
-        fixedGrc = await GenericRemoteContract.new(
-          initialTestNumber
-        )
+        fixedGrc = await GenericRemoteContract.new(initialTestNumber)
         await bbr.updateContract('testName', fixedGrc.address)
         const updatedAddress = await bbr.getContractAddress('testName')
 

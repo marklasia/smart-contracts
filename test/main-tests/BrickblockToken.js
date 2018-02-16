@@ -67,9 +67,9 @@ const distributableTokens = tokenTotal.minus(bonusTokens).minus(companyTokens)
 
 describe('during the ico', () => {
   contract('BrickblockToken', accounts => {
-    let ownerAddress = accounts[0]
-    let bonusAddress = accounts[1]
-    let contributorAddress = accounts[2]
+    const ownerAddress = accounts[0]
+    const bonusAddress = accounts[1]
+    const contributorAddress = accounts[2]
     let bbk
     let bbkAddress
 
@@ -464,8 +464,8 @@ describe('during the ico', () => {
 
 describe('at the end of the ico when fountainAddress has been set', () => {
   contract('BrickblockToken', accounts => {
-    let owner = accounts[0]
-    let bonusAddress = accounts[1]
+    const owner = accounts[0]
+    const bonusAddress = accounts[1]
     let bbk
     let bbf
     let bbkAddress
@@ -575,11 +575,11 @@ describe('after the ico', () => {
   contract('BrickblockToken', accounts => {
     let bbk
     let bbf
-    let owner = accounts[0]
-    let bonusAddress = accounts[1]
+    const owner = accounts[0]
+    const bonusAddress = accounts[1]
     let bbkAddress
     let fountainAddress
-    let testAmount = new BigNumber(1e24)
+    const testAmount = new BigNumber(1e24)
 
     before('setup bbk BrickblockToken', async () => {
       bbk = await BrickblockToken.new(bonusAddress)
@@ -653,12 +653,16 @@ describe('after the ico', () => {
       const postFountainContractTokenBalance = await bbk.balanceOf(bbf.address)
 
       assert.equal(
-        prebbkContractTokenBalance.minus(postbbkContractTokenBalance).toString(),
+        prebbkContractTokenBalance
+          .minus(postbbkContractTokenBalance)
+          .toString(),
         companyTokens.toString(),
         'the bbk contract balance should be decremented by the companyToken amount'
       )
       assert.equal(
-        postFountainContractTokenBalance.minus(preFountainContractTokenBalance).toString(),
+        postFountainContractTokenBalance
+          .minus(preFountainContractTokenBalance)
+          .toString(),
         companyTokens.toString(),
         'the fountain contract balance should be incremented by the companyToken amount'
       )
@@ -707,6 +711,7 @@ describe('after the ico', () => {
           'should contain invalid opcode in error'
         )
       }
+
       await bbk.unpause()
     })
 

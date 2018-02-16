@@ -154,7 +154,7 @@ describe('when minting', () => {
     let act
     const owner = accounts[0]
     let fountain
-    let recipient = accounts[1]
+    const recipient = accounts[1]
     const amount = new BigNumber(1e24)
 
     before('setup BrickblockAccessToken', async () => {

@@ -110,6 +110,7 @@ async function claimAll(investors) {
       console.error(error)
     }
   }
+
   return payouts
 }
 
@@ -121,7 +122,7 @@ describe('simulate claims and payouts for 10 years (120 rounds)', () => {
 
     it('claim and payout for 10 years', async () => {
       let oldContractBalance = 0
-      for (var i = 0; i < 120; i++) {
+      for (let i = 0; i < 120; i++) {
         const meta = await cpoa.payout({
           from: custodian,
           value: BigNumber.random(18).mul(1e18),
@@ -142,6 +143,7 @@ describe('simulate claims and payouts for 10 years (120 rounds)', () => {
         )
         oldContractBalance = contractBalance
       }
+
       const cpoaBalance = await web3.eth.getBalance(cpoa.address)
       assert(
         cpoaBalance.lessThan(6 * 120),
@@ -158,8 +160,8 @@ describe('simulate payout for 100 years(1200 rounds) and no one claims until the
     })
 
     it('payout for 100 years', async () => {
-      let oldContractBalance = 0
-      for (var i = 0; i < 1200; i++) {
+      const oldContractBalance = 0
+      for (let i = 0; i < 1200; i++) {
         const meta = await cpoa.payout({
           from: custodian,
           value: BigNumber.random(16).mul(1e16),
@@ -168,8 +170,8 @@ describe('simulate payout for 100 years(1200 rounds) and no one claims until the
         console.log('payout : ', meta.logs[0].args.amount.div(1e18).toString())
         // if(meta.logs[0].args.amount != '0')
         //   console.log(JSON.stringify(meta.logs,null,2))
-
       }
+
       // claim owner fees
       console.log('claiming for OWNER')
       await cpoa.claim()

@@ -9,7 +9,7 @@ function structToObject(arrayResponse) {
   const statusIndex = 1
   const addresses = arrayResponse[addressIndex]
   const statuses = arrayResponse[statusIndex]
-  let objectResponse = []
+  const objectResponse = []
   for (i = 0; i < addresses.length; i++) {
     objectResponse.push({
       address: addresses[i],
@@ -43,7 +43,7 @@ const placeholderToken = {
 describe('after the contract is created', () => {
   contract('BrickblockUmbrella', accounts => {
     let bbu
-    let owner = accounts[0]
+    const owner = accounts[0]
 
     before('setup BrickblockUmbrella', async () => {
       bbu = await BrickblockUmbrella.deployed()
