@@ -45,7 +45,8 @@
     "---SECTION:HOUSEKEEPING---": "-------------------- GITHOOKS, HEALTHCHECK, OPEN TODOS, VULNERABILITY CHECK etc. --------------------",
     "precommit:comment": "Makes sure we don't commit bad code",
     "precommit": "lint-staged",
-    "prepush": "yarn lint && yarn test"
+    "prepush": "yarn health",
+    "health": "yarn lint && yarn test"
   },
   "lint-staged": {
     "contracts/**/*.sol": [
