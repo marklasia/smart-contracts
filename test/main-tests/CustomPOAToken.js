@@ -1,55 +1,13 @@
 const CustomPOAToken = artifacts.require('CustomPOAToken')
-const WarpTool = artifacts.require('WarpTool')
 const assert = require('assert')
 const BigNumber = require('bignumber.js')
-
-function getEtherBalance(address) {
-  return new Promise((resolve, reject) => {
-    web3.eth.getBalance(address, (err, res) => {
-      if (err) reject(err)
-      resolve(res)
-    })
-  })
-}
-
-function warpBlocks(blocks) {
-  return new Promise((resolve, reject) => {
-    contract('WarpTool', async accounts => {
-      const warpTool = await WarpTool.new()
-      for (let i = 0; i < blocks - 1; i++) {
-        await warpTool.warp()
-      }
-      resolve(true)
-    })
-  })
-}
-
-function sendTransaction(args) {
-  return new Promise(function(resolve, reject) {
-    web3.eth.sendTransaction(args, (err, res) => {
-      if (err) {
-        reject(err)
-      } else {
-        resolve(res)
-      }
-    })
-  })
-}
-
-function getReceipt(txHash) {
-  // seems that sometimes actual transaction is returned instead of txHash
-  if (typeof txHash === 'object') {
-    return txHash.receipt
-  }
-  return new Promise(function(resolve, reject) {
-    web3.eth.getTransactionReceipt(txHash, (err, res) => {
-      if (err) {
-        reject(err)
-      }
-      resolve(res)
-    })
-  })
-}
+const {
+  testWillThrow,
+  sendTransaction,
+  getReceipt,
+  warpBlocks,
+  getEtherBalance
+} = require('../helpers/general')
 
 // start scenario testing functions
 
@@ -72,7 +30,7 @@ async function testMultiBuyTokens(investors, contract, args) {
   const preContractTokenBalance = await contract.balanceOf(contract.address)
   const preContractEtherBalance = await getEtherBalance(contract.address)
 
-  for (let investor of investors) {
+  for (const investor of investors) {
     const preTokenBalance = await contract.balanceOf(investor)
     const preEtherBalance = await getEtherBalance(investor)
     await contract.whitelistAddress(investor)
@@ -126,7 +84,7 @@ async function testMultiBuyTokens(investors, contract, args) {
   )
 }
 
-async function testFallbackBuy(contract, args) {
+async function testFallbackBuy(web3, contract, args) {
   assert(args.value, 'value has not been set in args!')
   assert(args.gasPrice, 'gasPrice has not been set in args!')
   assert(args.from, 'from has not been set in args!')
@@ -140,7 +98,7 @@ async function testFallbackBuy(contract, args) {
   const preContractTokenBalance = await contract.balanceOf(contract.address)
   const preContractEtherBalance = await getEtherBalance(contract.address)
 
-  const txHash = await sendTransaction({
+  const txHash = await sendTransaction(web3, {
     to: contract.address,
     from: investor,
     value: investAmount,
@@ -275,7 +233,7 @@ async function testOwnerWithdrawFees(cpoa, owner) {
   const preContractEtherBalance = await getEtherBalance(cpoa.address)
   const preOwnerUnclaimedBalance = await cpoa.unclaimedPayoutTotals(owner)
 
-  const txHash = await cpoa.claim.sendTransaction({
+  const txHash = await cpoa.claim({
     from: owner,
     gasPrice
   })
@@ -317,7 +275,7 @@ async function testCustodianWithdrawFees(cpoa, custodian) {
     custodian
   )
 
-  const txHash = await cpoa.claim.sendTransaction({
+  const txHash = await cpoa.claim({
     from: custodian,
     gasPrice
   })
@@ -521,7 +479,7 @@ async function testClaimAllPayouts(investors, contract, args) {
 
   let totalClaimAmount = new BigNumber(0)
 
-  for (let investor of investors) {
+  for (const investor of investors) {
     const investorClaimAmount = await contract.currentPayout(investor, true)
     const preInvestorEtherBalance = await getEtherBalance(investor)
     const preContractEtherBalance = await getEtherBalance(contract.address)
@@ -573,18 +531,6 @@ async function testClaimAllPayouts(investors, contract, args) {
   )
 
   return true
-}
-
-async function testWillThrow(fn, args) {
-  try {
-    await fn.apply(null, args)
-    assert(false, 'the contract should throw here')
-  } catch (error) {
-    assert(
-      /invalid opcode/.test(error),
-      `the error message should be invalid opcode, the error was ${error}`
-    )
-  }
 }
 
 async function testKill(contract) {
@@ -762,7 +708,7 @@ describe('when in Funding stage', () => {
     })
 
     it('should start with NO investors whitelisted', async () => {
-      for (let investor of investors) {
+      for (const investor of investors) {
         const whitelisted = await cpoa.whitelisted(investor)
         assert.equal(
           whitelisted,
@@ -773,7 +719,7 @@ describe('when in Funding stage', () => {
     })
 
     it('should NOT blacklist already blacklisted investors', async () => {
-      for (let investor of investors) {
+      for (const investor of investors) {
         await testWillThrow(cpoa.blacklistAddress, [investor, { from: owner }])
       }
     })
@@ -786,7 +732,7 @@ describe('when in Funding stage', () => {
     })
 
     it('should whitelist investors if owner', async () => {
-      for (let investor of investors) {
+      for (const investor of investors) {
         await cpoa.whitelistAddress(investor)
         const whitelisted = await cpoa.whitelisted(investor)
         assert.equal(whitelisted, true, 'the investor should be whitelisted')
@@ -794,7 +740,7 @@ describe('when in Funding stage', () => {
     })
 
     it('should NOT whitelist already whitelisted investors', async () => {
-      for (let investor of investors) {
+      for (const investor of investors) {
         await testWillThrow(cpoa.whitelistAddress, [investor, { from: owner }])
       }
     })
@@ -807,7 +753,7 @@ describe('when in Funding stage', () => {
     })
 
     it('should blacklist whitelisted investors if owner', async () => {
-      for (let investor of investors) {
+      for (const investor of investors) {
         const preInvestorStatus = await cpoa.whitelisted(investor)
         await cpoa.blacklistAddress(investor)
         const postInvestorStatus = await cpoa.whitelisted(investor)
@@ -858,7 +804,7 @@ describe('when in Funding stage', () => {
     })
 
     it('should use the buy function as a fallback', async () => {
-      await testFallbackBuy(cpoa, {
+      await testFallbackBuy(web3, cpoa, {
         from: investors[0],
         value: new BigNumber(1e18),
         gasPrice
@@ -1019,22 +965,14 @@ describe('when in Pending stage', () => {
 
     it('should NOT buy using the fallback function', async () => {
       const investor = investors[0]
-      web3.eth.sendTransaction(
+      await testWillThrow(sendTransaction, [
+        web3,
         {
           to: cpoa.address,
-          from: investors[0],
+          from: investor,
           value: 1e18
-        },
-        async (error, response) => {
-          if (response) {
-            assert(false, 'the contract should throw here')
-          }
-          assert(
-            /invalid opcode/.test(error),
-            'the error message should contain invalid opcode'
-          )
         }
-      )
+      ])
     })
 
     it('should NOT terminate even if custodian', async () => {
@@ -1209,7 +1147,7 @@ describe('when in Pending stage', () => {
       const preContractEtherBalance = await getEtherBalance(cpoa.address)
       const preOwnerUnclaimedBalance = await cpoa.unclaimedPayoutTotals(owner)
 
-      const txHash = await cpoa.claim.sendTransaction({
+      const txHash = await cpoa.claim({
         from: owner,
         gasPrice
       })
@@ -1249,7 +1187,7 @@ describe('when in Pending stage', () => {
         custodian
       )
 
-      const txHash = await cpoa.claim.sendTransaction({
+      const txHash = await cpoa.claim({
         from: custodian,
         gasPrice
       })
@@ -1324,7 +1262,7 @@ describe('when in Active stage', () => {
     // amount paid by custodian - fee
     let totalPayoutAmount = new BigNumber(0)
     let totalPerTokenPayout = new BigNumber(0)
-    let investorBalances = investors.reduce((balances, investor) => {
+    const investorBalances = investors.reduce((balances, investor) => {
       return {
         ...balances,
         [investor]: new BigNumber(0)
@@ -1469,7 +1407,9 @@ describe('when in Active stage', () => {
       )
       // set for later test...
       ownerFee = fee
-      totalPayoutAmount = totalPayoutAmount.add(postContractEtherBalance.minus(fee))
+      totalPayoutAmount = totalPayoutAmount.add(
+        postContractEtherBalance.minus(fee)
+      )
     })
 
     it('should allow owner to collect the fee after payout', async () => {
@@ -1477,16 +1417,13 @@ describe('when in Active stage', () => {
 
       await testOwnerWithdrawFees(cpoa, owner)
 
-      assert.equal(
-        preOwnerUnclaimedBalance.toString(),
-        ownerFee.toString()
-      )
+      assert.equal(preOwnerUnclaimedBalance.toString(), ownerFee.toString())
     })
 
     it('should show the correct payout', async () => {
       let totalInvestorPayouts = new BigNumber(0)
 
-      for (let investor of investors) {
+      for (const investor of investors) {
         const tokenBalance = await cpoa.balanceOf(investor)
         const expectedPayout = tokenBalance
           .mul(totalPerTokenPayout)
@@ -1512,7 +1449,7 @@ describe('when in Active stage', () => {
 
     it('should claim as investor after payout', async () => {
       const gasPrice = new BigNumber(30e9)
-      for (let investor of investors) {
+      for (const investor of investors) {
         const investorClaimAmount = await cpoa.currentPayout(investor, true)
         const preInvestorEtherBalance = await getEtherBalance(investor)
         const preContractEtherBalance = await getEtherBalance(cpoa.address)
@@ -1541,6 +1478,7 @@ describe('when in Active stage', () => {
           'the contract ether balance should be decremented by the investorClaimAmount'
         )
       }
+
       const finalContractEtherBalance = await getEtherBalance(cpoa.address)
       assert.equal(
         finalContractEtherBalance.toString(),
@@ -1721,6 +1659,7 @@ describe('when in Active stage', () => {
     it('should NOT buy through the fallback function', async () => {
       const investor = investors[0]
       await testWillThrow(sendTransaction, [
+        web3,
         {
           from: investor,
           to: cpoa.address,
@@ -1792,7 +1731,7 @@ describe('while in Terminated stage', async () => {
     // amount paid by custodian - fee
     let totalPayoutAmount = new BigNumber(0)
     let totalPerTokenPayout
-    let investorBalances = investors.reduce((balances, investor) => {
+    const investorBalances = investors.reduce((balances, investor) => {
       return {
         ...balances,
         [investor]: new BigNumber(0)
@@ -1865,32 +1804,16 @@ describe('while in Terminated stage', async () => {
     })
 
     it('should NOT payout if NOT custodian', async () => {
-      try {
-        await cpoa.payout({
+      await testWillThrow(cpoa.payout, [
+        {
           from: owner,
           value: 1e18
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+        }
+      ])
     })
 
     it('should NOT payout if 0 ether is sent', async () => {
-      try {
-        await cpoa.payout({
-          from: custodian
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error messgage should contain invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.payout, [{ from: custodian }])
     })
 
     it('should payout if custodian', async () => {
@@ -1951,23 +1874,22 @@ describe('while in Terminated stage', async () => {
       )
       // set for later test...
       ownerFee = fee
-      totalPayoutAmount = totalPayoutAmount.add(postContractEtherBalance.minus(fee))
+      totalPayoutAmount = totalPayoutAmount.add(
+        postContractEtherBalance.minus(fee)
+      )
     })
 
     it('should allow owner to collect the fee after payout', async () => {
       const preOwnerUnclaimedBalance = await cpoa.unclaimedPayoutTotals(owner)
       await testOwnerWithdrawFees(cpoa, owner)
 
-      assert.equal(
-        preOwnerUnclaimedBalance.toString(),
-        ownerFee.toString()
-      )
+      assert.equal(preOwnerUnclaimedBalance.toString(), ownerFee.toString())
     })
 
     it('should show the correct payout', async () => {
       let totalInvestorPayouts = new BigNumber(0)
 
-      for (let investor of investors) {
+      for (const investor of investors) {
         const tokenBalance = await cpoa.balanceOf(investor)
         const expectedPayout = tokenBalance.mul(totalPerTokenPayout).div(1e18)
         const currentPayout = await cpoa.currentPayout(investor, true)
@@ -1990,7 +1912,7 @@ describe('while in Terminated stage', async () => {
 
     it('should claim as investor after payout', async () => {
       const gasPrice = new BigNumber(30e9)
-      for (let investor of investors) {
+      for (const investor of investors) {
         const investorClaimAmount = await cpoa.currentPayout(investor, true)
         const preInvestorEtherBalance = await getEtherBalance(investor)
         const preContractEtherBalance = await getEtherBalance(cpoa.address)
@@ -2019,6 +1941,7 @@ describe('while in Terminated stage', async () => {
           'the contract ether balance should be decremented by the investorClaimAmount'
         )
       }
+
       const finalContractEtherBalance = await getEtherBalance(cpoa.address)
       assert.equal(
         finalContractEtherBalance.toString(),
@@ -2028,200 +1951,101 @@ describe('while in Terminated stage', async () => {
     })
 
     it('should NOT claim if an address has no payout', async () => {
-      try {
-        await cpoa.claim({
-          from: owner
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.claim, [{ from: owner }])
     })
 
     // start expected impossible functions in Stages.Terminated
 
     it('should NOT unpause even if owner', async () => {
-      try {
-        await cpoa.unpause({
-          from: owner
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.unpause, [{ from: owner }])
     })
 
     it('should NOT pause even if owner', async () => {
-      try {
-        await cpoa.pause({
-          from: owner
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.pause, [{ from: owner }])
     })
 
     it('should NOT whitelist even if owner', async () => {
       const whitelisted = await cpoa.whitelisted(broker)
       assert(!whitelisted, 'the broker should not be whitelisted')
-      try {
-        await cpoa.whitelistAddress(broker, {
-          from: owner
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.whitelistAddress, [broker, { from: owner }])
     })
 
     it('should NOT blacklist even if owner', async () => {
       const whitelistedInvestor = investors[0]
       const whitelisted = await cpoa.whitelisted(whitelistedInvestor)
       assert(whitelisted, 'the investor should be whitelisted already')
-      try {
-        await cpoa.blacklistAddress(investors[0], {
-          from: owner
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.blacklistAddress, [
+        whitelistedInvestor,
+        { from: owner }
+      ])
     })
 
     it('should NOT buy even if whitelisted', async () => {
       const whitelistedInvestor = investors[0]
       const whitelisted = await cpoa.whitelisted(whitelistedInvestor)
       assert(whitelisted, 'the investor should be whitelisted already')
-      try {
-        await cpoa.buy({
+      await testWillThrow(cpoa.buy, [
+        {
           from: whitelistedInvestor,
           value: 1e18
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+        }
+      ])
     })
 
     it('should NOT activate even if custodian', async () => {
       const contractValue = await cpoa.totalSupply()
       const fee = await cpoa.calculateFee(contractValue)
-      try {
-        await cpoa.activate({
-          from: custodian,
-          value: fee
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.activate, [{ from: custodian, value: fee }])
     })
 
     it('should NOT reclaim even if owning tokens', async () => {
       const investor = investors[0]
       const investorBalance = await cpoa.balanceOf(investor)
       assert(investorBalance.greaterThan(0), 'the investor should own tokens')
-      try {
-        await cpoa.reclaim({
-          from: investor
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      testWillThrow(cpoa.reclaim, [{ from: investor }])
     })
 
     it('should NOT buy through the fallback function', async () => {
       const investor = investors[0]
-      try {
-        await sendTransaction({
+      await testWillThrow(sendTransaction, [
+        {
+          web3,
           from: investor,
           to: cpoa.address,
           value: 1e18
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+        }
+      ])
     })
 
     it('should NOT transfer even if the investor has tokens', async () => {
       const sender = investors[0]
       const receiver = investors[1]
       const sendAmount = new BigNumber(1e18)
-      try {
-        await cpoa.transfer(receiver, sendAmount, {
-          from: sender
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.transfer, [
+        receiver,
+        sendAmount,
+        { from: sender }
+      ])
     })
 
     it('should NOT approve', async () => {
-      try {
-        await cpoa.approve(allowanceOwner, allowanceAmount, {
-          from: allowanceSpender
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.approve, [
+        allowanceOwner,
+        allowanceAmount,
+        { from: allowanceSpender }
+      ])
     })
 
     it('should NOT transferFrom even if allowance was previously set', async () => {
       // allowance is set in before block
-      try {
-        await cpoa.transferFrom(
-          allowanceOwner,
-          allowanceSpender,
-          allowanceAmount,
-          {
-            from: allowanceSpender
-          }
-        )
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.transfer, [
+        allowanceOwner,
+        allowanceSpender,
+        allowanceAmount,
+        {
+          from: allowanceSpender
+        }
+      ])
     })
 
     // end expected impossible functions in Stages.Terminated
@@ -2251,7 +2075,7 @@ describe('when timing out (going into stage 2 (failed))', () => {
     const fundingGoal = new BigNumber(150e18).div(10)
     const gasPrice = new BigNumber(30e9)
     const tokenSalePrice = totalSupply.div(fundingGoal)
-    let investorBalances = investors.reduce((balances, investor) => {
+    const investorBalances = investors.reduce((balances, investor) => {
       return {
         ...balances,
         [investor]: new BigNumber(0)
@@ -2290,18 +2114,12 @@ describe('when timing out (going into stage 2 (failed))', () => {
     })
 
     it('should NOT timeout to failed when buying after timeoutblock, it should throw', async () => {
-      try {
-        await cpoa.buy({
+      await testWillThrow(cpoa.buy, [
+        {
           from: investors[0],
           value: 1e18
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          `the error message should contain invalid opcode${error}`
-        )
-      }
+        }
+      ])
 
       const stage = await cpoa.stage()
       assert.equal(
@@ -2314,18 +2132,12 @@ describe('when timing out (going into stage 2 (failed))', () => {
     it('should NOT timeout to failed when activating as custodian, it should throw', async () => {
       const totalSupply = await cpoa.totalSupply()
       const fee = await cpoa.calculateFee(totalSupply)
-      try {
-        await cpoa.activate({
+      await testWillThrow(cpoa.activate, [
+        {
           from: custodian,
           value: fee
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+        }
+      ])
 
       const stage = await cpoa.stage()
       assert.equal(
@@ -2431,130 +2243,54 @@ describe('when timing out (going into stage 2 (failed))', () => {
     })
 
     it('should NOT reclaim if NOT owning tokens', async () => {
-      try {
-        await cpoa.reclaim({
-          from: owner
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.reclaim, [{ from: owner }])
     })
 
     // start expected imposssible functions in Stages.Failed
 
     it('should NOT unpause even if owner', async () => {
-      try {
-        await cpoa.unpause({
-          from: owner
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.unpause, [{ from: owner }])
     })
 
     it('should NOT whitelist even if owner', async () => {
       const whitelisted = await cpoa.whitelisted(broker)
       assert(!whitelisted, 'the broker should not be whitelisted')
-      try {
-        await cpoa.whitelistAddress(broker, {
-          from: owner
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.whitelistAddress, [broker, { from: owner }])
     })
 
     it('should NOT blacklist even if owner', async () => {
       const whitelistedInvestor = investors[0]
       const whitelisted = await cpoa.whitelisted(whitelistedInvestor)
       assert(whitelisted, 'the investor should be whitelisted already')
-      try {
-        await cpoa.blacklistAddress(investors[0], {
+      await testWillThrow(cpoa.blacklistAddress, [
+        whitelistedInvestor,
+        {
           from: owner
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+        }
+      ])
     })
 
     it('should NOT buy even if whitelisted', async () => {
       const whitelistedInvestor = investors[0]
       const whitelisted = await cpoa.whitelisted(whitelistedInvestor)
       assert(whitelisted, 'the investor should be whitelisted already')
-      try {
-        await cpoa.buy({
-          from: whitelistedInvestor,
-          value: 1e18
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.buy, [
+        { from: whitelistedInvestor, value: 1e18 }
+      ])
     })
 
     it('should NOT activate even if custodian', async () => {
       const contractValue = await cpoa.totalSupply()
       const fee = await cpoa.calculateFee(contractValue)
-      try {
-        await cpoa.activate({
-          from: custodian,
-          value: fee
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.activate, [{ from: custodian, value: fee }])
     })
 
     it('should NOT terminate even if custodian', async () => {
-      try {
-        await cpoa.terminate({
-          from: custodian
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.terminate, [{ from: custodian }])
     })
 
     it('should NOT payout even if custodian with ether paid', async () => {
-      try {
-        await cpoa.payout({
-          from: custodian,
-          value: 1e18
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.payout, [{ from: custodian, value: 1e18 }])
     })
 
     it('should NOT claim even if investor with invested amount', async () => {
@@ -2564,17 +2300,7 @@ describe('when timing out (going into stage 2 (failed))', () => {
         investorTokenBalance.toNumber() > 0,
         'the investor token balance should be more than 0 from previous tests'
       )
-      try {
-        await cpoa.claim({
-          from: investor
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+      await testWillThrow(cpoa.claim, [{ from: investor }])
     })
 
     it('should NOT transfer even if investor has tokens', async () => {
@@ -2585,57 +2311,44 @@ describe('when timing out (going into stage 2 (failed))', () => {
         investorTokenBalance.toNumber() > 0,
         'the investor token balance should be more than 0 from previous tests'
       )
-      try {
-        await cpoa.transfer(otherInvestor, investorTokenBalance.div(2), {
+      await testWillThrow(cpoa.transfer, [
+        otherInvestor,
+        investorTokenBalance.div(2),
+        {
           from: investor
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+        }
+      ])
     })
 
     it('should NOT approve and thus also NOT transferFrom', async () => {
       const investor = investors[1]
       const otherInvestor = investors[2]
-      try {
-        await cpoa.approve(otherInvestor, 1e18, {
+      await testWillThrow(cpoa.approve, [
+        otherInvestor,
+        1e18,
+        {
           from: investor
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should include invalid opcode'
-        )
-      }
+        }
+      ])
     })
 
     it('should NOT buy through the fallback function', async () => {
       const investor = investors[0]
-      try {
-        await sendTransaction({
+      await testWillThrow(sendTransaction, [
+        web3,
+        {
           from: investor,
           to: cpoa.address,
           value: 1e18
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+        }
+      ])
     })
 
     // end expected imposssible functions in Stages.Failed
 
     it('should reclaim when owning tokens', async () => {
       const preTotalSupply = await cpoa.totalSupply()
-      for (let investor of laterReclaimInvestors) {
+      for (const investor of laterReclaimInvestors) {
         const preInvestorEtherBalance = await getEtherBalance(investor)
         const preInvestorTokenBalance = await cpoa.balanceOf(investor)
         const preContractEtherBalance = await getEtherBalance(cpoa.address)
