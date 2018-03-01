@@ -1,6 +1,7 @@
 const CustomPOAToken = artifacts.require('CustomPOAToken')
 const assert = require('assert')
 const BigNumber = require('bignumber.js')
+
 const {
   testWillThrow,
   sendTransaction,
@@ -218,7 +219,7 @@ async function testActivation(contract, args) {
   const fee = await contract.calculateFee(contractValue)
   args.value = args.value ? args.value : fee
   await contract.activate(args)
-  currentStage = await contract.stage()
+  const currentStage = await contract.stage()
 
   assert.equal(
     currentStage.toNumber(),
@@ -422,7 +423,6 @@ async function testPayout(contract, args) {
   const preContractTotalTokenPayout = await contract.totalPerTokenPayout()
   const preCustodianEtherBalance = await getEtherBalance(custodian)
   const preContractEtherBalance = await getEtherBalance(contract.address)
-  const preOwnerEtherBalance = await getEtherBalance(owner)
 
   assert(args.gasPrice, 'gasPrice not included in args!')
   assert(args.from, 'from not included in args!')
@@ -445,7 +445,6 @@ async function testPayout(contract, args) {
     .minus(payoutValue)
   const postContractEtherBalance = await getEtherBalance(contract.address)
   const expectedContractEtherBalance = payoutValue.minus(fee)
-  const postOwnerEtherBalance = await getEtherBalance(owner)
 
   assert.equal(
     postContractTotalTokenPayout.toString(),
@@ -511,6 +510,7 @@ async function testClaimAllPayouts(investors, contract, args) {
       )
       totalClaimAmount = totalClaimAmount.add(investorClaimAmount)
     } else {
+      // eslint-disable-next-line no-console
       console.log(
         `⚠️ ${
           investor
@@ -536,12 +536,7 @@ async function testClaimAllPayouts(investors, contract, args) {
 async function testKill(contract) {
   const accounts = web3.eth.accounts
   const owner = accounts[0]
-  const broker = accounts[1]
   const custodian = accounts[2]
-  const investors = accounts.slice(3)
-
-  const fundingGoal = contract.fundingGoal()
-  const totalSupply = contract.totalSupply()
 
   const preContractEtherBalance = await getEtherBalance(contract.address)
   const preOwnerEtherBalance = await getEtherBalance(owner)
@@ -597,10 +592,8 @@ async function getAccountInformation(address, contract) {
 
 describe('when first deploying', () => {
   contract('CustomPOAToken', accounts => {
-    const owner = accounts[0]
     const broker = accounts[1]
     const custodian = accounts[2]
-    const investors = accounts.slice(3)
     const totalSupply = new BigNumber(20e18)
     const fundingGoal = new BigNumber(20e18)
     const timeoutBlock = web3.eth.blockNumber + 200
@@ -625,7 +618,6 @@ describe('when first deploying', () => {
       const contractCustodian = await cpoa.custodian()
       const actualTimeoutBlock = await cpoa.timeoutBlock()
       const contractTotalSupply = await cpoa.totalSupply()
-      const contractTokenBalance = await cpoa.balanceOf(cpoa.address)
       const decimals = await cpoa.decimals()
       const feeRate = await cpoa.feeRate()
 
@@ -690,9 +682,8 @@ describe('when in Funding stage', () => {
     const nonInvestor = accounts[3]
     const investors = accounts.slice(4)
     const totalSupply = new BigNumber(10e18)
-    const fundingGoal = new BigNumber(20e18)
+    const fundingGoal = new BigNumber(33e18)
     const gasPrice = new BigNumber(30e9)
-    const tokenSalePrice = totalSupply.div(fundingGoal)
     let cpoa
 
     before('setup state', async () => {
@@ -788,12 +779,35 @@ describe('when in Funding stage', () => {
       ])
     })
 
+    it('should NOT allow buying less than a wei unit of token', async () => {
+      const investor = investors[0]
+      const whitelisted = await cpoa.whitelisted(investor)
+      assert(whitelisted, 'the investor should be whitelisted')
+      const initialSupply = await cpoa.initialSupply()
+      const smallInvestment = fundingGoal.div(initialSupply).toFixed(0)
+      await testWillThrow(cpoa.buy, [
+        {
+          from: investor,
+          value: smallInvestment
+        }
+      ])
+    })
+
     it('should NOT allow buying more than the contract token balance', async () => {
       const investor = investors[0]
       const investorStatus = await cpoa.whitelisted(investor)
       assert(investorStatus, 'the investor should be whitelisted')
       const contractEtherBalance = await getEtherBalance(cpoa.address)
-      const overInvestAmount = fundingGoal.minus(contractEtherBalance).add(2)
+      const overInvestAmount = fundingGoal.minus(contractEtherBalance).add(1)
+      await cpoa.buy({
+        from: investor,
+        value: overInvestAmount
+      })
+      const postContractEtherBalance = await getEtherBalance(cpoa.address)
+      console.log(
+        postContractEtherBalance.div(1e18).toString(),
+        fundingGoal.div(1e18).toString()
+      )
       // [TODO] this should work with 1 too
       await testWillThrow(cpoa.buy, [
         {
@@ -904,8 +918,6 @@ describe('when in Pending stage', () => {
     const investors = accounts.slice(4)
     const totalSupply = new BigNumber(600e18).div(10)
     const fundingGoal = new BigNumber(150e18).div(10)
-    const gasPrice = new BigNumber(30e9)
-    const tokenSalePrice = totalSupply.div(fundingGoal)
     let cpoa
 
     before('setup state', async () => {
@@ -952,7 +964,6 @@ describe('when in Pending stage', () => {
     })
 
     it('should NOT blacklist even if owner', async () => {
-      const investorStatus = cpoa.whitelisted(investors[0])
       await testWillThrow(cpoa.blacklistAddress, [
         investors[0],
         { from: owner }
@@ -1072,7 +1083,6 @@ describe('when in Pending stage', () => {
     })
 
     it('should activate when called by custodian with appropriate fee', async () => {
-      const fundingGoal = await cpoa.fundingGoal()
       const fee = await cpoa.calculateFee(fundingGoal)
       const gasPrice = new BigNumber(30e9)
 
@@ -1248,32 +1258,22 @@ describe('when in Active stage', () => {
     const owner = accounts[0]
     const broker = accounts[1]
     const custodian = accounts[2]
-    const nonInvestor = accounts[3]
     const investors = accounts.slice(4)
     const allowanceOwner = investors[0]
     const allowanceSpender = investors[1]
     const allowanceAmount = new BigNumber(5e17)
     const totalSupply = new BigNumber(600e18).div(10)
     const fundingGoal = new BigNumber(200e18).div(10)
-    const gasPrice = new BigNumber(30e9)
-    const tokenSalePrice = totalSupply.div(fundingGoal)
     let cpoa
     let ownerFee
     // amount paid by custodian - fee
     let totalPayoutAmount = new BigNumber(0)
     let totalPerTokenPayout = new BigNumber(0)
-    const investorBalances = investors.reduce((balances, investor) => {
-      return {
-        ...balances,
-        [investor]: new BigNumber(0)
-      }
-    }, {})
 
     before('setup state', async () => {
       //setup contract
       const investAmount = new BigNumber(1e18)
       const bigInvestor = investors[0]
-      let currentStage
       cpoa = await CustomPOAToken.new(
         'ProofOfAwesome',
         'POA',
@@ -1348,7 +1348,6 @@ describe('when in Active stage', () => {
     })
 
     it('should payout if custodian', async () => {
-      const totalSupply = await cpoa.totalSupply()
       const payoutValue = new BigNumber(1e18)
       const gasPrice = new BigNumber(30e9)
       const _fee = await cpoa.calculateFee(payoutValue)
@@ -1363,7 +1362,6 @@ describe('when in Active stage', () => {
       const preContractTotalTokenPayout = await cpoa.totalPerTokenPayout()
       const preCustodianEtherBalance = await getEtherBalance(custodian)
       const preContractEtherBalance = await getEtherBalance(cpoa.address)
-      const preOwnerEtherBalance = await getEtherBalance(owner)
 
       const tx = await cpoa.payout({
         from: custodian,
@@ -1387,7 +1385,6 @@ describe('when in Active stage', () => {
         .minus(gasPrice.mul(tx.receipt.gasUsed))
         .minus(payoutValue)
       const postContractEtherBalance = await getEtherBalance(cpoa.address)
-      const postOwnerEtherBalance = await getEtherBalance(owner)
 
       assert.equal(
         postContractTotalTokenPayout.toString(),
@@ -1718,25 +1715,17 @@ describe('while in Terminated stage', async () => {
     const owner = accounts[0]
     const broker = accounts[1]
     const custodian = accounts[2]
-    const nonInvestor = accounts[3]
     const investors = accounts.slice(4)
     const allowanceOwner = investors[0]
     const allowanceSpender = investors[1]
     const allowanceAmount = new BigNumber(5e17)
     const totalSupply = new BigNumber(600e18).div(10)
     const fundingGoal = new BigNumber(150e18).div(10)
-    const gasPrice = new BigNumber(30e9)
-    const tokenSalePrice = totalSupply.div(fundingGoal)
     let cpoa
+    let ownerFee
     // amount paid by custodian - fee
     let totalPayoutAmount = new BigNumber(0)
     let totalPerTokenPayout
-    const investorBalances = investors.reduce((balances, investor) => {
-      return {
-        ...balances,
-        [investor]: new BigNumber(0)
-      }
-    }, {})
 
     before('setup state', async () => {
       //setup contract
@@ -1817,7 +1806,6 @@ describe('while in Terminated stage', async () => {
     })
 
     it('should payout if custodian', async () => {
-      const totalSupply = await cpoa.totalSupply()
       const payoutValue = new BigNumber(1e18)
       const gasPrice = new BigNumber(30e9)
       const _fee = await cpoa.calculateFee(payoutValue)
@@ -1832,7 +1820,6 @@ describe('while in Terminated stage', async () => {
       const preContractTotalTokenPayout = await cpoa.totalPerTokenPayout()
       const preCustodianEtherBalance = await getEtherBalance(custodian)
       const preContractEtherBalance = await getEtherBalance(cpoa.address)
-      const preOwnerEtherBalance = await getEtherBalance(owner)
 
       const tx = await cpoa.payout({
         from: custodian,
@@ -1854,8 +1841,6 @@ describe('while in Terminated stage', async () => {
         .minus(gasPrice.mul(tx.receipt.gasUsed))
         .minus(payoutValue)
       const postContractEtherBalance = await getEtherBalance(cpoa.address)
-      const expectedContractEtherBalance = payoutValue.minus(fee)
-      const postOwnerEtherBalance = await getEtherBalance(owner)
 
       assert.equal(
         postContractTotalTokenPayout.toString(),
@@ -2008,8 +1993,8 @@ describe('while in Terminated stage', async () => {
     it('should NOT buy through the fallback function', async () => {
       const investor = investors[0]
       await testWillThrow(sendTransaction, [
+        web3,
         {
-          web3,
           from: investor,
           to: cpoa.address,
           value: 1e18
@@ -2038,7 +2023,7 @@ describe('while in Terminated stage', async () => {
 
     it('should NOT transferFrom even if allowance was previously set', async () => {
       // allowance is set in before block
-      await testWillThrow(cpoa.transfer, [
+      await testWillThrow(cpoa.transferFrom, [
         allowanceOwner,
         allowanceSpender,
         allowanceAmount,
@@ -2067,26 +2052,17 @@ describe('when timing out (going into stage 2 (failed))', () => {
     const owner = accounts[0]
     const broker = accounts[1]
     const custodian = accounts[2]
-    const nonInvestor = accounts[3]
     const investors = accounts.slice(4)
     const firstReclaimInvestor = investors[0]
     const laterReclaimInvestors = investors.slice(1)
     const totalSupply = new BigNumber(600e18).div(10)
     const fundingGoal = new BigNumber(150e18).div(10)
     const gasPrice = new BigNumber(30e9)
-    const tokenSalePrice = totalSupply.div(fundingGoal)
-    const investorBalances = investors.reduce((balances, investor) => {
-      return {
-        ...balances,
-        [investor]: new BigNumber(0)
-      }
-    }, {})
     let cpoa
 
     before('setup fresh cpoa', async () => {
       //setup contract
       const investAmount = new BigNumber(1e18)
-      let currentStage
       cpoa = await CustomPOAToken.new(
         'ProofOfAwesome',
         'POA',
@@ -2105,7 +2081,7 @@ describe('when timing out (going into stage 2 (failed))', () => {
       // warp ahead past timeoutBlock to setup for failure
       await warpBlocks(50)
       // contract should still be in funding until someone pokes the contract
-      currentStage = await cpoa.stage()
+      const currentStage = await cpoa.stage()
       assert.equal(
         currentStage.toNumber(),
         0,
@@ -2130,7 +2106,6 @@ describe('when timing out (going into stage 2 (failed))', () => {
     })
 
     it('should NOT timeout to failed when activating as custodian, it should throw', async () => {
-      const totalSupply = await cpoa.totalSupply()
       const fee = await cpoa.calculateFee(totalSupply)
       await testWillThrow(cpoa.activate, [
         {
@@ -2347,7 +2322,6 @@ describe('when timing out (going into stage 2 (failed))', () => {
     // end expected imposssible functions in Stages.Failed
 
     it('should reclaim when owning tokens', async () => {
-      const preTotalSupply = await cpoa.totalSupply()
       for (const investor of laterReclaimInvestors) {
         const preInvestorEtherBalance = await getEtherBalance(investor)
         const preInvestorTokenBalance = await cpoa.balanceOf(investor)
@@ -2425,7 +2399,6 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     const owner = accounts[0]
     const broker = accounts[1]
     const custodian = accounts[2]
-    const nonInvestor = accounts[3]
     const investors = accounts.slice(4)
     const allowanceOwner = investors[0]
     const allowanceSpender = investors[1]
@@ -2435,14 +2408,12 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     const totalSupply = new BigNumber(600e18).div(10)
     const fundingGoal = new BigNumber(150e18).div(10)
     const gasPrice = new BigNumber(30e9)
-    const tokenSalePrice = totalSupply.div(fundingGoal)
     let cpoa
 
     beforeEach('setup state', async () => {
       //setup contract
       const investAmount = new BigNumber(1e18)
       const bigInvestor = investors[0]
-      let currentStage
       cpoa = await CustomPOAToken.new(
         'ProofOfAwesome',
         'POA',
@@ -2486,17 +2457,16 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     describe('payout -> trasfer 100% -> payout', () => {
       it('should have the correct currentPayout and claims for each user', async () => {
         const payoutAmount = new BigNumber(1e18)
-        const totalSupply = await cpoa.totalSupply()
         const senderAccount1 = await getAccountInformation(sender, cpoa)
         const receiverAccount1 = await getAccountInformation(receiver, cpoa)
-        const firstTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
         })
 
-        const senderAccount2 = await getAccountInformation(sender, cpoa)
-        const receiverAccount2 = await getAccountInformation(receiver, cpoa)
+        await getAccountInformation(sender, cpoa)
+        await getAccountInformation(receiver, cpoa)
 
         await testTransfer(receiver, senderAccount1.tokenBalance, cpoa, {
           from: sender
@@ -2505,7 +2475,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         const senderAccount3 = await getAccountInformation(sender, cpoa)
         const receiverAccount3 = await getAccountInformation(receiver, cpoa)
 
-        const secondTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
@@ -2570,17 +2540,16 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     describe('payout -> trasfer 50% -> payout', () => {
       it('should have the correct currentPayout and claims for each user', async () => {
         const payoutAmount = new BigNumber(1e18)
-        const totalSupply = await cpoa.totalSupply()
         const senderAccount1 = await getAccountInformation(sender, cpoa)
         const receiverAccount1 = await getAccountInformation(receiver, cpoa)
-        const firstTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
         })
 
-        const senderAccount2 = await getAccountInformation(sender, cpoa)
-        const receiverAccount2 = await getAccountInformation(receiver, cpoa)
+        await getAccountInformation(sender, cpoa)
+        await getAccountInformation(receiver, cpoa)
 
         await testTransfer(receiver, senderAccount1.tokenBalance.div(2), cpoa, {
           from: sender
@@ -2589,7 +2558,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         const senderAccount3 = await getAccountInformation(sender, cpoa)
         const receiverAccount3 = await getAccountInformation(receiver, cpoa)
 
-        const secondTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
@@ -2649,24 +2618,20 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     describe('payout -> trasferFrom 100% -> payout', () => {
       it('should have the correct currentPayout and claims for each user', async () => {
         const payoutAmount = new BigNumber(1e18)
-        const totalSupply = await cpoa.totalSupply()
         const allowanceOwnerAccount1 = await getAccountInformation(
           allowanceOwner,
           cpoa
         )
         const receiverAccount1 = await getAccountInformation(receiver, cpoa)
 
-        const firstTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
         })
 
-        const allowanceOwnerAccount2 = await getAccountInformation(
-          allowanceOwner,
-          cpoa
-        )
-        const receiverAccount2 = await getAccountInformation(receiver, cpoa)
+        await getAccountInformation(allowanceOwner, cpoa)
+        await getAccountInformation(receiver, cpoa)
 
         await testApproveTransferFrom(
           allowanceOwner,
@@ -2683,7 +2648,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         )
         const receiverAccount3 = await getAccountInformation(receiver, cpoa)
 
-        const secondTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
@@ -2746,23 +2711,19 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     describe('payout -> trasferFrom 50% -> payout', () => {
       it('should have the correct currentPayout and claims for each user', async () => {
         const payoutAmount = new BigNumber(1e18)
-        const totalSupply = await cpoa.totalSupply()
         const allowanceOwnerAccount1 = await getAccountInformation(
           allowanceOwner,
           cpoa
         )
         const receiverAccount1 = await getAccountInformation(receiver, cpoa)
-        const firstTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
         })
 
-        const allowanceOwnerAccount2 = await getAccountInformation(
-          allowanceOwner,
-          cpoa
-        )
-        const receiverAccount2 = await getAccountInformation(receiver, cpoa)
+        await getAccountInformation(allowanceOwner, cpoa)
+        await getAccountInformation(receiver, cpoa)
 
         await testApproveTransferFrom(
           allowanceOwner,
@@ -2779,7 +2740,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         )
         const receiverAccount3 = await getAccountInformation(receiver, cpoa)
 
-        const secondTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
@@ -2842,18 +2803,17 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     describe('transfer 100% -> payout', () => {
       it('should have the correct currentPayout and claims for each investor', async () => {
         const payoutAmount = new BigNumber(1e18)
-        const totalSupply = await cpoa.totalSupply()
 
         const senderAccount1 = await getAccountInformation(sender, cpoa)
-        const receiverAccount1 = await getAccountInformation(receiver, cpoa)
+        await getAccountInformation(receiver, cpoa)
 
         await testTransfer(receiver, senderAccount1.tokenBalance, cpoa, {
           from: sender
         })
 
-        const senderAccount2 = await getAccountInformation(sender, cpoa)
+        await getAccountInformation(sender, cpoa)
         const receiverAccount2 = await getAccountInformation(receiver, cpoa)
-        const firstTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
@@ -2895,10 +2855,9 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     describe('transfer 50% -> payout', () => {
       it('should have the correct currentPayout and claims for each investor', async () => {
         const payoutAmount = new BigNumber(1e18)
-        const totalSupply = await cpoa.totalSupply()
 
         const senderAccount1 = await getAccountInformation(sender, cpoa)
-        const receiverAccount1 = await getAccountInformation(receiver, cpoa)
+        await getAccountInformation(receiver, cpoa)
 
         await testTransfer(receiver, senderAccount1.tokenBalance.div(2), cpoa, {
           from: sender
@@ -2906,7 +2865,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
 
         const senderAccount2 = await getAccountInformation(sender, cpoa)
         const receiverAccount2 = await getAccountInformation(receiver, cpoa)
-        const firstTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
@@ -2950,13 +2909,12 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     describe('transferFrom 100% -> payout', () => {
       it('should have the correct currentPayout and claims for each investor', async () => {
         const payoutAmount = new BigNumber(1e18)
-        const totalSupply = await cpoa.totalSupply()
 
         const allowanceOwnerAccount1 = await getAccountInformation(
           allowanceOwner,
           cpoa
         )
-        const receiverAccount1 = await getAccountInformation(receiver, cpoa)
+        await getAccountInformation(receiver, cpoa)
 
         await testApproveTransferFrom(
           allowanceOwner,
@@ -2967,12 +2925,9 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
           cpoa
         )
 
-        const allowanceOwnerAccount2 = await getAccountInformation(
-          allowanceOwner,
-          cpoa
-        )
+        await getAccountInformation(allowanceOwner, cpoa)
         const receiverAccount2 = await getAccountInformation(receiver, cpoa)
-        const firstTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice
@@ -3017,13 +2972,12 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     describe('transferFrom 50% -> payout', () => {
       it('should have the correct currentPayout and claims for each investor', async () => {
         const payoutAmount = new BigNumber(1e18)
-        const totalSupply = await cpoa.totalSupply()
 
         const allowanceOwnerAccount1 = await getAccountInformation(
           allowanceOwner,
           cpoa
         )
-        const receiverAccount1 = await getAccountInformation(receiver, cpoa)
+        await getAccountInformation(receiver, cpoa)
 
         await testApproveTransferFrom(
           allowanceOwner,
@@ -3039,7 +2993,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
           cpoa
         )
         const receiverAccount2 = await getAccountInformation(receiver, cpoa)
-        const firstTokenTotalPayout = await testPayout(cpoa, {
+        await testPayout(cpoa, {
           from: custodian,
           value: payoutAmount,
           gasPrice

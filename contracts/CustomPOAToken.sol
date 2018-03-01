@@ -1,4 +1,4 @@
-pragma solidity 0.4.19;
+pragma solidity 0.4.18;
 
 import "zeppelin-solidity/contracts/token/PausableToken.sol";
 
@@ -19,6 +19,7 @@ contract CustomPOAToken is PausableToken {
   // the total per token payout rate: accumulates as payouts are received
   uint256 public totalPerTokenPayout;
   uint256 public tokenSaleRate;
+  uint256 public fundedAmount;
   uint256 public fundingGoal;
   uint256 public initialSupply;
   // ‰ permille NOT percent
@@ -41,7 +42,7 @@ contract CustomPOAToken is PausableToken {
   Stages public stage = Stages.Funding;
 
   event Stage(Stages stage);
-  event Buy(address buyer, uint256 amount, uint256 dust);
+  event Buy(address buyer, uint256 amount, uint256 claimableDust);
   event Payout(uint256 amount);
   event Claim(uint256 payout);
   event Terminated();
@@ -215,22 +216,40 @@ contract CustomPOAToken is PausableToken {
     isWhitelisted
     returns (bool)
   {
-    // get both converted amount and remainder after integer division
-    var (_buyAmount, _remainingAmount) = weiToTokens(msg.value);
     // check that buyer will indeed receive after integer division
     require(_buyAmount > 0);
+    // check if balance has met funding goal to move on
+    uint256 _payAmount;
+    uint256 _buyAmount;
+    uint256 _remainingAmount;
+    uint256 _refundAmount = 0;
+    if (this.balance < fundingGoal) {
+      // _payAmount is just value sent
+      _payAmount = msg.value;
+      // get both converted amount and remainder after integer division
+      (_buyAmount, _remainingAmount) = weiToTokens(_payAmount);
+    } else {
+      // let the world know that the token is in Pending Stage
+      enterStage(Stages.Pending);
+      // set refund amount (overpaid amount)
+      _refundAmount = fundedAmount.sub(fundingGoal);
+      // get actual ether amount to buy
+      _payAmount = msg.value.sub(_refundAmount);
+      // get both converted amount and remainder after integer division
+      (_buyAmount, _remainingAmount) = weiToTokens(_payAmount);
+      // SHOULD be ok even with reentrancy because of enterStage(Stages.Pending)
+      msg.sender.transfer(_refundAmount);
+    }
     // deduct token buy amount balance from contract balance
     balances[this] = balances[this].sub(_buyAmount);
+    // increment the funded amount
+    fundedAmount = fundedAmount.add(_payAmount);
     // add token buy amount to sender's balance
     balances[msg.sender] = balances[msg.sender].add(_buyAmount);
     // add any dust from integer division to the sender's balance
     unclaimedPayoutTotals[msg.sender] = unclaimedPayoutTotals[msg.sender].add(_remainingAmount);
     // send out event giving info on amount bought as well as claimable dust
     Buy(msg.sender, _buyAmount, _remainingAmount);
-    // check if balance has met funding goal to move on
-    if (this.balance >= fundingGoal) {
-      enterStage(Stages.Pending);
-    }
     return true;
   }
 
