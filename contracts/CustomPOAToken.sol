@@ -91,6 +91,7 @@ contract CustomPOAToken is PausableToken {
   )
     public
   {
+    require(totalSupply > fundingGoal);
     owner = msg.sender;
     name = _name;
     symbol = _symbol;
@@ -124,9 +125,9 @@ contract CustomPOAToken is PausableToken {
       uint256
     )
   {
-    uint256 tokenAmount = (_ethAmount.mul(1e18).mul(initialSupply)).div(fundingGoal).div(1e18);
-    uint256 remainingValue = (_ethAmount.mul(1e18).mul(initialSupply)) % (fundingGoal.div(1e18));
-    return (tokenAmount, remainingValue);
+    uint256 _tokenAmount = (_ethAmount.mul(1e18).mul(initialSupply)).div(fundingGoal).div(1e18);
+    uint256 _remainingValue = (_ethAmount.mul(1e18).mul(initialSupply)) % (fundingGoal.div(1e18));
+    return (_tokenAmount, _remainingValue);
   }
 
   // util function to convert tokens to wei. can be used publicly to see how

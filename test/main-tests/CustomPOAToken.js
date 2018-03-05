@@ -25,7 +25,8 @@ const {
   getAccountInformation,
   gasPrice,
   totalSupply,
-  fundingGoal
+  fundingGoal,
+  testClearDust
 } = require('../helpers/cpoa')
 
 describe('when first deploying', () => {
@@ -114,7 +115,7 @@ describe('when first deploying', () => {
   })
 })
 
-describe.only('when in Funding stage', () => {
+describe('when in Funding stage', () => {
   contract('CustomPOAToken', accounts => {
     const owner = accounts[0]
     const broker = accounts[1]
@@ -773,7 +774,7 @@ describe('when in Active stage', () => {
         .minus(fee)
         .mul(1e18)
         .div(totalSupply)
-        .floor()
+        .toFixed(0)
       const postCustodianEtherBalance = await getEtherBalance(custodian)
       const expectedCustodianEtherBalance = preCustodianEtherBalance
         .minus(gasPrice.mul(tx.receipt.gasUsed))
@@ -796,24 +797,12 @@ describe('when in Active stage', () => {
         payoutValue.toString(),
         'the contact ether balance should be incremented by the payoutValue'
       )
-
-      // start dicks
-      let totalBalance = new BigNumber(0)
-      for (const account of accounts) {
-        const balance = await cpoa.currentPayout(account, true)
-        totalBalance = totalBalance.add(balance)
-      }
-
-      // set for later test...
-      ownerFee = fee
     })
 
     it('should allow owner to collect the fee after payout', async () => {
       const preOwnerUnclaimedBalance = await cpoa.unclaimedPayoutTotals(owner)
 
       await testOwnerWithdrawFees(cpoa, owner)
-
-      assert.equal(preOwnerUnclaimedBalance.toString(), ownerFee.toString())
     })
 
     it('should show the correct payout', async () => {
@@ -825,7 +814,7 @@ describe('when in Active stage', () => {
         const expectedPayout = tokenBalance
           .mul(totalPerTokenPayout)
           .div(1e18)
-          .floor()
+          .toFixed(0)
           .add(unclaimedBalances)
         const currentPayout = await cpoa.currentPayout(investor, true)
         assert.equal(
@@ -1224,7 +1213,7 @@ describe('while in Terminated stage', async () => {
         .minus(fee)
         .mul(1e18)
         .div(totalSupply)
-        .floor()
+        .toFixed(0)
       const postCustodianEtherBalance = await getEtherBalance(custodian)
       const expectedCustodianEtherBalance = preCustodianEtherBalance
         .minus(gasPrice.mul(tx.receipt.gasUsed))
@@ -1246,16 +1235,12 @@ describe('while in Terminated stage', async () => {
         payoutValue.toString(),
         'the contact ether balance should be incremented by the payoutValue'
       )
-      // set for later test...
-      ownerFee = fee
       totalPayoutAmount = totalPayoutAmount.add(payoutValue.minus(fee))
     })
 
     it('should allow owner to collect the fee after payout', async () => {
       const preOwnerUnclaimedBalance = await cpoa.unclaimedPayoutTotals(owner)
       await testOwnerWithdrawFees(cpoa, owner)
-
-      assert.equal(preOwnerUnclaimedBalance.toString(), ownerFee.toString())
     })
 
     it('should show the correct payout', async () => {
@@ -1267,7 +1252,7 @@ describe('while in Terminated stage', async () => {
         const expectedPayout = tokenBalance
           .mul(totalPerTokenPayout)
           .div(1e18)
-          .floor()
+          .toFixed(0)
           .add(unclaimedBalances)
         const currentPayout = await cpoa.currentPayout(investor, true)
         assert.equal(
@@ -1514,7 +1499,7 @@ describe('when timing out (going into stage 2 (failed))', () => {
       const assumedContributionByTokenBalance = preInvestorTokenBalance
         .mul(fundingGoal)
         .div(totalSupply)
-        .floor()
+        .toFixed(0)
       const preContractEtherBalance = await getEtherBalance(cpoa.address)
       const preInvestorEtherBalance = await getEtherBalance(
         firstReclaimInvestor
@@ -1711,16 +1696,6 @@ describe('when timing out (going into stage 2 (failed))', () => {
         const preContractEtherBalance = await getEtherBalance(cpoa.address)
         const preContractTotalSupply = await cpoa.totalSupply()
 
-        const tokensToWei = await cpoa.tokensToWei(preInvestorTokenBalance)
-        console.log(
-          preInvestorDust.toString(),
-          preContractEtherBalance.div(1e18).toString(),
-          tokensToWei.div(1e18).toString(),
-          preContractEtherBalance.greaterThanOrEqualTo(tokensToWei),
-          preInvestorTokenBalance.div(1e18).toString(),
-          preContractTotalSupply.div(1e18).toString(),
-          preContractTotalSupply.greaterThanOrEqualTo(preInvestorTokenBalance)
-        )
         const tx = await cpoa.reclaim({
           from: investor,
           gasPrice
@@ -1732,7 +1707,6 @@ describe('when timing out (going into stage 2 (failed))', () => {
           .mul(fundingGoal)
           .div(totalSupply)
           .toFixed(0)
-          .add(preInvestorDust)
         const expectedInvestorEtherBalance = preInvestorEtherBalance
           .minus(gasCost)
           .add(expectedPayout)
@@ -1788,7 +1762,7 @@ describe('when timing out (going into stage 2 (failed))', () => {
   })
 })
 
-describe('when trying various scenarios using payout, transfer, approve, and transferFrom', () => {
+describe.only('when trying various scenarios using payout, transfer, approve, and transferFrom', () => {
   contract('CustomPOAToken', accounts => {
     const owner = accounts[0]
     const broker = accounts[1]
@@ -1837,6 +1811,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
 
       await testOwnerWithdrawFees(cpoa, owner)
       await testCustodianWithdrawFees(cpoa, custodian)
+      await testClearDust(cpoa, investors)
     })
 
     describe('payout', () => {
@@ -1881,14 +1856,16 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
           .minus(fee)
           .div(totalSupply)
           .mul(1e18)
-          .floor()
+          .toFixed(0)
           .div(1e18)
+          .toFixed(0)
         const expectedSecondTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
           .mul(1e18)
-          .floor()
+          .toFixed(0)
           .div(1e18)
+          .toFixed(0)
 
         const expectedSenderPayout1 = senderAccount1.tokenBalance.mul(
           expectedFirstTokenTotalPayout
@@ -1963,11 +1940,11 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         const expectedFirstTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .round(18)
+          .toFixed(0)
         const expectedSecondTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .round(18)
+          .toFixed(0)
 
         const expectedSenderPayout1 = senderAccount1.tokenBalance.mul(
           expectedFirstTokenTotalPayout
@@ -2056,11 +2033,11 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         const expectedFirstTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .round(18)
+          .toFixed(0)
         const expectedSecondTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .round(18)
+          .toFixed(0)
 
         const expectedAllowanceOwnerPayout1 = allowanceOwnerAccount1.tokenBalance.mul(
           expectedFirstTokenTotalPayout
@@ -2148,11 +2125,11 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         const expectedFirstTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .round(18)
+          .toFixed(0)
         const expectedSecondTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .round(18)
+          .toFixed(0)
 
         const expectedAllowanceOwnerPayout1 = allowanceOwnerAccount1.tokenBalance.mul(
           expectedFirstTokenTotalPayout
@@ -2175,12 +2152,12 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         )
 
         assert.equal(
-          expectedAllowanceOwnerFinalPayout.floor().toString(), // [TODO] dirty not actualy fixed
+          expectedAllowanceOwnerFinalPayout.toFixed(0).toString(), // [TODO] dirty not actualy fixed
           allowanceOwnerAccount4.currentPayout.toString(),
           'the expected payout should match the actual payout for allowanceOwner'
         )
         assert.equal(
-          expectedReceiverFinalPayout.floor().toString(), // [TODO] dirty not actualy fixed
+          expectedReceiverFinalPayout.toFixed(0).toString(), // [TODO] dirty not actualy fixed
           receiverAccount4.currentPayout.toString(),
           'the expected payout should match the actual payout for allowanceOwner'
         )
@@ -2219,7 +2196,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         const expectedTotalTokenPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .round(18)
+          .toFixed(0)
 
         const expectedSenderFinalPayout = new BigNumber(0)
         const expectedReceiverFinalPayout = receiverAccount2.tokenBalance.mul(
@@ -2271,7 +2248,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         const expectedTotalTokenPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .round(18)
+          .toFixed(0)
 
         const expectedSenderFinalPayout = senderAccount2.tokenBalance.mul(
           expectedTotalTokenPayout
@@ -2336,7 +2313,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         const expectedTotalTokenPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .round(18)
+          .toFixed(0)
 
         const expectedSenderFinalPayout = new BigNumber(0)
         const expectedReceiverFinalPayout = receiverAccount2.tokenBalance.mul(
@@ -2402,7 +2379,7 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
         const expectedTotalTokenPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .round(18)
+          .toFixed(0)
 
         const expectedSenderFinalPayout = allowanceOwnerAccount2.tokenBalance.mul(
           expectedTotalTokenPayout

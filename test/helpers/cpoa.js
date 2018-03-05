@@ -8,8 +8,8 @@ const {
   getEtherBalance
 } = require('../helpers/general')
 
-const totalSupply = new BigNumber(10e18)
-const fundingGoal = new BigNumber(33e18)
+const totalSupply = new BigNumber(33e18)
+const fundingGoal = new BigNumber(10e18)
 const gasPrice = new BigNumber(30e9)
 
 async function testMultiBuyTokens(investors, contract, args) {
@@ -607,6 +607,32 @@ async function getAccountInformation(address, contract) {
   }
 }
 
+const testClearDust = async (cpoa, investors) => {
+  for (const investor of investors) {
+    const preInvestorEthBalance = await getEtherBalance(investor)
+    const preUnclaimedBalance = await cpoa.unclaimedPayoutTotals(investor)
+
+    if (preUnclaimedBalance.greaterThan(0)) {
+      'non zero dust... clearing...'
+      await cpoa.claim({
+        from: investor
+      })
+      const postInvestorEthBalance = await getEtherBalance(investor)
+      const postUnclaimedBalance = await cpoa.unclaimedPayoutTotals(investor)
+      assert.equal(
+        postInvestorEthBalance.sub(preInvestorEthBalance).toString(),
+        preUnclaimedBalance.toString(),
+        'investor eth balance should be incremented by preUnclaimedBalance'
+      )
+      assert.equal(
+        postUnclaimedBalance.toString(),
+        new BigNumber(0).toString(),
+        'investor unclaimed balance should now be 0'
+      )
+    }
+  }
+}
+
 // end scenario testing functions
 
 module.exports = {
@@ -624,5 +650,6 @@ module.exports = {
   getAccountInformation,
   totalSupply,
   fundingGoal,
-  gasPrice
+  gasPrice,
+  testClearDust
 }
