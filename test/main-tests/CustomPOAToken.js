@@ -10,592 +10,28 @@ const {
   getEtherBalance
 } = require('../helpers/general')
 
-// start scenario testing functions
-
-async function testMultiBuyTokens(investors, contract, args) {
-  assert(args.gasPrice, 'no gasPrice set in args!')
-  assert(args.value, 'no value set in args!')
-
-  const investAmount = args.value
-  const gasPrice = args.gasPrice
-
-  const totalSupply = await contract.totalSupply()
-  const fundingGoal = await contract.fundingGoal()
-
-  const totalInvestmentEth = investAmount.mul(investors.length)
-  const totalInvestmentTokens = investAmount
-    .mul(totalSupply)
-    .div(fundingGoal)
-    .floor()
-    .mul(investors.length)
-  const preContractTokenBalance = await contract.balanceOf(contract.address)
-  const preContractEtherBalance = await getEtherBalance(contract.address)
-
-  for (const investor of investors) {
-    const preTokenBalance = await contract.balanceOf(investor)
-    const preEtherBalance = await getEtherBalance(investor)
-    await contract.whitelistAddress(investor)
-    const tx = await contract.buy({
-      from: investor,
-      value: investAmount,
-      gasPrice
-    })
-    const postTokenBalance = await contract.balanceOf(investor)
-    const postEtherBalance = await getEtherBalance(investor)
-    const gasUsed = tx.receipt.gasUsed
-    const gasCost = gasPrice.mul(gasUsed)
-    const expectedEtherBalance = preEtherBalance
-      .minus(gasCost)
-      .minus(investAmount)
-    const expectedTokenBalance = preTokenBalance.add(
-      investAmount
-        .mul(totalSupply)
-        .div(fundingGoal)
-        .floor()
-    )
-
-    assert(
-      postTokenBalance.toNumber() > 0,
-      'the balance after buying should be more than 0'
-    )
-    assert.equal(
-      postTokenBalance.toString(),
-      expectedTokenBalance.toString(),
-      `${investor} balance should match expectedTokenBalance`
-    )
-    assert.equal(
-      postEtherBalance.toString(),
-      expectedEtherBalance.toString(),
-      `${investor} should be decremented by ${investAmount.toString()} ether`
-    )
-  }
-
-  const postContractTokenBalance = await contract.balanceOf(contract.address)
-  const postContractEtherBalance = await getEtherBalance(contract.address)
-
-  assert.equal(
-    preContractTokenBalance.minus(postContractTokenBalance).toString(),
-    totalInvestmentTokens.toString(),
-    'the contract token balance should be decremented by the total investment amount'
-  )
-  assert.equal(
-    postContractEtherBalance.minus(preContractEtherBalance).toString(),
-    totalInvestmentEth.toString(),
-    'the contract ether balance should be incremented by the total investment amount'
-  )
-}
-
-async function testFallbackBuy(web3, contract, args) {
-  assert(args.value, 'value has not been set in args!')
-  assert(args.gasPrice, 'gasPrice has not been set in args!')
-  assert(args.from, 'from has not been set in args!')
-
-  const investor = args.from
-  const investAmount = args.value
-  const gasPrice = args.gasPrice
-
-  const preInvestorTokenBalance = await contract.balanceOf(investor)
-  const preInvestorEtherBalance = await getEtherBalance(investor)
-  const preContractTokenBalance = await contract.balanceOf(contract.address)
-  const preContractEtherBalance = await getEtherBalance(contract.address)
-
-  const txHash = await sendTransaction(web3, {
-    to: contract.address,
-    from: investor,
-    value: investAmount,
-    gasPrice
-  })
-  const initialSupply = await contract.initialSupply()
-  const fundingGoal = await contract.fundingGoal()
-  const tx = await getReceipt(txHash)
-  const gasUsed = tx.gasUsed
-  const gasCost = gasPrice.mul(gasUsed)
-  const expectedTokenPurchaseAmount = investAmount
-    .mul(initialSupply)
-    .div(fundingGoal)
-
-  const expectedInvestorEtherBalance = preInvestorEtherBalance
-    .minus(gasCost)
-    .minus(investAmount)
-  const postInvestorTokenBalance = await contract.balanceOf(investor)
-  const postInvestorEtherBalance = await getEtherBalance(investor)
-  const postContractTokenBalance = await contract.balanceOf(contract.address)
-  const postContractEtherBalance = await getEtherBalance(contract.address)
-
-  assert.equal(
-    postInvestorTokenBalance.minus(preInvestorTokenBalance).toString(),
-    expectedTokenPurchaseAmount.toString(),
-    'the investor token balance should be incremented by the right amount'
-  )
-  assert.equal(
-    expectedInvestorEtherBalance.toString(),
-    postInvestorEtherBalance.toString(),
-    'the investor ether balance should be decremented by the sent ether amount'
-  )
-  assert.equal(
-    preContractTokenBalance.minus(postContractTokenBalance).toString(),
-    expectedTokenPurchaseAmount.toString(),
-    'the contract token balance should be decremented by the investAmount'
-  )
-  assert.equal(
-    postContractEtherBalance.minus(preContractEtherBalance).toString(),
-    investAmount.toString(),
-    'the contract ether balance should be incremented by the investAmount'
-  )
-}
-
-async function testBuyRemainingTokens(fundingGoal, contract, args) {
-  assert(args.gasPrice, 'gasPrice has not been set in args!')
-  assert(args.from, 'from has not been set in args!')
-
-  const investor = args.from
-  const gasPrice = args.gasPrice
-
-  const totalSupply = await contract.totalSupply()
-
-  const preContractStage = await contract.stage()
-  const preInvestorTokenBalance = await contract.balanceOf(investor)
-  const preInvestorEtherBalance = await getEtherBalance(investor)
-  const preContractEtherBalance = await getEtherBalance(contract.address)
-  const neededAmountEth = fundingGoal.sub(preContractEtherBalance)
-
-  const tx = await contract.buy({
-    from: investor,
-    value: neededAmountEth,
-    gasPrice
-  })
-
-  const postInvestorTokenBalance = await contract.balanceOf(investor)
-  const postInvestorEtherBalance = await getEtherBalance(investor)
-  const postContractTokenBalance = await contract.balanceOf(contract.address)
-  const postContractEtherBalance = await getEtherBalance(contract.address)
-  const postContractStage = await contract.stage()
-  const gasCost = gasPrice.mul(tx.receipt.gasUsed)
-  const postExpectedInvestorEtherBalance = preInvestorEtherBalance
-    .sub(gasCost)
-    .sub(neededAmountEth)
-  const postExpectedIvestorTokenAmount = neededAmountEth
-    .mul(totalSupply)
-    .div(fundingGoal)
-    .floor()
-
-  assert.equal(
-    postInvestorTokenBalance.minus(preInvestorTokenBalance).toString(),
-    postExpectedIvestorTokenAmount.toString(),
-    'the investor token balance should be incremented by that bought'
-  )
-  assert.equal(
-    postInvestorEtherBalance.toString(),
-    postExpectedInvestorEtherBalance.toString(),
-    'the investor ether balance should be decremented by the expected amount'
-  )
-  assert.equal(
-    postContractTokenBalance.toString(),
-    new BigNumber(0).toString(),
-    'the contract should now have a Token balance of 0'
-  )
-  assert.equal(
-    postContractEtherBalance.toString(),
-    fundingGoal.toString(),
-    'the contract ether balance should match the funding goal when all tokens are bought'
-  )
-  assert.equal(
-    preContractStage.toString(),
-    new BigNumber(0),
-    'the contract should start this test in stage 0 (funding)'
-  )
-  assert.equal(
-    postContractStage.toString(),
-    new BigNumber(1),
-    'the contract should be in stage 1 (pending) after all tokens are bought'
-  )
-}
-
-async function testActivation(contract, args) {
-  assert(!!args.from, 'args.from not set!')
-  assert(!!args.gasPrice, 'args.gasPrice not set!')
-
-  const contractValue = await contract.fundingGoal()
-  const fee = await contract.calculateFee(contractValue)
-  args.value = args.value ? args.value : fee
-  await contract.activate(args)
-  const currentStage = await contract.stage()
-
-  assert.equal(
-    currentStage.toNumber(),
-    3,
-    'the contract stage should be 3 (active)'
-  )
-}
-
-async function testOwnerWithdrawFees(cpoa, owner) {
-  const gasPrice = new BigNumber(30e9)
-  const preOwnerEtherBalance = await getEtherBalance(owner)
-  const preContractEtherBalance = await getEtherBalance(cpoa.address)
-  const preOwnerUnclaimedBalance = await cpoa.unclaimedPayoutTotals(owner)
-
-  const txHash = await cpoa.claim({
-    from: owner,
-    gasPrice
-  })
-
-  const tx = await getReceipt(txHash)
-
-  const postOwnerEtherBalance = await getEtherBalance(owner)
-  const postContractEtherBalance = await getEtherBalance(cpoa.address)
-  const postOwnerUnclaimedBalance = await cpoa.unclaimedPayoutTotals(owner)
-  const gasUsed = new BigNumber(tx.gasUsed)
-  const gasCost = gasUsed.mul(gasPrice)
-  const expectedOwnerEtherBalance = preOwnerEtherBalance
-    .add(preOwnerUnclaimedBalance)
-    .minus(gasCost)
-
-  assert.equal(
-    postOwnerEtherBalance.toString(),
-    expectedOwnerEtherBalance.toString(),
-    'the owner ether balance should be incremented by the unclaimedPayoutTotals[owner]'
-  )
-  assert.equal(
-    preContractEtherBalance.minus(postContractEtherBalance).toString(),
-    preOwnerUnclaimedBalance.toString(),
-    'the contract ether balance should be decremented by the unclaimedPayoutTotals[owner]'
-  )
-  assert.equal(
-    postOwnerUnclaimedBalance.toString(),
-    new BigNumber(0).toString()
-  )
-
-  return true
-}
-
-async function testCustodianWithdrawFees(cpoa, custodian) {
-  const gasPrice = new BigNumber(30e9)
-  const preCustodianEtherBalance = await getEtherBalance(custodian)
-  const preContractEtherBalance = await getEtherBalance(cpoa.address)
-  const preCustodianUnclaimedBalance = await cpoa.unclaimedPayoutTotals(
-    custodian
-  )
-
-  const txHash = await cpoa.claim({
-    from: custodian,
-    gasPrice
-  })
-
-  const tx = await getReceipt(txHash)
-
-  const postCustodianEtherBalance = await getEtherBalance(custodian)
-  const postContractEtherBalance = await getEtherBalance(cpoa.address)
-  const postCustodianUnclaimedBalance = await cpoa.unclaimedPayoutTotals(
-    custodian
-  )
-  const gasUsed = new BigNumber(tx.gasUsed)
-  const gasCost = gasUsed.mul(gasPrice)
-  const expectedCustodianEtherBalance = preCustodianEtherBalance
-    .add(preCustodianUnclaimedBalance)
-    .minus(gasCost)
-
-  assert.equal(
-    postCustodianEtherBalance.toString(),
-    expectedCustodianEtherBalance.toString(),
-    'the custodian ether balance should be incremented by the unclaimedPayoutTotals[custodian]'
-  )
-  assert.equal(
-    preContractEtherBalance.minus(postContractEtherBalance).toString(),
-    preCustodianUnclaimedBalance.toString(),
-    'the contract ether balance should be decremented by the unclaimedPayoutTotals[custodian]'
-  )
-  assert.equal(
-    postCustodianUnclaimedBalance.toString(),
-    new BigNumber(0).toString()
-  )
-
-  return true
-}
-
-async function testTransfer(to, value, contract, args) {
-  assert(args.from, 'args.from not set!')
-  const sender = args.from
-  const receiver = to
-  const transferAmount = value
-  const preSenderBalance = await contract.balanceOf(sender)
-  const preReceiverBalance = await contract.balanceOf(receiver)
-
-  await contract.transfer(receiver, transferAmount, args)
-
-  const postSenderBalance = await contract.balanceOf(sender)
-  const postReceiverBalance = await contract.balanceOf(receiver)
-
-  assert.equal(
-    preSenderBalance.minus(postSenderBalance).toString(),
-    transferAmount.toString(),
-    'the sender token balance should be decremented by the transferAmount'
-  )
-  assert.equal(
-    postReceiverBalance.minus(preReceiverBalance).toString(),
-    transferAmount.toString(),
-    'the receiver token balance should be incrementd by the transferAmount'
-  )
-  return true
-}
-
-async function testApproveTransferFrom(
-  allowanceOwner,
-  allowanceSpender,
-  allowanceAmount,
-  to,
-  value,
-  contract
-) {
-  // approve functions/tests
-  let preSpenderAllowance = await contract.allowance(
-    allowanceOwner,
-    allowanceSpender
-  )
-
-  await contract.approve(allowanceSpender, allowanceAmount, {
-    from: allowanceOwner
-  })
-
-  let postSpenderAllowance = await contract.allowance(
-    allowanceOwner,
-    allowanceSpender
-  )
-
-  assert.equal(
-    postSpenderAllowance.minus(preSpenderAllowance).toString(),
-    allowanceAmount.toString(),
-    'the allowanceSpender should have their allowance for allowanceOwner incremented by allowedAmount'
-  )
-
-  // transferFrom functions/tests
-  const preOwnerTokenBalance = await contract.balanceOf(allowanceOwner)
-  const preReceiverBalance = await contract.balanceOf(to)
-  preSpenderAllowance = await contract.allowance(
-    allowanceOwner,
-    allowanceSpender
-  )
-
-  await contract.transferFrom(allowanceOwner, to, value, {
-    from: allowanceSpender
-  })
-
-  const postOwnerTokenBalance = await contract.balanceOf(allowanceOwner)
-  const postReceiverBalance = await contract.balanceOf(to)
-  postSpenderAllowance = await contract.allowance(
-    allowanceOwner,
-    allowanceSpender
-  )
-
-  assert.equal(
-    preOwnerTokenBalance.minus(postOwnerTokenBalance).toString(),
-    value.toString(),
-    'the owner balance should be decremented by the transferFrom amount'
-  )
-  assert.equal(
-    postReceiverBalance.minus(preReceiverBalance).toString(),
-    value.toString(),
-    'the spender balance should be incremented by the transferFrom amount'
-  )
-  assert.equal(
-    preSpenderAllowance.minus(postSpenderAllowance).toString(),
-    value.toString(),
-    'the spender allowance should be decremented by the transferFrom amount'
-  )
-}
-
-async function testPayout(contract, args) {
-  const owner = await contract.owner()
-  const custodian = await contract.custodian()
-  const initialSupply = await contract.initialSupply()
-  const totalSupply = await contract.totalSupply()
-  const payoutValue = args.value
-  const gasPrice = args.gasPrice
-  const _fee = await contract.calculateFee(payoutValue)
-  const fee = _fee.add(
-    payoutValue
-      .sub(_fee)
-      .mul(1e18)
-      .mod(totalSupply)
-      .div(1e18)
-      .floor()
-  )
-
-  const preContractTotalTokenPayout = await contract.totalPerTokenPayout()
-  const preCustodianEtherBalance = await getEtherBalance(custodian)
-  const preContractEtherBalance = await getEtherBalance(contract.address)
-
-  assert(args.gasPrice, 'gasPrice not included in args!')
-  assert(args.from, 'from not included in args!')
-  assert(args.value, 'value not included in args!')
-
-  const tx = await contract.payout(args)
-  await testOwnerWithdrawFees(contract, owner)
-  const postContractTotalTokenPayout = await contract.totalPerTokenPayout()
-  const currentExpectedTotalTokenPayout = payoutValue
-    .minus(_fee)
-    .mul(1e18)
-    .div(initialSupply)
-    .floor()
-  const expectedContractTotalTokenPayout = preContractTotalTokenPayout.add(
-    currentExpectedTotalTokenPayout
-  )
-  const postCustodianEtherBalance = await getEtherBalance(custodian)
-  const expectedCustodianEtherBalance = preCustodianEtherBalance
-    .minus(gasPrice.mul(tx.receipt.gasUsed))
-    .minus(payoutValue)
-  const postContractEtherBalance = await getEtherBalance(contract.address)
-  const expectedContractEtherBalance = payoutValue.minus(fee)
-
-  assert.equal(
-    postContractTotalTokenPayout.toString(),
-    expectedContractTotalTokenPayout.toString(),
-    'the contract totalPerTokenPayout should match the expected value'
-  )
-  assert.equal(
-    expectedCustodianEtherBalance.toString(),
-    postCustodianEtherBalance.toString(),
-    'the expected custodian ether balance should match actual after payout'
-  )
-  assert.equal(
-    postContractEtherBalance.minus(preContractEtherBalance).toString(),
-    expectedContractEtherBalance.toString(),
-    'the contact ether balance should be incremented by the payoutValue minus fees'
-  )
-
-  return postContractEtherBalance
-}
-
-async function testClaimAllPayouts(investors, contract, args) {
-  assert(args.gasPrice, 'no gas price set in args!')
-  const gasPrice = args.gasPrice
-
-  const stage = await contract.stage()
-  assert.equal(
-    stage.toNumber(),
-    3,
-    'the stage of the contract should be in 3 (active)'
-  )
-
-  let totalClaimAmount = new BigNumber(0)
-
-  for (const investor of investors) {
-    const investorClaimAmount = await contract.currentPayout(investor, true)
-    const preInvestorEtherBalance = await getEtherBalance(investor)
-    const preContractEtherBalance = await getEtherBalance(contract.address)
-
-    if (investorClaimAmount.greaterThan(0)) {
-      const tx = await contract.claim({
-        from: investor,
-        gasPrice
-      })
-
-      const gasUsed = tx.receipt.gasUsed || new BigNumber(0)
-      const gasCost = gasPrice.mul(gasUsed)
-      const expectedInvestorEtherBalance = preInvestorEtherBalance
-        .minus(gasCost)
-        .add(investorClaimAmount)
-
-      const postInvestorEtherBalance = await getEtherBalance(investor)
-      const postContractEtherBalance = await getEtherBalance(contract.address)
-
-      assert.equal(
-        expectedInvestorEtherBalance.toString(),
-        postInvestorEtherBalance.toString(),
-        'the investor ether balance should match expected balance after claiming'
-      )
-      assert.equal(
-        preContractEtherBalance.minus(postContractEtherBalance).toString(),
-        investorClaimAmount.toString(),
-        'the contract ether balance should be decremented by the investorClaimAmount'
-      )
-      totalClaimAmount = totalClaimAmount.add(investorClaimAmount)
-    } else {
-      // eslint-disable-next-line no-console
-      console.log(
-        `⚠️ ${
-          investor
-        } has 0 claimable balances... are you sure this should happen?`
-      )
-    }
-  }
-
-  const finalContractEtherBalance = await getEtherBalance(contract.address)
-
-  assert(
-    totalClaimAmount.greaterThan(0),
-    'the total claim amount should be more than 0'
-  )
-  assert(
-    finalContractEtherBalance.lessThan(100),
-    'the contract should have very small ether balance after all payouts have been claimed but ${finalContractEtherBalance} wei remain'
-  )
-
-  return true
-}
-
-async function testKill(contract) {
-  const accounts = web3.eth.accounts
-  const owner = accounts[0]
-  const custodian = accounts[2]
-
-  const preContractEtherBalance = await getEtherBalance(contract.address)
-  const preOwnerEtherBalance = await getEtherBalance(owner)
-
-  // only owner can call kill
-  await testWillThrow(contract.kill, [{ from: custodian }])
-
-  const meta = await contract.kill({ from: owner, gasPrice: 0 })
-
-  // Events
-  assert(
-    meta.logs.map(i => i.event).includes('Terminated'),
-    'should have emitted terminated event'
-  )
-  assert.equal(
-    meta.logs.filter(i => i.event == 'Stage')[0].args.stage.toString(),
-    '4',
-    'should have emitted Stage Terminate(4) event'
-  )
-
-  // is paused and terminated
-  assert(await contract.paused(), 'should be paused')
-  assert.equal(
-    (await contract.stage()).toString(),
-    '4',
-    'should be in Terminated stage'
-  )
-
-  // did send ether to onwer
-  const ownerEtherBalanceDelta = (await getEtherBalance(owner)).sub(
-    preOwnerEtherBalance
-  )
-  assert.equal(
-    ownerEtherBalanceDelta.toString(),
-    preContractEtherBalance.toString(),
-    'owner balance should have changed by the contract balance'
-  )
-}
-
-async function getAccountInformation(address, contract) {
-  const etherBalance = await getEtherBalance(address)
-  const tokenBalance = await contract.balanceOf(address)
-  const currentPayout = await contract.currentPayout(address, true)
-
-  return {
-    etherBalance,
-    tokenBalance,
-    currentPayout
-  }
-}
-
-// end scenario testing functions
+const {
+  testMultiBuyTokens,
+  testFallbackBuy,
+  testBuyRemainingTokens,
+  testActivation,
+  testOwnerWithdrawFees,
+  testCustodianWithdrawFees,
+  testTransfer,
+  testApproveTransferFrom,
+  testPayout,
+  testClaimAllPayouts,
+  testKill,
+  getAccountInformation,
+  gasPrice,
+  totalSupply,
+  fundingGoal
+} = require('../helpers/cpoa')
 
 describe('when first deploying', () => {
   contract('CustomPOAToken', accounts => {
     const broker = accounts[1]
     const custodian = accounts[2]
-    const totalSupply = new BigNumber(20e18)
-    const fundingGoal = new BigNumber(20e18)
     const timeoutBlock = web3.eth.blockNumber + 200
     let cpoa
 
@@ -663,13 +99,17 @@ describe('when first deploying', () => {
       )
     })
 
-    it('should kill the Token when in funding Stage', async () => {
+    it('should NOT kill if NOT owner', async () => {
+      await testWillThrow(cpoa.kill, [{ from: custodian }])
+    })
+
+    it('should kill the token when in funding Stage', async () => {
       assert.equal(
         (await cpoa.stage()).toString(),
         '0',
         'should be in funding stage'
       )
-      await testKill(cpoa)
+      await testKill(accounts[0], accounts[4], cpoa)
     })
   })
 })
@@ -681,9 +121,6 @@ describe('when in Funding stage', () => {
     const custodian = accounts[2]
     const nonInvestor = accounts[3]
     const investors = accounts.slice(4)
-    const totalSupply = new BigNumber(10e18)
-    const fundingGoal = new BigNumber(33e18)
-    const gasPrice = new BigNumber(30e9)
     let cpoa
 
     before('setup state', async () => {
@@ -793,30 +230,6 @@ describe('when in Funding stage', () => {
       ])
     })
 
-    it('should NOT allow buying more than the contract token balance', async () => {
-      const investor = investors[0]
-      const investorStatus = await cpoa.whitelisted(investor)
-      assert(investorStatus, 'the investor should be whitelisted')
-      const contractEtherBalance = await getEtherBalance(cpoa.address)
-      const overInvestAmount = fundingGoal.minus(contractEtherBalance).add(1)
-      await cpoa.buy({
-        from: investor,
-        value: overInvestAmount
-      })
-      const postContractEtherBalance = await getEtherBalance(cpoa.address)
-      console.log(
-        postContractEtherBalance.div(1e18).toString(),
-        fundingGoal.div(1e18).toString()
-      )
-      // [TODO] this should work with 1 too
-      await testWillThrow(cpoa.buy, [
-        {
-          from: investor,
-          value: overInvestAmount
-        }
-      ])
-    })
-
     it('should use the buy function as a fallback', async () => {
       await testFallbackBuy(web3, cpoa, {
         from: investors[0],
@@ -892,19 +305,19 @@ describe('when in Funding stage', () => {
     // end expected impossible functions at Stages.Funding
 
     it('should move to pending stage when all tokens have been bought', async () => {
-      await testBuyRemainingTokens(fundingGoal, cpoa, {
+      await testBuyRemainingTokens(cpoa, accounts, {
         from: investors[0],
         gasPrice
       })
     })
 
-    it('should kill the Token when in Pending Stage', async () => {
+    it('should kill the token when in Pending Stage', async () => {
       assert.equal(
         (await cpoa.stage()).toString(),
         '1',
         'should be in Pending stage'
       )
-      await testKill(cpoa)
+      await testKill(owner, investors[0], cpoa)
     })
   })
 })
@@ -916,8 +329,6 @@ describe('when in Pending stage', () => {
     const custodian = accounts[2]
     const nonInvestor = accounts[3]
     const investors = accounts.slice(4)
-    const totalSupply = new BigNumber(600e18).div(10)
-    const fundingGoal = new BigNumber(150e18).div(10)
     let cpoa
 
     before('setup state', async () => {
@@ -938,7 +349,7 @@ describe('when in Pending stage', () => {
       })
 
       // get last of contract's balance and buy it up
-      await testBuyRemainingTokens(fundingGoal, cpoa, {
+      await testBuyRemainingTokens(cpoa, accounts, {
         from: bigInvestor,
         gasPrice: new BigNumber(21e9)
       })
@@ -1044,7 +455,6 @@ describe('when in Pending stage', () => {
     it('should NOT activate when not custodian', async () => {
       const contractValue = await cpoa.fundingGoal()
       const fee = await cpoa.calculateFee(contractValue)
-      const gasPrice = new BigNumber(30e9)
       await testWillThrow(cpoa.activate, [
         {
           from: owner,
@@ -1058,7 +468,6 @@ describe('when in Pending stage', () => {
       const contractValue = await cpoa.fundingGoal()
       const fee = await cpoa.calculateFee(contractValue)
       const highFee = fee.mul(2)
-      const gasPrice = new BigNumber(30e9)
       await testWillThrow(cpoa.activate, [
         {
           from: custodian,
@@ -1072,7 +481,6 @@ describe('when in Pending stage', () => {
       const contractValue = await cpoa.fundingGoal()
       const fee = await cpoa.calculateFee(contractValue)
       const lowFee = fee.div(2)
-      const gasPrice = new BigNumber(30e9)
       await testWillThrow(cpoa.activate, [
         {
           from: custodian,
@@ -1084,7 +492,6 @@ describe('when in Pending stage', () => {
 
     it('should activate when called by custodian with appropriate fee', async () => {
       const fee = await cpoa.calculateFee(fundingGoal)
-      const gasPrice = new BigNumber(30e9)
 
       const preCustodianUnclaimedBalance = await cpoa.unclaimedPayoutTotals(
         custodian
@@ -1152,7 +559,6 @@ describe('when in Pending stage', () => {
     })
 
     it('should allow owner fee claiming after activation', async () => {
-      const gasPrice = new BigNumber(30e9)
       const preOwnerEtherBalance = await getEtherBalance(owner)
       const preContractEtherBalance = await getEtherBalance(cpoa.address)
       const preOwnerUnclaimedBalance = await cpoa.unclaimedPayoutTotals(owner)
@@ -1185,12 +591,12 @@ describe('when in Pending stage', () => {
       )
       assert.equal(
         postOwnerUnclaimedBalance.toString(),
-        new BigNumber(0).toString()
+        new BigNumber(0).toString(),
+        'post owner unclaimed balance should be 0'
       )
     })
 
     it('should allow custodian balance claiming after activation', async () => {
-      const gasPrice = new BigNumber(30e9)
       const preCustodianEtherBalance = await getEtherBalance(custodian)
       const preContractEtherBalance = await getEtherBalance(cpoa.address)
       const preCustodianUnclaimedBalance = await cpoa.unclaimedPayoutTotals(
@@ -1242,13 +648,13 @@ describe('when in Pending stage', () => {
       ])
     })
 
-    it('should kill the Token when in Active Stage', async () => {
+    it('should kill the token when in Active Stage', async () => {
       assert.equal(
         (await cpoa.stage()).toString(),
         '3',
         'should be in active stage'
       )
-      await testKill(cpoa)
+      await testKill(owner, investors[0], cpoa)
     })
   })
 })
@@ -1262,12 +668,8 @@ describe('when in Active stage', () => {
     const allowanceOwner = investors[0]
     const allowanceSpender = investors[1]
     const allowanceAmount = new BigNumber(5e17)
-    const totalSupply = new BigNumber(600e18).div(10)
-    const fundingGoal = new BigNumber(200e18).div(10)
     let cpoa
     let ownerFee
-    // amount paid by custodian - fee
-    let totalPayoutAmount = new BigNumber(0)
     let totalPerTokenPayout = new BigNumber(0)
 
     before('setup state', async () => {
@@ -1287,22 +689,23 @@ describe('when in Active stage', () => {
       // claim tokens for investors
       await testMultiBuyTokens(investors, cpoa, {
         value: investAmount,
-        gasPrice: new BigNumber(21e9)
+        gasPrice
       })
 
       // buy remaining tokens to go into pending
-      await testBuyRemainingTokens(fundingGoal, cpoa, {
+      await testBuyRemainingTokens(cpoa, accounts, {
         from: bigInvestor,
-        gasPrice: new BigNumber(21e9)
+        gasPrice
       })
 
       // activate the contract by custodian with proper fee
       await testActivation(cpoa, {
         from: custodian,
-        gasPrice: new BigNumber(21e9)
+        gasPrice
       })
 
       await testOwnerWithdrawFees(cpoa, owner)
+
       await testCustodianWithdrawFees(cpoa, custodian)
     })
 
@@ -1349,16 +752,7 @@ describe('when in Active stage', () => {
 
     it('should payout if custodian', async () => {
       const payoutValue = new BigNumber(1e18)
-      const gasPrice = new BigNumber(30e9)
-      const _fee = await cpoa.calculateFee(payoutValue)
-      const fee = _fee.add(
-        payoutValue
-          .sub(_fee)
-          .mul(1e18)
-          .mod(totalSupply)
-          .div(1e18)
-          .floor()
-      )
+      const fee = await cpoa.calculateFee(payoutValue)
       const preContractTotalTokenPayout = await cpoa.totalPerTokenPayout()
       const preCustodianEtherBalance = await getEtherBalance(custodian)
       const preContractEtherBalance = await getEtherBalance(cpoa.address)
@@ -1376,7 +770,7 @@ describe('when in Active stage', () => {
       )
       const expectedContractTotalTokenPayout = preContractTotalTokenPayout
         .add(payoutValue)
-        .minus(_fee)
+        .minus(fee)
         .mul(1e18)
         .div(totalSupply)
         .floor()
@@ -1402,11 +796,16 @@ describe('when in Active stage', () => {
         payoutValue.toString(),
         'the contact ether balance should be incremented by the payoutValue'
       )
+
+      // start dicks
+      let totalBalance = new BigNumber(0)
+      for (const account of accounts) {
+        const balance = await cpoa.currentPayout(account, true)
+        totalBalance = totalBalance.add(balance)
+      }
+
       // set for later test...
       ownerFee = fee
-      totalPayoutAmount = totalPayoutAmount.add(
-        postContractEtherBalance.minus(fee)
-      )
     })
 
     it('should allow owner to collect the fee after payout', async () => {
@@ -1419,33 +818,32 @@ describe('when in Active stage', () => {
 
     it('should show the correct payout', async () => {
       let totalInvestorPayouts = new BigNumber(0)
-
+      const contractEthBalance = await getEtherBalance(cpoa.address)
       for (const investor of investors) {
         const tokenBalance = await cpoa.balanceOf(investor)
+        const unclaimedBalances = await cpoa.unclaimedPayoutTotals(investor)
         const expectedPayout = tokenBalance
           .mul(totalPerTokenPayout)
           .div(1e18)
           .floor()
+          .add(unclaimedBalances)
         const currentPayout = await cpoa.currentPayout(investor, true)
-
         assert.equal(
           currentPayout.toString(),
           expectedPayout.toString(),
           'the contract payout calculation should match the expected payout'
         )
-
         totalInvestorPayouts = totalInvestorPayouts.add(currentPayout)
       }
 
-      assert.equal(
+      assert(
         totalInvestorPayouts.toString(),
-        totalPayoutAmount.toString(),
-        'the claimable payouts should match the actual payout amount'
+        contractEthBalance.toString(),
+        'the total payouts should match the contract balance'
       )
     })
 
     it('should claim as investor after payout', async () => {
-      const gasPrice = new BigNumber(30e9)
       for (const investor of investors) {
         const investorClaimAmount = await cpoa.currentPayout(investor, true)
         const preInvestorEtherBalance = await getEtherBalance(investor)
@@ -1477,10 +875,12 @@ describe('when in Active stage', () => {
       }
 
       const finalContractEtherBalance = await getEtherBalance(cpoa.address)
-      assert.equal(
-        finalContractEtherBalance.toString(),
+      assert(
+        finalContractEtherBalance.lessThan(100),
         new BigNumber(0).toString(),
-        'the contract should have no ether after all payouts have been claimed'
+        `the contract should have very small ether balance after all payouts have been claimed but ${
+          finalContractEtherBalance
+        } wei remain`
       )
     })
 
@@ -1699,13 +1099,13 @@ describe('when in Active stage', () => {
       await testWillThrow(cpoa.terminate, [{ from: custodian }])
     })
 
-    it('should kill the Token when in Terminated Stage', async () => {
+    it('should kill the token when in Terminated Stage', async () => {
       assert.equal(
         (await cpoa.stage()).toString(),
         '4',
         'should be in active stage'
       )
-      await testKill(cpoa)
+      await testKill(owner, investors[0], cpoa)
     })
   })
 })
@@ -1719,8 +1119,6 @@ describe('while in Terminated stage', async () => {
     const allowanceOwner = investors[0]
     const allowanceSpender = investors[1]
     const allowanceAmount = new BigNumber(5e17)
-    const totalSupply = new BigNumber(600e18).div(10)
-    const fundingGoal = new BigNumber(150e18).div(10)
     let cpoa
     let ownerFee
     // amount paid by custodian - fee
@@ -1745,19 +1143,19 @@ describe('while in Terminated stage', async () => {
       // claim tokens for investors
       await testMultiBuyTokens(investors, cpoa, {
         value: investAmount,
-        gasPrice: new BigNumber(21e9)
+        gasPrice
       })
 
       // // buy remaining tokens to go into pending
-      await testBuyRemainingTokens(fundingGoal, cpoa, {
+      await testBuyRemainingTokens(cpoa, accounts, {
         from: bigInvestor,
-        gasPrice: new BigNumber(21e9)
+        gasPrice
       })
 
       // // activate the contract by custodian with proper fee
       await testActivation(cpoa, {
         from: custodian,
-        gasPrice: new BigNumber(21e9)
+        gasPrice
       })
 
       currentStage = await cpoa.stage()
@@ -1807,16 +1205,7 @@ describe('while in Terminated stage', async () => {
 
     it('should payout if custodian', async () => {
       const payoutValue = new BigNumber(1e18)
-      const gasPrice = new BigNumber(30e9)
-      const _fee = await cpoa.calculateFee(payoutValue)
-      const fee = _fee.add(
-        payoutValue
-          .sub(_fee)
-          .mul(1e18)
-          .mod(totalSupply)
-          .div(1e18)
-          .floor()
-      )
+      const fee = await cpoa.calculateFee(payoutValue)
       const preContractTotalTokenPayout = await cpoa.totalPerTokenPayout()
       const preCustodianEtherBalance = await getEtherBalance(custodian)
       const preContractEtherBalance = await getEtherBalance(cpoa.address)
@@ -1832,7 +1221,7 @@ describe('while in Terminated stage', async () => {
       totalPerTokenPayout = postContractTotalTokenPayout
       const expectedContractTotalTokenPayout = preContractTotalTokenPayout
         .add(payoutValue)
-        .minus(_fee)
+        .minus(fee)
         .mul(1e18)
         .div(totalSupply)
         .floor()
@@ -1859,9 +1248,7 @@ describe('while in Terminated stage', async () => {
       )
       // set for later test...
       ownerFee = fee
-      totalPayoutAmount = totalPayoutAmount.add(
-        postContractEtherBalance.minus(fee)
-      )
+      totalPayoutAmount = totalPayoutAmount.add(payoutValue.minus(fee))
     })
 
     it('should allow owner to collect the fee after payout', async () => {
@@ -1873,30 +1260,32 @@ describe('while in Terminated stage', async () => {
 
     it('should show the correct payout', async () => {
       let totalInvestorPayouts = new BigNumber(0)
-
+      const contractEthBalance = await getEtherBalance(cpoa.address)
       for (const investor of investors) {
         const tokenBalance = await cpoa.balanceOf(investor)
-        const expectedPayout = tokenBalance.mul(totalPerTokenPayout).div(1e18)
+        const unclaimedBalances = await cpoa.unclaimedPayoutTotals(investor)
+        const expectedPayout = tokenBalance
+          .mul(totalPerTokenPayout)
+          .div(1e18)
+          .floor()
+          .add(unclaimedBalances)
         const currentPayout = await cpoa.currentPayout(investor, true)
-
         assert.equal(
-          expectedPayout.toString(),
           currentPayout.toString(),
+          expectedPayout.toString(),
           'the contract payout calculation should match the expected payout'
         )
-
         totalInvestorPayouts = totalInvestorPayouts.add(currentPayout)
       }
 
-      assert.equal(
+      assert(
         totalInvestorPayouts.toString(),
-        totalPayoutAmount.toString(),
-        'the claimable payouts should match the actual payout amount'
+        contractEthBalance.toString(),
+        'the total payouts should match the contract balance'
       )
     })
 
     it('should claim as investor after payout', async () => {
-      const gasPrice = new BigNumber(30e9)
       for (const investor of investors) {
         const investorClaimAmount = await cpoa.currentPayout(investor, true)
         const preInvestorEtherBalance = await getEtherBalance(investor)
@@ -1928,10 +1317,9 @@ describe('while in Terminated stage', async () => {
       }
 
       const finalContractEtherBalance = await getEtherBalance(cpoa.address)
-      assert.equal(
-        finalContractEtherBalance.toString(),
-        new BigNumber(0).toString(),
-        'the contract should have no ether after all payouts have been claimed'
+      assert(
+        finalContractEtherBalance.lessThan(10),
+        'the contract should have only dust ether after all payouts have been claimed'
       )
     })
 
@@ -2035,19 +1423,19 @@ describe('while in Terminated stage', async () => {
 
     // end expected impossible functions in Stages.Terminated
 
-    it('should kill the Token when in Terminated Stage', async () => {
+    it('should kill the token when in Terminated Stage', async () => {
       assert.equal(
         (await cpoa.stage()).toString(),
         '4',
         'should be in failed stage'
       )
 
-      await testKill(cpoa)
+      await testKill(owner, investors[0], cpoa)
     })
   })
 })
 
-describe('when timing out (going into stage 2 (failed))', () => {
+describe.only('when timing out (going into stage 2 (failed))', () => {
   contract('CustomPOAToken', accounts => {
     const owner = accounts[0]
     const broker = accounts[1]
@@ -2055,9 +1443,6 @@ describe('when timing out (going into stage 2 (failed))', () => {
     const investors = accounts.slice(4)
     const firstReclaimInvestor = investors[0]
     const laterReclaimInvestors = investors.slice(1)
-    const totalSupply = new BigNumber(600e18).div(10)
-    const fundingGoal = new BigNumber(150e18).div(10)
-    const gasPrice = new BigNumber(30e9)
     let cpoa
 
     before('setup fresh cpoa', async () => {
@@ -2166,7 +1551,7 @@ describe('when timing out (going into stage 2 (failed))', () => {
       const gasCost = gasPrice.mul(tx.receipt.gasUsed)
       const expectedInvestorEtherBalance = preInvestorEtherBalance
         .minus(gasCost)
-        .add(1e18) // initialInvestAmount
+        .add(assumedContributionByTokenBalance) // initialInvestAmount
       const ethDelta = postInvestorEtherBalance
         .minus(preInvestorEtherBalance)
         .plus(gasCost)
@@ -2193,16 +1578,13 @@ describe('when timing out (going into stage 2 (failed))', () => {
         'the investor token balance should be 0 after reclaiming'
       )
       assert.equal(
-        preContractEtherBalance
-          .minus(postContractEtherBalance)
-          .div(1e18)
-          .toString(),
-        assumedContributionByTokenBalance.div(1e18).toString(),
+        preContractEtherBalance.minus(postContractEtherBalance).toString(),
+        assumedContributionByTokenBalance.toString(),
         'the contract ether balance should be decremented corresponding to the investor token balance reclaimed'
       )
       assert.equal(
-        postInvestorEtherBalance.div(1e18).toString(),
-        expectedInvestorEtherBalance.div(1e18).toString(),
+        postInvestorEtherBalance.toString(),
+        expectedInvestorEtherBalance.toString(),
         'the investor ether balance should be incremented corresponding to the token balance reclaimed'
       )
       assert.equal(
@@ -2327,7 +1709,11 @@ describe('when timing out (going into stage 2 (failed))', () => {
         const preInvestorTokenBalance = await cpoa.balanceOf(investor)
         const preContractEtherBalance = await getEtherBalance(cpoa.address)
         const preContractTotalSupply = await cpoa.totalSupply()
-
+        console.log(
+          preContractEtherBalance.div(1e18).toString(),
+          preInvestorTokenBalance.div(1e18).toString(),
+          preContractTotalSupply.div(1e18).toString()
+        )
         const tx = await cpoa.reclaim({
           from: investor,
           gasPrice
@@ -2345,7 +1731,6 @@ describe('when timing out (going into stage 2 (failed))', () => {
         const postInvestorTokenBalance = await cpoa.balanceOf(investor)
         const postContractEtherBalance = await getEtherBalance(cpoa.address)
         const postContractTotalSupply = await cpoa.totalSupply()
-
         assert.equal(
           expectedInvestorEtherBalance.toString(),
           postInvestorEtherBalance.toString(),
@@ -2383,13 +1768,13 @@ describe('when timing out (going into stage 2 (failed))', () => {
       )
     })
 
-    it('should kill the Token when timed out', async () => {
+    it('should kill the token when timed out', async () => {
       assert.equal(
         (await cpoa.stage()).toString(),
         '2',
         'should be in failed stage'
       )
-      await testKill(cpoa)
+      await testKill(owner, investors[0], cpoa)
     })
   })
 })
@@ -2405,9 +1790,6 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
     const sender = investors[2]
     const receiver = investors[3]
     const allowanceAmount = new BigNumber(5e17)
-    const totalSupply = new BigNumber(600e18).div(10)
-    const fundingGoal = new BigNumber(150e18).div(10)
-    const gasPrice = new BigNumber(30e9)
     let cpoa
 
     beforeEach('setup state', async () => {
@@ -2427,20 +1809,20 @@ describe('when trying various scenarios using payout, transfer, approve, and tra
       // claim tokens for investors
       await testMultiBuyTokens(investors, cpoa, {
         value: investAmount,
-        gasPrice: new BigNumber(21e9)
+        gasPrice
       })
 
       // get last of contract's balance and buy it up
-      await testBuyRemainingTokens(fundingGoal, cpoa, {
+      await testBuyRemainingTokens(cpoa, accounts, {
         from: bigInvestor,
-        gasPrice: new BigNumber(21e9)
+        gasPrice
       })
 
       // activate the contract by custodian with proper fee
 
       await testActivation(cpoa, {
         from: custodian,
-        gasPrice: new BigNumber(21e9)
+        gasPrice
       })
       // the contract stage should be 3 (active)
 

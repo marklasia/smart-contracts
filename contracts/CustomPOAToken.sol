@@ -216,34 +216,39 @@ contract CustomPOAToken is PausableToken {
     isWhitelisted
     returns (bool)
   {
-    // check that buyer will indeed receive after integer division
-    require(_buyAmount > 0);
     // check if balance has met funding goal to move on
     uint256 _payAmount;
     uint256 _buyAmount;
     uint256 _remainingAmount;
-    uint256 _refundAmount = 0;
-    if (this.balance < fundingGoal) {
+    if (fundedAmount.add(msg.value) <= fundingGoal) {
       // _payAmount is just value sent
       _payAmount = msg.value;
       // get both converted amount and remainder after integer division
       (_buyAmount, _remainingAmount) = weiToTokens(_payAmount);
+      // check that buyer will indeed receive after integer division
+      // this check cannot be done in other case because it could prevent
+      // contract from moving to next stage
+      require(_buyAmount > 0);
     } else {
       // let the world know that the token is in Pending Stage
       enterStage(Stages.Pending);
       // set refund amount (overpaid amount)
-      _refundAmount = fundedAmount.sub(fundingGoal);
+      uint256 _refundAmount = fundedAmount.add(msg.value).sub(fundingGoal);
       // get actual ether amount to buy
       _payAmount = msg.value.sub(_refundAmount);
-      // get both converted amount and remainder after integer division
-      (_buyAmount, _remainingAmount) = weiToTokens(_payAmount);
+      // if fundedAmount.add(msg.value): we can be confident that the remaining balance
+      // of tokens will not be more than 9 wei units. give it to this sender.
+      _buyAmount = balances[this];
+      // there is no eth dust since we directly set the buyAmount giving up to
+      // 9 wei worth of tokens
+      _remainingAmount = 0;
       // SHOULD be ok even with reentrancy because of enterStage(Stages.Pending)
       msg.sender.transfer(_refundAmount);
     }
     // deduct token buy amount balance from contract balance
     balances[this] = balances[this].sub(_buyAmount);
     // increment the funded amount
-    fundedAmount = fundedAmount.add(_payAmount);
+    fundedAmount = fundedAmount.add(_payAmount.sub(_remainingAmount));
     // add token buy amount to sender's balance
     balances[msg.sender] = balances[msg.sender].add(_buyAmount);
     // add any dust from integer division to the sender's balance
@@ -394,6 +399,8 @@ contract CustomPOAToken is PausableToken {
     unclaimedPayoutTotals[msg.sender] = 0;
     // decrement totalSupply by token amount being reclaimed
     totalSupply = totalSupply.sub(_tokenBalance);
+    // decrement fundedAmount by eth amount converted from token amount being reclaimed
+    fundedAmount = fundedAmount.sub(tokensToWei(_tokenBalance));
     // set reclaim total as token value plus unclaimedPayoutTotals (possible dust)
     uint256 _reclaimTotal = tokensToWei(_tokenBalance)
       .add(unclaimedPayoutTotals[msg.sender]);
@@ -419,7 +426,7 @@ contract CustomPOAToken is PausableToken {
     /*
     totalPerTokenPayout is a rate at which to payout based on token balance
     it is stored as * 1e18 in order to keep accuracy
-    it is  / 1e18 when used relating to actual ether values
+    it is / 1e18 when used relating to actual ether values
     */
     totalPerTokenPayout = totalPerTokenPayout
       .add(_payoutAmount
@@ -429,8 +436,9 @@ contract CustomPOAToken is PausableToken {
 
     // take remaining dust and send to owner rather than leave stuck in contract
     // should not be more than a few wei
+
     uint256 _delta = (_payoutAmount.mul(1e18) % totalSupply).div(1e18);
-    unclaimedPayoutTotals[owner] = unclaimedPayoutTotals[owner].add(_fee.add(_delta));
+    unclaimedPayoutTotals[owner] = unclaimedPayoutTotals[owner].add(_fee).add(_delta);
     // let the world know that a payout has happened for this token
     Payout(_payoutAmount);
     return true;
