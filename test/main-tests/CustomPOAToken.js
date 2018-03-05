@@ -222,7 +222,7 @@ describe('when in Funding stage', () => {
       const whitelisted = await cpoa.whitelisted(investor)
       assert(whitelisted, 'the investor should be whitelisted')
       const initialSupply = await cpoa.initialSupply()
-      const smallInvestment = fundingGoal.div(initialSupply).toFixed(0)
+      const smallInvestment = fundingGoal.div(initialSupply).floor()
       await testWillThrow(cpoa.buy, [
         {
           from: investor,
@@ -773,7 +773,7 @@ describe('when in Active stage', () => {
         .minus(fee)
         .mul(1e18)
         .div(totalSupply)
-        .toFixed(0)
+        .floor()
       const postCustodianEtherBalance = await getEtherBalance(custodian)
       const expectedCustodianEtherBalance = preCustodianEtherBalance
         .minus(gasPrice.mul(tx.receipt.gasUsed))
@@ -811,7 +811,7 @@ describe('when in Active stage', () => {
         const expectedPayout = tokenBalance
           .mul(totalPerTokenPayout)
           .div(1e18)
-          .toFixed(0)
+          .floor()
           .add(unclaimedBalances)
         const currentPayout = await cpoa.currentPayout(investor, true)
         assert.equal(
@@ -1209,7 +1209,7 @@ describe('while in Terminated stage', async () => {
         .minus(fee)
         .mul(1e18)
         .div(totalSupply)
-        .toFixed(0)
+        .floor()
       const postCustodianEtherBalance = await getEtherBalance(custodian)
       const expectedCustodianEtherBalance = preCustodianEtherBalance
         .minus(gasPrice.mul(tx.receipt.gasUsed))
@@ -1247,7 +1247,7 @@ describe('while in Terminated stage', async () => {
         const expectedPayout = tokenBalance
           .mul(totalPerTokenPayout)
           .div(1e18)
-          .toFixed(0)
+          .floor()
           .add(unclaimedBalances)
         const currentPayout = await cpoa.currentPayout(investor, true)
         assert.equal(
@@ -1494,7 +1494,7 @@ describe('when timing out (going into stage 2 (failed))', () => {
       const assumedContributionByTokenBalance = preInvestorTokenBalance
         .mul(fundingGoal)
         .div(totalSupply)
-        .toFixed(0)
+        .floor()
       const preContractEtherBalance = await getEtherBalance(cpoa.address)
       const preInvestorEtherBalance = await getEtherBalance(
         firstReclaimInvestor
@@ -1700,7 +1700,7 @@ describe('when timing out (going into stage 2 (failed))', () => {
         const expectedPayout = preInvestorTokenBalance
           .mul(fundingGoal)
           .div(totalSupply)
-          .toFixed(0)
+          .floor()
         const expectedInvestorEtherBalance = preInvestorEtherBalance
           .minus(gasCost)
           .add(expectedPayout)
@@ -1756,7 +1756,7 @@ describe('when timing out (going into stage 2 (failed))', () => {
   })
 })
 
-describe.only('when trying various scenarios using payout, transfer, approve, and transferFrom', () => {
+describe('when trying various scenarios using payout, transfer, approve, and transferFrom', () => {
   contract('CustomPOAToken', accounts => {
     const owner = accounts[0]
     const broker = accounts[1]
@@ -1850,36 +1850,33 @@ describe.only('when trying various scenarios using payout, transfer, approve, an
           .minus(fee)
           .div(totalSupply)
           .mul(1e18)
-          .toFixed(0)
+          .floor()
           .div(1e18)
-          .toFixed(0)
         const expectedSecondTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
           .mul(1e18)
-          .toFixed(0)
+          .floor()
           .div(1e18)
-          .toFixed(0)
 
-        const expectedSenderPayout1 = senderAccount1.tokenBalance.mul(
-          expectedFirstTokenTotalPayout
-        )
-        const expectedSenderPayout2 = senderAccount3.tokenBalance.mul(
-          expectedSecondTokenTotalPayout
-        )
-        const expectedSenderFinalPayout = expectedSenderPayout1.add(
-          expectedSenderPayout2
-        )
-
-        const expectedReceiverPayout1 = receiverAccount1.tokenBalance.mul(
-          expectedFirstTokenTotalPayout
-        )
-        const expectedReceiverPayout2 = receiverAccount3.tokenBalance.mul(
-          expectedSecondTokenTotalPayout
-        )
-        const expectedReceiverFinalPayout = expectedReceiverPayout1.add(
-          expectedReceiverPayout2
-        )
+        const expectedSenderPayout1 = senderAccount1.tokenBalance
+          .mul(expectedFirstTokenTotalPayout)
+          .floor()
+        const expectedSenderPayout2 = senderAccount3.tokenBalance
+          .mul(expectedSecondTokenTotalPayout)
+          .floor()
+        const expectedSenderFinalPayout = expectedSenderPayout1
+          .add(expectedSenderPayout2)
+          .floor()
+        const expectedReceiverPayout1 = receiverAccount1.tokenBalance
+          .mul(expectedFirstTokenTotalPayout)
+          .floor()
+        const expectedReceiverPayout2 = receiverAccount3.tokenBalance
+          .mul(expectedSecondTokenTotalPayout)
+          .floor()
+        const expectedReceiverFinalPayout = expectedReceiverPayout1
+          .add(expectedReceiverPayout2)
+          .floor()
 
         assert.equal(
           expectedSenderFinalPayout.toString(),
@@ -1889,7 +1886,7 @@ describe.only('when trying various scenarios using payout, transfer, approve, an
         assert.equal(
           expectedReceiverFinalPayout.toString(),
           receiverAccount4.currentPayout.toString(),
-          'the expected payout should match the actual payout for sender'
+          'the expected payout should match the actual payout for receiver'
         )
         it('should claim everything', async () => {
           await testClaimAllPayouts(investors, cpoa, {
@@ -1934,31 +1931,35 @@ describe.only('when trying various scenarios using payout, transfer, approve, an
         const expectedFirstTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .toFixed(0)
+          .mul(1e18)
+          .floor()
+          .div(1e18)
         const expectedSecondTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .toFixed(0)
+          .mul(1e18)
+          .floor()
+          .div(1e18)
 
-        const expectedSenderPayout1 = senderAccount1.tokenBalance.mul(
-          expectedFirstTokenTotalPayout
-        )
-        const expectedSenderPayout2 = senderAccount3.tokenBalance.mul(
-          expectedSecondTokenTotalPayout
-        )
-        const expectedSenderFinalPayout = expectedSenderPayout1.add(
-          expectedSenderPayout2
-        )
+        const expectedSenderPayout1 = senderAccount1.tokenBalance
+          .mul(expectedFirstTokenTotalPayout)
+          .floor()
+        const expectedSenderPayout2 = senderAccount3.tokenBalance
+          .mul(expectedSecondTokenTotalPayout)
+          .floor()
+        const expectedSenderFinalPayout = expectedSenderPayout1
+          .add(expectedSenderPayout2)
+          .floor()
 
-        const expectedReceiverPayout1 = receiverAccount1.tokenBalance.mul(
-          expectedFirstTokenTotalPayout
-        )
-        const expectedReceiverPayout2 = receiverAccount3.tokenBalance.mul(
-          expectedSecondTokenTotalPayout
-        )
-        const expectedReceiverFinalPayout = expectedReceiverPayout1.add(
-          expectedReceiverPayout2
-        )
+        const expectedReceiverPayout1 = receiverAccount1.tokenBalance
+          .mul(expectedFirstTokenTotalPayout)
+          .floor()
+        const expectedReceiverPayout2 = receiverAccount3.tokenBalance
+          .mul(expectedSecondTokenTotalPayout)
+          .floor()
+        const expectedReceiverFinalPayout = expectedReceiverPayout1
+          .add(expectedReceiverPayout2)
+          .floor()
 
         assert.equal(
           expectedSenderFinalPayout.toString(),
@@ -2027,31 +2028,35 @@ describe.only('when trying various scenarios using payout, transfer, approve, an
         const expectedFirstTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .toFixed(0)
+          .mul(1e18)
+          .floor()
+          .div(1e18)
         const expectedSecondTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .toFixed(0)
+          .mul(1e18)
+          .floor()
+          .div(1e18)
 
-        const expectedAllowanceOwnerPayout1 = allowanceOwnerAccount1.tokenBalance.mul(
-          expectedFirstTokenTotalPayout
-        )
-        const expectedAllowanceOwnerPayout2 = allowanceOwnerAccount3.tokenBalance.mul(
-          expectedSecondTokenTotalPayout
-        )
-        const expectedAllowanceOwnerFinalPayout = expectedAllowanceOwnerPayout1.add(
-          expectedAllowanceOwnerPayout2
-        )
+        const expectedAllowanceOwnerPayout1 = allowanceOwnerAccount1.tokenBalance
+          .mul(expectedFirstTokenTotalPayout)
+          .floor()
+        const expectedAllowanceOwnerPayout2 = allowanceOwnerAccount3.tokenBalance
+          .mul(expectedSecondTokenTotalPayout)
+          .floor()
+        const expectedAllowanceOwnerFinalPayout = expectedAllowanceOwnerPayout1
+          .add(expectedAllowanceOwnerPayout2)
+          .floor()
 
-        const expectedReceiverPayout1 = receiverAccount1.tokenBalance.mul(
-          expectedFirstTokenTotalPayout
-        )
-        const expectedReceiverPayout2 = receiverAccount3.tokenBalance.mul(
-          expectedSecondTokenTotalPayout
-        )
-        const expectedReceiverFinalPayout = expectedReceiverPayout1.add(
-          expectedReceiverPayout2
-        )
+        const expectedReceiverPayout1 = receiverAccount1.tokenBalance
+          .mul(expectedFirstTokenTotalPayout)
+          .floor()
+        const expectedReceiverPayout2 = receiverAccount3.tokenBalance
+          .mul(expectedSecondTokenTotalPayout)
+          .floor()
+        const expectedReceiverFinalPayout = expectedReceiverPayout1
+          .add(expectedReceiverPayout2)
+          .floor()
 
         assert.equal(
           expectedAllowanceOwnerFinalPayout.toString(),
@@ -2119,39 +2124,43 @@ describe.only('when trying various scenarios using payout, transfer, approve, an
         const expectedFirstTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .toFixed(0)
+          .mul(1e18)
+          .floor()
+          .div(1e18)
         const expectedSecondTokenTotalPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .toFixed(0)
+          .mul(1e18)
+          .floor()
+          .div(1e18)
 
-        const expectedAllowanceOwnerPayout1 = allowanceOwnerAccount1.tokenBalance.mul(
-          expectedFirstTokenTotalPayout
-        )
-        const expectedAllowanceOwnerPayout2 = allowanceOwnerAccount3.tokenBalance.mul(
-          expectedSecondTokenTotalPayout
-        )
-        const expectedAllowanceOwnerFinalPayout = expectedAllowanceOwnerPayout1.add(
-          expectedAllowanceOwnerPayout2
-        )
+        const expectedAllowanceOwnerPayout1 = allowanceOwnerAccount1.tokenBalance
+          .mul(expectedFirstTokenTotalPayout)
+          .floor()
+        const expectedAllowanceOwnerPayout2 = allowanceOwnerAccount3.tokenBalance
+          .mul(expectedSecondTokenTotalPayout)
+          .floor()
+        const expectedAllowanceOwnerFinalPayout = expectedAllowanceOwnerPayout1
+          .add(expectedAllowanceOwnerPayout2)
+          .floor()
 
-        const expectedReceiverPayout1 = receiverAccount1.tokenBalance.mul(
-          expectedFirstTokenTotalPayout
-        )
-        const expectedReceiverPayout2 = receiverAccount3.tokenBalance.mul(
-          expectedSecondTokenTotalPayout
-        )
-        const expectedReceiverFinalPayout = expectedReceiverPayout1.add(
-          expectedReceiverPayout2
-        )
+        const expectedReceiverPayout1 = receiverAccount1.tokenBalance
+          .mul(expectedFirstTokenTotalPayout)
+          .floor()
+        const expectedReceiverPayout2 = receiverAccount3.tokenBalance
+          .mul(expectedSecondTokenTotalPayout)
+          .floor()
+        const expectedReceiverFinalPayout = expectedReceiverPayout1
+          .add(expectedReceiverPayout2)
+          .floor()
 
         assert.equal(
-          expectedAllowanceOwnerFinalPayout.toFixed(0).toString(), // [TODO] dirty not actualy fixed
+          expectedAllowanceOwnerFinalPayout.floor().toString(), // [TODO] dirty not actualy fixed
           allowanceOwnerAccount4.currentPayout.toString(),
           'the expected payout should match the actual payout for allowanceOwner'
         )
         assert.equal(
-          expectedReceiverFinalPayout.toFixed(0).toString(), // [TODO] dirty not actualy fixed
+          expectedReceiverFinalPayout.floor().toString(), // [TODO] dirty not actualy fixed
           receiverAccount4.currentPayout.toString(),
           'the expected payout should match the actual payout for allowanceOwner'
         )
@@ -2190,12 +2199,14 @@ describe.only('when trying various scenarios using payout, transfer, approve, an
         const expectedTotalTokenPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .toFixed(0)
+          .mul(1e18)
+          .floor()
+          .div(1e18)
 
         const expectedSenderFinalPayout = new BigNumber(0)
-        const expectedReceiverFinalPayout = receiverAccount2.tokenBalance.mul(
-          expectedTotalTokenPayout
-        )
+        const expectedReceiverFinalPayout = receiverAccount2.tokenBalance
+          .mul(expectedTotalTokenPayout)
+          .floor()
 
         assert.equal(
           senderAccount3.currentPayout.toString(),
@@ -2242,14 +2253,16 @@ describe.only('when trying various scenarios using payout, transfer, approve, an
         const expectedTotalTokenPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .toFixed(0)
+          .mul(1e18)
+          .floor()
+          .div(1e18)
 
-        const expectedSenderFinalPayout = senderAccount2.tokenBalance.mul(
-          expectedTotalTokenPayout
-        )
-        const expectedReceiverFinalPayout = receiverAccount2.tokenBalance.mul(
-          expectedTotalTokenPayout
-        )
+        const expectedSenderFinalPayout = senderAccount2.tokenBalance
+          .mul(expectedTotalTokenPayout)
+          .floor()
+        const expectedReceiverFinalPayout = receiverAccount2.tokenBalance
+          .mul(expectedTotalTokenPayout)
+          .floor()
 
         assert.equal(
           senderAccount3.currentPayout.toString(),
@@ -2307,12 +2320,14 @@ describe.only('when trying various scenarios using payout, transfer, approve, an
         const expectedTotalTokenPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .toFixed(0)
+          .mul(1e18)
+          .floor()
+          .div(1e18)
 
         const expectedSenderFinalPayout = new BigNumber(0)
-        const expectedReceiverFinalPayout = receiverAccount2.tokenBalance.mul(
-          expectedTotalTokenPayout
-        )
+        const expectedReceiverFinalPayout = receiverAccount2.tokenBalance
+          .mul(expectedTotalTokenPayout)
+          .floor()
 
         assert.equal(
           allowanceOwnerAccount3.currentPayout.toString(),
@@ -2373,14 +2388,16 @@ describe.only('when trying various scenarios using payout, transfer, approve, an
         const expectedTotalTokenPayout = payoutAmount
           .minus(fee)
           .div(totalSupply)
-          .toFixed(0)
+          .mul(1e18)
+          .floor()
+          .div(1e18)
 
-        const expectedSenderFinalPayout = allowanceOwnerAccount2.tokenBalance.mul(
-          expectedTotalTokenPayout
-        )
-        const expectedReceiverFinalPayout = receiverAccount2.tokenBalance.mul(
-          expectedTotalTokenPayout
-        )
+        const expectedSenderFinalPayout = allowanceOwnerAccount2.tokenBalance
+          .mul(expectedTotalTokenPayout)
+          .floor()
+        const expectedReceiverFinalPayout = receiverAccount2.tokenBalance
+          .mul(expectedTotalTokenPayout)
+          .floor()
 
         assert.equal(
           allowanceOwnerAccount3.currentPayout.toString(),

@@ -91,7 +91,7 @@ contract CustomPOAToken is PausableToken {
   )
     public
   {
-    require(fundingGoal > totalSupply);
+    require(_totalSupply > _fundingGoal);
     owner = msg.sender;
     name = _name;
     symbol = _symbol;
@@ -120,10 +120,7 @@ contract CustomPOAToken is PausableToken {
   function weiToTokens(uint256 _ethAmount)
     public
     view
-    returns (
-      uint256,
-      uint256
-    )
+    returns (uint256, uint256)
   {
     uint256 _tokenAmount = (_ethAmount.mul(1e18).mul(initialSupply)).div(fundingGoal).div(1e18);
     uint256 _remainingValue = (_ethAmount.mul(1e18).mul(initialSupply)) % (fundingGoal.div(1e18));
