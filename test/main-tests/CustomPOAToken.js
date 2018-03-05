@@ -670,7 +670,6 @@ describe('when in Active stage', () => {
     const allowanceSpender = investors[1]
     const allowanceAmount = new BigNumber(5e17)
     let cpoa
-    let ownerFee
     let totalPerTokenPayout = new BigNumber(0)
 
     before('setup state', async () => {
@@ -800,8 +799,6 @@ describe('when in Active stage', () => {
     })
 
     it('should allow owner to collect the fee after payout', async () => {
-      const preOwnerUnclaimedBalance = await cpoa.unclaimedPayoutTotals(owner)
-
       await testOwnerWithdrawFees(cpoa, owner)
     })
 
@@ -1109,7 +1106,6 @@ describe('while in Terminated stage', async () => {
     const allowanceSpender = investors[1]
     const allowanceAmount = new BigNumber(5e17)
     let cpoa
-    let ownerFee
     // amount paid by custodian - fee
     let totalPayoutAmount = new BigNumber(0)
     let totalPerTokenPayout
@@ -1239,7 +1235,6 @@ describe('while in Terminated stage', async () => {
     })
 
     it('should allow owner to collect the fee after payout', async () => {
-      const preOwnerUnclaimedBalance = await cpoa.unclaimedPayoutTotals(owner)
       await testOwnerWithdrawFees(cpoa, owner)
     })
 
@@ -1691,7 +1686,6 @@ describe('when timing out (going into stage 2 (failed))', () => {
     it('should reclaim when owning tokens', async () => {
       for (const investor of laterReclaimInvestors) {
         const preInvestorEtherBalance = await getEtherBalance(investor)
-        const preInvestorDust = await cpoa.unclaimedPayoutTotals(investor)
         const preInvestorTokenBalance = await cpoa.balanceOf(investor)
         const preContractEtherBalance = await getEtherBalance(cpoa.address)
         const preContractTotalSupply = await cpoa.totalSupply()

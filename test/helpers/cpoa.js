@@ -2,7 +2,6 @@ const assert = require('assert')
 const BigNumber = require('bignumber.js')
 
 const {
-  testWillThrow,
   sendTransaction,
   getReceipt,
   getEtherBalance
@@ -613,7 +612,7 @@ const testClearDust = async (cpoa, investors) => {
     const preUnclaimedBalance = await cpoa.unclaimedPayoutTotals(investor)
 
     if (preUnclaimedBalance.greaterThan(0)) {
-      'non zero dust... clearing...'
+      console.log('non zero dust... clearing...')
       await cpoa.claim({
         from: investor
       })

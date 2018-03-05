@@ -91,7 +91,7 @@ contract CustomPOAToken is PausableToken {
   )
     public
   {
-    require(totalSupply > fundingGoal);
+    require(fundingGoal > totalSupply);
     owner = msg.sender;
     name = _name;
     symbol = _symbol;
