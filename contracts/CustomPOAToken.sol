@@ -124,7 +124,7 @@ contract CustomPOAToken is PausableToken {
       uint256
     )
   {
-    uint256 tokenAmount = _ethAmount.mul(1e18).mul(initialSupply).div(fundingGoal).div(1e18);
+    uint256 tokenAmount = (_ethAmount.mul(1e18).mul(initialSupply)).div(fundingGoal).div(1e18);
     uint256 remainingValue = (_ethAmount.mul(1e18).mul(initialSupply)) % (fundingGoal.div(1e18));
     return (tokenAmount, remainingValue);
   }
@@ -220,7 +220,7 @@ contract CustomPOAToken is PausableToken {
     uint256 _payAmount;
     uint256 _buyAmount;
     uint256 _remainingAmount;
-    if (fundedAmount.add(msg.value) <= fundingGoal) {
+    if (fundedAmount.add(msg.value) < fundingGoal) {
       // _payAmount is just value sent
       _payAmount = msg.value;
       // get both converted amount and remainder after integer division
@@ -236,23 +236,25 @@ contract CustomPOAToken is PausableToken {
       uint256 _refundAmount = fundedAmount.add(msg.value).sub(fundingGoal);
       // get actual ether amount to buy
       _payAmount = msg.value.sub(_refundAmount);
-      // if fundedAmount.add(msg.value): we can be confident that the remaining balance
-      // of tokens will not be more than 9 wei units. give it to this sender.
-      _buyAmount = balances[this];
-      // there is no eth dust since we directly set the buyAmount giving up to
-      // 9 wei worth of tokens
-      _remainingAmount = 0;
+
+      (_buyAmount, _remainingAmount) = weiToTokens(_payAmount);
+      // assign remaining dust
+      uint256 _dust = balances[this].sub(_buyAmount);
+      // sub dust from contract
+      balances[this] = balances[this].sub(_dust);
+      // give dust to owner
+      balances[owner] = balances[owner].add(_dust);
       // SHOULD be ok even with reentrancy because of enterStage(Stages.Pending)
       msg.sender.transfer(_refundAmount);
     }
     // deduct token buy amount balance from contract balance
     balances[this] = balances[this].sub(_buyAmount);
-    // increment the funded amount
-    fundedAmount = fundedAmount.add(_payAmount.sub(_remainingAmount));
     // add token buy amount to sender's balance
     balances[msg.sender] = balances[msg.sender].add(_buyAmount);
     // add any dust from integer division to the sender's balance
     unclaimedPayoutTotals[msg.sender] = unclaimedPayoutTotals[msg.sender].add(_remainingAmount);
+    // increment the funded amount
+    fundedAmount = fundedAmount.add(_payAmount.sub(_remainingAmount));
     // send out event giving info on amount bought as well as claimable dust
     Buy(msg.sender, _buyAmount, _remainingAmount);
     return true;

@@ -114,7 +114,7 @@ describe('when first deploying', () => {
   })
 })
 
-describe('when in Funding stage', () => {
+describe.only('when in Funding stage', () => {
   contract('CustomPOAToken', accounts => {
     const owner = accounts[0]
     const broker = accounts[1]
@@ -1435,7 +1435,7 @@ describe('while in Terminated stage', async () => {
   })
 })
 
-describe.only('when timing out (going into stage 2 (failed))', () => {
+describe('when timing out (going into stage 2 (failed))', () => {
   contract('CustomPOAToken', accounts => {
     const owner = accounts[0]
     const broker = accounts[1]
@@ -1706,13 +1706,20 @@ describe.only('when timing out (going into stage 2 (failed))', () => {
     it('should reclaim when owning tokens', async () => {
       for (const investor of laterReclaimInvestors) {
         const preInvestorEtherBalance = await getEtherBalance(investor)
+        const preInvestorDust = await cpoa.unclaimedPayoutTotals(investor)
         const preInvestorTokenBalance = await cpoa.balanceOf(investor)
         const preContractEtherBalance = await getEtherBalance(cpoa.address)
         const preContractTotalSupply = await cpoa.totalSupply()
+
+        const tokensToWei = await cpoa.tokensToWei(preInvestorTokenBalance)
         console.log(
+          preInvestorDust.toString(),
           preContractEtherBalance.div(1e18).toString(),
+          tokensToWei.div(1e18).toString(),
+          preContractEtherBalance.greaterThanOrEqualTo(tokensToWei),
           preInvestorTokenBalance.div(1e18).toString(),
-          preContractTotalSupply.div(1e18).toString()
+          preContractTotalSupply.div(1e18).toString(),
+          preContractTotalSupply.greaterThanOrEqualTo(preInvestorTokenBalance)
         )
         const tx = await cpoa.reclaim({
           from: investor,
@@ -1724,6 +1731,8 @@ describe.only('when timing out (going into stage 2 (failed))', () => {
         const expectedPayout = preInvestorTokenBalance
           .mul(fundingGoal)
           .div(totalSupply)
+          .toFixed(0)
+          .add(preInvestorDust)
         const expectedInvestorEtherBalance = preInvestorEtherBalance
           .minus(gasCost)
           .add(expectedPayout)

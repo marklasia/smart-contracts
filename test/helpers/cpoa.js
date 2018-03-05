@@ -170,10 +170,9 @@ async function testBuyRemainingTokens(contract, accounts, args) {
   const preInvestorTokenBalance = await contract.balanceOf(investor)
   const preInvestorEtherBalance = await getEtherBalance(investor)
   const preInvestorEthDust = await contract.unclaimedPayoutTotals(investor)
-  const preContractEtherBalance = await getEtherBalance(contract.address)
   const preContractTokenBalance = await contract.balanceOf(contract.address)
-  const overpayAmountEth = fundingGoal.sub(preContractEtherBalance).add(1e18)
   const preFundedAmount = await contract.fundedAmount()
+  const overpayAmountEth = fundingGoal.sub(preFundedAmount).add(1e18)
   const refundAmount = preFundedAmount.add(overpayAmountEth).sub(fundingGoal)
 
   const tx = await contract.buy({
