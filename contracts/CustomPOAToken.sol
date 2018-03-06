@@ -122,8 +122,17 @@ contract CustomPOAToken is PausableToken {
     view
     returns (uint256, uint256)
   {
-    uint256 _tokenAmount = (_ethAmount.mul(1e18).mul(initialSupply)).div(fundingGoal).div(1e18);
-    uint256 _remainingValue = (_ethAmount.mul(1e18).mul(initialSupply)) % (fundingGoal.div(1e18));
+    uint256 _tokenAmount = _ethAmount
+      .mul(1e18)
+      .mul(initialSupply)
+      .div(fundingGoal)
+      .div(1e18);
+
+    uint256 _remainingValue = _ethAmount
+      .mul(1e18)
+      .mul(initialSupply)
+      % fundingGoal.div(1e18);
+
     return (_tokenAmount, _remainingValue);
   }
 
@@ -134,7 +143,11 @@ contract CustomPOAToken is PausableToken {
     view
     returns (uint256)
   {
-    return _tokenAmount.mul(fundingGoal).mul(1e18).div(initialSupply).div(1e18);
+    return _tokenAmount
+      .mul(1e18)
+      .mul(fundingGoal)
+      .div(initialSupply)
+      .div(1e18);
   }
 
   // end token conversion functions

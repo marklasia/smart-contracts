@@ -1,155 +1,61 @@
-const CustomPOAToken = artifacts.require('CustomPOAToken')
-const WarpTool = artifacts.require('WarpTool')
 const assert = require('assert')
 const BigNumber = require('bignumber.js')
+const {
+  activeContract,
+  getAccountInformation,
+  claimAll
+} = require('../helpers/stress/cpoa')
 
-async function getAccountInformation(address, contract) {
-  const etherBalance = await getEtherBalance(address)
-  const tokenBalance = await contract.balanceOf(address)
-  const currentPayout = await contract.currentPayout(address, true)
-
-  return {
-    etherBalance,
-    tokenBalance,
-    currentPayout
-  }
-}
+/* eslint-disable no-console */
 
 let cpoa
 const accounts = web3.eth.accounts
-const owner = accounts[0]
-const broker = accounts[1]
 const custodian = accounts[2]
-const nonInvestor = accounts[3]
 const investors = accounts.slice(4)
 
-async function activeContract(_totalSupply, _fundingGoal) {
-  const totalSupply = new BigNumber(_totalSupply)
-  const fundingGoal = new BigNumber(_fundingGoal)
-  const contract = await CustomPOAToken.new(
-    'ProofOfAwesome',
-    'POA',
-    broker,
-    custodian,
-    web3.eth.blockNumber + 200,
-    totalSupply,
-    fundingGoal
-  )
-  let remainingBalance = fundingGoal.sub(
-    await web3.eth.getBalance(contract.address)
-  )
-  await Promise.all(
-    investors.map(investor => contract.whitelistAddress(investor))
-  )
-  let i = 0
-  while (remainingBalance >= 100) {
-    const l = investors.length
+describe
+  .only('simulate claims and payouts for 10 years (120 rounds)', () => {
+    contract('CustomPOA', () => {
+      it('should create cpoa', async () => {
+        cpoa = await activeContract(100e18, 33.3333333333333e18)
+      })
 
-    assert.equal(
-      (await contract.stage()).toString(),
-      '0',
-      'should be in funding stage now'
-    )
-    const investAmount = BigNumber.min(
-      remainingBalance,
-      BigNumber.random(18)
-        .mul(fundingGoal.div(6))
-        .floor()
-    )
-    const meta = await contract.buy({
-      from: investors[i % l],
-      value: investAmount
-    })
-    remainingBalance = fundingGoal.sub(
-      await web3.eth.getBalance(contract.address)
-    )
-    console.log(remainingBalance / 1e18, investAmount / 1e18)
+      it('claim and payout for 10 years', async () => {
+        let oldContractBalance = 0
+        for (let i = 0; i < 120; i++) {
+          const meta = await cpoa.payout({
+            from: custodian,
+            value: BigNumber.random(18).mul(1e18),
+            gasPrice: new BigNumber(21e9)
+          })
+          console.log(
+            'payout : ',
+            meta.logs[0].args.amount.div(1e18).toString()
+          )
 
-    i++
-  }
+          // claim owner fees
+          console.log('claiming for OWNER')
+          await cpoa.claim()
+          // claim or investors
+          await claimAll(investors)
 
-  assert.equal(
-    (await contract.stage()).toString(),
-    '1',
-    'should be in penidng stage now'
-  )
-  const fee = await contract.calculateFee(fundingGoal)
-  await contract.activate({ from: custodian, value: fee })
-  console.log('claiming for OWNER (activation fee)')
-  await contract.claim()
-  console.log('claiming for CUSTODIAN (activation contract value)')
-  await contract.claim.sendTransaction({
-    from: custodian
-  })
-  assert.equal(
-    (await contract.stage()).toString(),
-    '3',
-    'should be in active stage now'
-  )
-  return contract
-}
+          const contractBalance = await web3.eth.getBalance(cpoa.address)
+          assert(
+            contractBalance.greaterThanOrEqualTo(oldContractBalance),
+            `contract balance went down`
+          )
+          oldContractBalance = contractBalance
+        }
 
-async function claimAll(investors) {
-  const payouts = investors.map(() => new BigNumber(0))
-  for (let i = 0; i < investors.length; i += 1) {
-    try {
-      const investor = investors[i]
-      const claimableAmount = await cpoa.currentPayout(investor, true)
-      assert(claimableAmount.greaterThan(0), "0 balance won't claim")
-      console.log(`claiming for ${investor} ${claimableAmount / 1e18}`)
-      const meta = await cpoa.claim({ from: investor, gasPrice: 0 })
-      const payoutValue = meta.logs[0].args.payout
-      payouts[i] = payoutValue
-    } catch (error) {
-      assert(
-        !/invalid opcode/.test(error),
-        'Claim Failed(',
-        await web3.eth.getBalance(cpoa.address),
-        ') : ' + error.message
-      )
-      console.error(error)
-    }
-  }
-  return payouts
-}
-
-describe('simulate claims and payouts for 10 years (120 rounds)', () => {
-  contract('CustomPOA', () => {
-    it('should create cpoa', async () => {
-      cpoa = await activeContract(1000e18, 33.3333333333333e18)
-    })
-
-    it('claim and payout for 10 years', async () => {
-      let oldContractBalance = 0
-      for (var i = 0; i < 120; i++) {
-        const meta = await cpoa.payout({
-          from: custodian,
-          value: BigNumber.random(18).mul(1e18),
-          gasPrice: new BigNumber(21e9)
-        })
-        console.log('payout : ', meta.logs[0].args.amount.div(1e18).toString())
-
-        // claim owner fees
-        console.log('claiming for OWNER')
-        await cpoa.claim()
-        // claim or investors
-        await claimAll(investors)
-
-        const contractBalance = await web3.eth.getBalance(cpoa.address)
+        const cpoaBalance = await web3.eth.getBalance(cpoa.address)
         assert(
-          contractBalance.greaterThanOrEqualTo(oldContractBalance),
-          `contract balance went down`
+          cpoaBalance.lessThan(6 * 120),
+          `contract not empty ${cpoaBalance} left`
         )
-        oldContractBalance = contractBalance
-      }
-      const cpoaBalance = await web3.eth.getBalance(cpoa.address)
-      assert(
-        cpoaBalance.lessThan(6 * 120),
-        `contract not empty ${cpoaBalance} left`
-      )
+      })
     })
   })
-}).timeout(0)
+  .timeout(0)
 
 describe('simulate payout for 100 years(1200 rounds) and no one claims until then', () => {
   contract('CustomPOA', () => {
@@ -158,8 +64,8 @@ describe('simulate payout for 100 years(1200 rounds) and no one claims until the
     })
 
     it('payout for 100 years', async () => {
-      let oldContractBalance = 0
-      for (var i = 0; i < 1200; i++) {
+      const oldContractBalance = 0
+      for (let i = 0; i < 1200; i++) {
         const meta = await cpoa.payout({
           from: custodian,
           value: BigNumber.random(16).mul(1e16),
@@ -168,8 +74,8 @@ describe('simulate payout for 100 years(1200 rounds) and no one claims until the
         console.log('payout : ', meta.logs[0].args.amount.div(1e18).toString())
         // if(meta.logs[0].args.amount != '0')
         //   console.log(JSON.stringify(meta.logs,null,2))
-
       }
+
       // claim owner fees
       console.log('claiming for OWNER')
       await cpoa.claim()
@@ -266,7 +172,7 @@ describe('do random transfers and payouts and claims', () => {
   contract('CustomPOA', () => {
     it('should create cpoa', async () => {
       /* ether    tokens */
-      cpoa = await activeContract(1000e18, 33.3333333333333e18)
+      cpoa = await activeContract(33e18, 33.3333333333333e18)
     })
 
     it('random transfer, random payout, random claim, balances still add up ', async () => {
@@ -360,3 +266,5 @@ describe('do random transfers and payouts and claims', () => {
     })
   })
 }).timeout(0)
+
+/* eslint-enable no-console */

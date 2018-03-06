@@ -612,7 +612,6 @@ const testClearDust = async (cpoa, investors) => {
     const preUnclaimedBalance = await cpoa.unclaimedPayoutTotals(investor)
 
     if (preUnclaimedBalance.greaterThan(0)) {
-      console.log('non zero dust... clearing...')
       await cpoa.claim({
         from: investor
       })
