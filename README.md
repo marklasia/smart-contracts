@@ -60,11 +60,13 @@ However for production, all smart contracts and interactions involving an owner 
 
 ### Deploy to Ropsten Testnet
 If you want to deploy the contracts to ropsten (or mainnet in theory, but wouldn't be advisable and requires reconfiguration of truffle.js) then
-* start a local node using ropsten testnet: `geth --rinkeby --rpc --ipcpath ~/Library/Ethereum/geth.ipc --unlock <YOUR ADDRESS>`
+* start a local node using ropsten testnet: `parity --chain `
 * make sure that you have some ropsten ether
 * open a shell and migrate via `yarn migrate:ropsten`
 
 ## Smart Contracts
+
+### Main Contracts
 
 These are the smart contracts which will power the Ethereum side of our platform. The following are included:
 
@@ -77,6 +79,25 @@ These are the smart contracts which will power the Ethereum side of our platform
 1. BrickblockFeeManager
 1. BrickblockWhitelist
 1. POAToken2
+
+### Testing Tools
+These contracts have been used as testing stubs. They do not have any use in the actual ecosystem:
+1. BrickblockFountainStub
+1. BrickblockFountainStub
+1. BrickblockUmbrellaStub
+1. WarpTool
+
+### Legacy Contracts
+There are a variety of contracts that have not been described. These are to be considered legacy contracts. This includes but is not limited to:
+
+1. Brickblock
+1. BrickblockAccessToken
+1. BrickblockFountain
+1. BrickblockFountainExample
+1. BrickblockTokenUpgraded
+1. BrokenGenericRemoteContract
+1. BrokenGenericRemoteContractUser
+1. POAToken
 
 This SHOULD be all the needed contracts for the immediate future, though changes are always possible.
 
@@ -127,7 +148,6 @@ When in `Failed`, the only thing that can be done is `reclaim`. This allows buye
 **IMPORTANT NOTE:** *A very small amount of ether may be lost due to integer division (max 50 wei)*
 
 #### Active
-
 In `Active` regular payouts from the `custodian` happens. The following things can be done during this stage:
 * `payout`
 * `claim`
@@ -191,33 +211,34 @@ function tokensToWei(uint256 _tokenAmount)
 }
 ```
 
-## BrickblockAccessToken2 (Work in Progress)
+## BrickblockUmbrella (Work in Progress)
+The Brickblock contract will allow brokers to be added and removed. It is also responsible for deploying new POATokens on behalf of valid brokers. It will be able to:
+
+1. add a broker
+1. remove a broker
+1. list brokers
+1. create new tokens
+1. pay fees to FeeManager
+
+The current fee payment implementation is out of date and will be changed.
+
+## BrickblockAccessToken2 (Mostly Finished)
 `BrickblockAccessToken2` allows for `BrickblockToken` holders to lock in their BBK in order to receive ACT whenever a fee is paid on the Brickblock network. When a fee is paid, users who have locked in their BBK receive an ACT reward proportional to their locked tokens relative to the entire locked BBK balance of the contract.
 
-`BrickblockAccessToken` is an ERC20 compliant token contract.
+From a user's perspective, these are the important functions:
 
-## BrickblockFeeManager (Work in Progress)
+### lockBBK
+A users who hold BBK (`BrickblockToken`) can lock their BBK into this contract in order to receive ACT (AccessTokens) whenever a fee is paid in the Brickblock ecosystem. BBK must be locked before a fee is paid in order to receive ACT. ACT tokens can be used to redeem ether from the `FeeManager` contract.
 
-`BrickblockFeeManager` allows for other smart contracts or accounts to pay a fee to the contract. When a fee is paid, ACT (BrickblockAccessTokens) are created and given proportionally to lockedBBK holders.
+When locked, `BrickblockAccessToken2` owns the locked BBK and cannot be transferred.
 
-Owners of ACT can claim Ether by running `claimFee`. When claiming, ACT is burnt in return for Ether.
+### unlockBBK
+To return locked BBK to the users. They simply need to use `unlockBBK`. This transfers BBK back to the user. The ACT balance remains unchanged. Future fee payments will not result in more ACT being generated for users with unlockedBBK.
 
-The contract allows for only two functions:
+### ERC20 Functionality
+`BrickblockAccessToken2` is an ERC20 compliant token contract.
 
-### payFee
-This function can be called by anyone. The intended use case though, is for entities needing to pay a fee in the Brickblock ecosystem. The main current use case is for the POAToken2 contract:
-
-A fee is paid when activating and making a payout. The fee is paid to this contract.
-
-When payFee is called, ACT is created in a ratio (currently 1:1) to the ether value sent. This ACT is created on the `BrickblockAccessToken2` contract.
-
-### claimFee
-
-Anyone with an ACT balance on the `BrickblockAccessToken2` contract can claim ether by calling this function. The amount of ether claimed burns the user's ACT according to the ether/ACT ratio (currently 1:1)
-
-
-## BrickblockAccount (Work in Progress)
-
+## BrickblockAccount (Mostly Finished)
 `BrickblockAccount` is the sole means of the company to interact with the company tokens before the token release date of November 30, 2020. The code preventing token withdrawal is here:
 
 ```
@@ -239,7 +260,7 @@ function withdrawBbkFunds(
 
 The rest of this functionality allows Brickblock to interact with the ecosystem as any other participant. This is needed because the BBK balance of the company is not held by any wallet address, it is locked away in the contracts without a method to move to a wallet or transfer them until November 30, 2020.
 
-## BrickblockContractRegistry (Work in Progress)
+## BrickblockContractRegistry (Mostly Finished)
 This contract allows for the communication between other smart contracts in our ecosystem. It is a place essentially just a mapping of bytes to addresses. Conversions are made so that contracts can be accessed and set by strings. There are two functions:
 
 `updateContract` allows for the owner of the contract to update an address entry. The name string is converted to bytes type and is then used to set the address in the mapping.
@@ -248,57 +269,66 @@ This contract allows for the communication between other smart contracts in our 
 
 With this mapping, we are able to reliably retrieve and interact with other contracts in the Brickblock ecosystem. As long as the new addresses of a contract are updated here, contracts should be able to talk to one another, even if they have been redeployed.
 
-## BrickblockWhitelist
+## BrickblockFeeManager (Mostly Finished)
+`BrickblockFeeManager` allows for other smart contracts or accounts to pay a fee to the contract. When a fee is paid, ACT (BrickblockAccessTokens) are created and given proportionally to lockedBBK holders.
 
-This contract stores whitelisted addresses. This will allow users to buy POA tokens after being whitelisted.
+Owners of ACT can claim Ether by running `claimFee`. When claiming, ACT is burnt in return for Ether.
 
-## Brickblock (Work in Progress)
-The Brickblock contract will allow brokers to be added and removed. It is also responsible for deploying new POATokens on behalf of the brokers. It will be able to:
+The contract allows for only two functions:
 
-* add a broker
-* remove a broker
-* list brokers
-* create new tokens
+### payFee
+This function can be called by anyone. The intended use case though, is for entities needing to pay a fee in the Brickblock ecosystem. The main current use case is for the POAToken2 contract:
 
-## POAToken (Proof of Asset Token) (Work in Progress)
+A fee is paid when activating and making a payout. The fee is paid to this contract.
 
-The POAToken is the token that represents an asset in the real world. The primary example at the moment is real estate. A broker will go through a vetting process and provide legal proof that they hold the asset in question.
+When payFee is called, ACT is created in a ratio (currently 1:1) to the ether value sent. This ACT is created on the `BrickblockAccessToken2` contract.
 
-Once when this process is complete they will be able to have a token added by the owner.
+### claimFee
+Anyone with an ACT balance on the `BrickblockAccessToken2` contract can claim ether by calling this function. The amount of ether claimed burns the user's ACT according to the ether/ACT ratio (currently 1:1)
 
-The token will go through different phases:
-1. funding
-1. pending
-1. failed
-1. active
-1. terminated
+## BrickblockWhitelist (Mostly Finished)
+This contract stores whitelisted addresses. This will allow users to buy POA tokens after being whitelisted. This is a very simple `Ownable` contract which has two functions:
 
-### Funding Stage
-The token is put up on the platform and investors are able to buy a piece of the asset. If the funding goals are not met the token goes to failed stage. If the goals are met within the time limit, the token goes on to pending stage.
+```
+function addAddress(address _address)
+  public
+  onlyOwner
+{
+  require(whitelisted[_address] != true);
+  whitelisted[_address] = true;
+  Whitelisted(_address, true);
+}
 
-### Pending Stage
-In the pending stage, a verified custodian of the asset must provide proof that they are in possession of the asset to move the token forward.
+function removeAddress(address _address)
+  public
+  onlyOwner
+{
+  require(whitelisted[_address] != false);
+  whitelisted[_address] = false;
+  Whitelisted(_address, false);
+}
+```
 
-### Failed Stage
-When failed, tokens that have been bought are redeemable for the amount of ether they were bought for. The contract will never become active or tradeable when reaching a failed state. The contract reaches failed state when the fundingGoal is not reached in time.
+Any other contract in the ecosystem can check to see if an address has been whitelisted by accessing the `whitelisted` mapping.
 
-### Active Stage
-In the active stage, a token will produce monthly payouts and will be sent to owners in the form of ether.
+## POAToken2 (Proof of Asset Token) (Work in Progress)
+`POAToken2` represents an asset in the real world. The primary example at the moment is real estate. A broker will go through a vetting process and provide legal proof that they hold the asset in question.
 
-### Terminated Stage
-A contract enters the terminated stage when a poa contract needs to end. This could be because the building is sold, or some other "act of god" occurs. When in terminated stage, users will not be able to trade the tokens any longer. Payouts from custodian are still possible. This should allow sending money from insurance to token holders if a building is destroyed.
+POAToken will look very similar to `CustomPOAToken`. The main differences are:
+1. it will pay fees to `FeeManager`
+1. it will use external whitelist (`BrickblockWhitelist`)
+1. it will most likely use an oracle to get and use exchange rates in relation to fundingGoal
+1. it will be deployed from `BrickblockUmbrella`
 
 ## Built With
-
-* [Truffle v4.0.1](https://github.com/trufflesuite/truffle/releases/tag/v4.0.1)
-* [zeppelin-solidity v1.3.0](https://github.com/OpenZeppelin/zeppelin-solidity/releases)
+* [Truffle v4.0.18](https://github.com/trufflesuite/truffle/releases/tag/v4.0.18)
+* [zeppelin-solidity v1.5.0](https://github.com/OpenZeppelin/zeppelin-solidity/releases)
 
 ## Authors
-* **Cody Lamson** - *BrickblockToken, CustomPOAToken, BrickblockAccessToken, BrickblockAccount, POAToken2, WarpTool, BrickblockWhitelist, BrickblockContractRegistry, BrickblockFeeManager* - [TovarishFin](https://github.com/TovarishFin)
-* **Matt Stevens** - *BrickblockToken, CustomPOAToken, POAToken, BrickblockUmbrella, BrickblockWhitelist, BrickblockContractRegistry* - [mattgstevens](https://github.com/mattgstevens)
-* **Adrian Kizlauskas** - *BrickblockToken, CustomPOAToken POAToken, BrickblockUmbrella* - [dissaranged](https://github.com/dissaranged)
-* **Marius Hanne** - *POAToken, BrickblockUmbrella* - [mhanne](https://github.com/mhanne)
+* **Cody Lamson** - [TovarishFin](https://github.com/TovarishFin)
+* **Matt Stevens** - [mattgstevens](https://github.com/mattgstevens)
+* **Adrian Kizlauskas** - *initial work* - [dissaranged](https://github.com/dissaranged)
+* **Marius Hanne** - *initial work* - [mhanne](https://github.com/mhanne)
 
 ## License
-
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
