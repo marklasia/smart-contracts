@@ -1,4 +1,4 @@
-const WarpTool = artifacts.require('WarpTool')
+const WarpTool = artifacts.require('tools/WarpTool')
 
 function warpBlocks(blocks) {
   return new Promise((resolve, reject) => {

@@ -11,7 +11,7 @@ contract Registry {
 }
 
 
-// limited BrickblockAccessToken2 definition
+// limited BrickblockAccessToken definition
 contract AccessToken {
   function distribute(
     uint256 _amount

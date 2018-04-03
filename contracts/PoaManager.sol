@@ -1,14 +1,14 @@
 pragma solidity ^0.4.18;
 
-import "./POAToken2.sol";
-import "./BrickblockAccessToken.sol";
+// don't need to import Registry in this contract because it is already defined in PoaToken
+import "./PoaToken.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 import "zeppelin-solidity/contracts/math/SafeMath.sol";
 
-
-contract BrickblockUmbrella is Ownable {
+contract PoaManager is Ownable {
   using SafeMath for uint256;
 
+  Registry private registry;
   struct Broker {
     address _address;
     bool _active;
@@ -65,24 +65,15 @@ contract BrickblockUmbrella is Ownable {
     _;
   }
 
-  // Instantiate the BrickblockUmbrella contract.
-  function BrickblockUmbrella()
+  // Instantiate the PoaManager contract.
+  function PoaManager(address _registry)
     public
   {
+    require(_registry != address(0));
+    registry = Registry(_registry);
     // ensure that 1st element of tokens is not active
     tokens.push(Token(address(0), false));
     brokers.push(Broker(address(0), false));
-  }
-
-  function changeAccessTokenAddress(address _newAddress)
-    public
-    isContract(_newAddress)
-    onlyOwner
-    returns (bool)
-  {
-    require(_newAddress != address(this));
-    require(_newAddress != owner);
-    accessTokenAddress = _newAddress;
   }
 
   function calculateFee(uint256 _value)
@@ -91,14 +82,6 @@ contract BrickblockUmbrella is Ownable {
     returns (uint256)
   {
     return feePercentage.mul(_value).div(1000);
-  }
-
-  function burnAccessTokens(uint256 _value, address _from)
-    private
-    returns (bool)
-  {
-    BrickblockAccessToken act = BrickblockAccessToken(accessTokenAddress);
-    return act.burnFrom(_value, _from);
   }
 
   // List all active broker addresses
@@ -222,12 +205,12 @@ contract BrickblockUmbrella is Ownable {
   {
     require(accessTokenAddress != address(0));
     uint256 _fee = calculateFee(_supply);
-    require(burnAccessTokens(_fee, msg.sender));
-    address _tokenAddress = new POAToken2(
+    address _tokenAddress = new PoaToken(
       _name,
       _symbol,
       msg.sender,
       _custodian,
+      address(registry),
       _timeout,
       _supply
     );

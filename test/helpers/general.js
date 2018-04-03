@@ -1,4 +1,4 @@
-const WarpTool = artifacts.require('WarpTool')
+const WarpTool = artifacts.require('tools/WarpTool')
 
 const BigNumber = require('bignumber.js')
 

@@ -1,4 +1,4 @@
-const AccessToken = artifacts.require('BrickblockAccessToken2')
+const AccessToken = artifacts.require('BrickblockAccessToken')
 const BrickblockAccount = artifacts.require('BrickblockAccount')
 const BrickblockToken = artifacts.require('BrickblockToken')
 const ContractRegistry = artifacts.require('BrickblockContractRegistry')
