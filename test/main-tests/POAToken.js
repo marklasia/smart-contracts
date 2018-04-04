@@ -32,8 +32,7 @@ describe('when in Funding stage', () => {
         custodianAddress,
         registry.address,
         100,
-        2e18,
-        reg.address
+        2e18
       )
       await wht.addAddress(whitelistedBuyerAddress)
     })
@@ -114,8 +113,13 @@ describe('when in Funding stage', () => {
     })
 
     it('should NOT buy when NOT whitelisted', async () => {
+<<<<<<< HEAD
       await testWillThrow(poa.buy, [
         {
+=======
+      try {
+        await poa.buy({
+>>>>>>> poa token tests fixed
           from: nonWhitelistedBuyerAddress,
           value: amount
         }
@@ -123,8 +127,13 @@ describe('when in Funding stage', () => {
     })
 
     it('should NOT buy if more than is available', async () => {
+<<<<<<< HEAD
       await testWillThrow(poa.buy, [
         {
+=======
+      try {
+        await poa.buy({
+>>>>>>> poa token tests fixed
           from: whitelistedBuyerAddress,
           value: amount.mul(2)
         }
@@ -132,6 +141,7 @@ describe('when in Funding stage', () => {
     })
 
     it('should NOT be able to be activated by custodian', async () => {
+<<<<<<< HEAD
       await testWillThrow(poa.activate, [{ from: custodianAddress }])
     })
 
@@ -149,6 +159,75 @@ describe('when in Funding stage', () => {
 
     it('should NOT allow claiming', async () => {
       await testWillThrow(poa.claim, [{ from: whitelistedBuyerAddress }])
+=======
+      try {
+        await poa.activate({
+          from: custodianAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+    })
+
+    it('should NOT be able to be terminated', async () => {
+      try {
+        await poa.terminate({
+          from: brokerAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+    })
+
+    it('should NOT allow reclaiming', async () => {
+      try {
+        await poa.reclaim({
+          from: whitelistedBuyerAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+    })
+
+    it('should NOT allow payouts', async () => {
+      try {
+        await poa.payout({
+          from: brokerAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+    })
+
+    it('should NOT allow claiming', async () => {
+      try {
+        await poa.claim({
+          from: whitelistedBuyerAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+>>>>>>> poa token tests fixed
     })
 
     it('should enter Pending stage once all tokens have been bought', async () => {
@@ -200,8 +279,7 @@ describe('when in Pending stage', () => {
         custodianAddress,
         registry.address,
         100,
-        amount,
-        reg.address
+        amount
       )
       await wht.addAddress(whitelistedBuyerAddress)
       await poa.buy({
@@ -220,6 +298,7 @@ describe('when in Pending stage', () => {
     })
 
     it('should NOT allow buying', async () => {
+<<<<<<< HEAD
       await testWillThrow(poa.buy, [{ from: whitelistedBuyerAddress }])
     })
 
@@ -237,6 +316,75 @@ describe('when in Pending stage', () => {
 
     it('should NOT allow claiming', async () => {
       await testWillThrow(poa.claim, [{ from: whitelistedBuyerAddress }])
+=======
+      try {
+        await poa.buy({
+          from: whitelistedBuyerAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+    })
+
+    it('should NOT enter Active stage if not custodian', async () => {
+      try {
+        await poa.activate({
+          from: whitelistedBuyerAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+    })
+
+    it('should NOT allow reclaiming', async () => {
+      try {
+        await poa.reclaim({
+          from: whitelistedBuyerAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+    })
+
+    it('should NOT allow payouts', async () => {
+      try {
+        await poa.payout({
+          from: brokerAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+    })
+
+    it('should NOT allow claiming', async () => {
+      try {
+        await poa.claim({
+          from: whitelistedBuyerAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+>>>>>>> poa token tests fixed
     })
 
     it('should enter Active stage if custodian', async () => {
@@ -337,9 +485,24 @@ describe('when in Active stage', () => {
     })
 
     it('should NOT run payout when NOT broker', async () => {
+<<<<<<< HEAD
       await testWillThrow(poa.payout, [
         { from: custodianAddress, value: amount }
       ])
+=======
+      try {
+        await poa.payout({
+          from: custodianAddress,
+          value: amount
+        })
+        assert(false, 'the contract should throw here')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+>>>>>>> poa token tests fixed
     })
 
     it('should allow claiming dividends', async () => {
@@ -356,11 +519,39 @@ describe('when in Active stage', () => {
     })
 
     it('should NOT allow claiming the same payout again', async () => {
+<<<<<<< HEAD
       await testWillThrow(poa.claim, [{ from: whitelistedBuyerAddress1 }])
     })
 
     it('should NOT allow claiming from a non-investor', async () => {
       await testWillThrow(poa.claim, [{ from: brokerAddress }])
+=======
+      try {
+        await poa.claim({
+          from: whitelistedBuyerAddress1
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+    })
+
+    it('should NOT allow claiming from a non-investor', async () => {
+      try {
+        await poa.claim({
+          from: brokerAddress
+        })
+        assert(false, 'the contract should throw')
+      } catch (error) {
+        assert(
+          /invalid opcode/.test(error),
+          'the error message should contain invalid opcode'
+        )
+      }
+>>>>>>> poa token tests fixed
     })
   })
 })

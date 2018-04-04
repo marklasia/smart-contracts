@@ -154,7 +154,7 @@ contract PoaToken is StandardToken, Ownable {
     FeeManager feeManager = FeeManager(
       registry.getContractAddress("FeeManager")
     );
-    return feeManager.payFee.value(_value)();
+    feeManager.payFee.value(_value)();
   }
 
   // Buy PoA tokens from the contract.
@@ -236,8 +236,13 @@ contract PoaToken is StandardToken, Ownable {
   {
     require(msg.value > 0);
     uint256 _fee = calculateFee(msg.value);
-    require(payFee(_fee));
-    totalPayout = totalPayout.add(msg.value.mul(10e18).div(totalSupply));
+    payFee(_fee);
+    totalPayout = totalPayout.add(
+      msg.value
+        .sub(_fee)
+        .mul(10e18)
+        .div(totalSupply)
+    );
     Payout(msg.value);
     return true;
   }
