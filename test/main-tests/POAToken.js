@@ -32,7 +32,8 @@ describe('when in Funding stage', () => {
         custodianAddress,
         registry.address,
         100,
-        2e18
+        2e18,
+        reg.address
       )
       await wht.addAddress(whitelistedBuyerAddress)
     })
@@ -199,7 +200,8 @@ describe('when in Pending stage', () => {
         custodianAddress,
         registry.address,
         100,
-        amount
+        amount,
+        reg.address
       )
       await wht.addAddress(whitelistedBuyerAddress)
       await poa.buy({
