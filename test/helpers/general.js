@@ -79,7 +79,7 @@ const structToObject = arrayResponse => {
   const addresses = arrayResponse[addressIndex]
   const statuses = arrayResponse[statusIndex]
   const objectResponse = []
-  for (i = 0; i < addresses.length; i++) {
+  for (let i = 0; i < addresses.length; i++) {
     objectResponse.push({
       address: addresses[i],
       active: statuses[i]

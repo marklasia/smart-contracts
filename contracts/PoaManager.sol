@@ -5,11 +5,12 @@ import "./PoaToken.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 import "zeppelin-solidity/contracts/math/SafeMath.sol";
 
+
 contract PoaManager is Ownable {
   using SafeMath for uint256;
 
   Registry private registry;
-  
+
   struct Broker {
     address _address;
     bool _active;
