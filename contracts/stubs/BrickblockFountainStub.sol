@@ -1,7 +1,7 @@
 // THIS IS EXAMPLE CODE ONLY AND THE FUNCTIONS MOST LIKELY WILL CHANGE
 pragma solidity ^0.4.18;
 
-import "./BrickblockToken.sol";
+import "../BrickblockToken.sol";
 import "zeppelin-solidity/contracts/math/SafeMath.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
