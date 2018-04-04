@@ -1,8 +1,8 @@
 const BigNumber = require('bignumber.js')
 
 const BrickblockToken = artifacts.require('./BrickblockToken.sol')
-const BrickblockFountainExample = artifacts.require(
-  './BrickblockFountainExample.sol'
+const BrickblockFountainStub = artifacts.require(
+  './stubs/BrickblockFountainStub.sol'
 )
 
 const getContributorsBalanceSum = (bbk, contributors) =>
@@ -381,7 +381,7 @@ describe('during the ico', () => {
       describe('when sent from ownerAddress', () => {
         describe('when fountainAddress is a contract that is NOT ownerAddress OR bbkAddress', () => {
           it('should change the fountainAddress', async () => {
-            const bbf = await BrickblockFountainExample.new(bbk.address)
+            const bbf = await BrickblockFountainStub.new(bbk.address)
             const fountainAddress = bbf.address
             const preAddress = await bbk.fountainContractAddress()
             await bbk.changeFountainContractAddress.sendTransaction(
@@ -435,7 +435,7 @@ describe('during the ico', () => {
 
       describe('when NOT sent from ownerAddress', () => {
         it('should NOT change the fountainAddress', async () => {
-          const bbf = await BrickblockFountainExample.new(bbk.address)
+          const bbf = await BrickblockFountainStub.new(bbk.address)
           const fountainAddress = bbf.address
 
           try {
@@ -468,7 +468,7 @@ describe('at the end of the ico when fountainAddress has been set', () => {
 
     before('setup contract and relevant accounts', async () => {
       bbk = await BrickblockToken.new(bonusAddress)
-      bbf = await BrickblockFountainExample.new(bbk.address)
+      bbf = await BrickblockFountainStub.new(bbk.address)
       fountainAddress = bbf.address
       bbkAddress = bbk.address
       await distributeTokensToMany(bbk, accounts)
@@ -566,7 +566,7 @@ describe('after the ico', () => {
 
     before('setup bbk BrickblockToken', async () => {
       bbk = await BrickblockToken.new(bonusAddress)
-      bbf = await BrickblockFountainExample.new(bbk.address)
+      bbf = await BrickblockFountainStub.new(bbk.address)
       fountainAddress = bbf.address
       await bbk.changeFountainContractAddress(fountainAddress)
       await distributeTokensToMany(bbk, accounts)
