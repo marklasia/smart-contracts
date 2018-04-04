@@ -8,7 +8,7 @@ contract Registry {
   address public owner;
   mapping (bytes => address) contractAddresses;
 
-  function updateContract(string _name, address _address)
+  function updateContractAddress(string _name, address _address)
     public
     returns (address)
   {}
