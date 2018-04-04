@@ -39,6 +39,7 @@ contract BrickblockFeeManager {
   )
     public
   {
+    require(_registryAddress != address(0));
     registry = Registry(_registryAddress);
   }
 

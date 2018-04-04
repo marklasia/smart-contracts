@@ -1,18 +1,8 @@
 const PoaToken = artifacts.require('PoaToken')
-const BrickblockAccessToken = artifacts.require('BrickblockAccessToken')
-const PoaManagerStub = artifacts.require('PoaManagerStub')
-const BrickblockWhitelist = artifacts.require('BrickblockWhitelist')
 const BigNumber = require('bignumber.js')
 const { getEtherBalance } = require('../helpers/general')
-const { setupPoaRegistry } = require('../helpers/poa')
-
-const stages = {
-  funding: 0,
-  pending: 1,
-  failed: 2,
-  active: 3,
-  terminated: 4
-}
+const { stages } = require('../helpers/poa')
+const { setupRegistry, finalizeBbk, lockAllBbk } = require('../helpers/general')
 
 describe('when in Funding stage', () => {
   contract('PoaToken', accounts => {
@@ -28,17 +18,17 @@ describe('when in Funding stage', () => {
 
     // TODO: do we really want to differentiate owner and broker? cody does not think so...
     before('setup contracts state', async () => {
-      const reg = await setupPoaRegistry()
+      const { registry, whitelist } = await setupRegistry()
+      wht = whitelist
       poa = await PoaToken.new(
         'TestToken',
         'TST',
         ownerAddress,
         custodianAddress,
+        registry.address,
         100,
-        2e18,
-        reg.address
+        2e18
       )
-      wht = await BrickblockWhitelist.new()
       await wht.addAddress(whitelistedBuyerAddress)
     })
 
@@ -55,28 +45,34 @@ describe('when in Funding stage', () => {
       assert(owner === ownerAddress, 'the owner should be that which was set')
       assert(name === 'TestToken', 'the name should be that which was set')
       assert(symbol === 'TST', 'the symbol should be that which was set')
-      assert(
-        broker === brokerAddress,
+      assert.equal(
+        broker,
+        brokerAddress,
         'the broker should be that which was set'
       )
-      assert(
-        custodian === custodianAddress,
+      assert.equal(
+        custodian,
+        custodianAddress,
         'the custodian should be that which was set'
       )
-      assert(
-        timeoutBlock.toNumber() === 100,
+      assert.equal(
+        timeoutBlock.toString(),
+        new BigNumber(100).toString(),
         'the timeout should be that which was set'
       )
-      assert(
-        totalSupply.toNumber() === 2e18,
+      assert.equal(
+        totalSupply.toString(),
+        new BigNumber('2e18').toString(),
         'the totalSupply should be that which was set'
       )
-      assert(
-        feePercentage.toNumber() === 5,
+      assert.equal(
+        feePercentage.toString(),
+        new BigNumber(5).toString(),
         'the owner should be that which was set'
       )
-      assert(
-        decimals.toNumber() === 18,
+      assert.equal(
+        decimals.toString(),
+        new BigNumber(18).toString(),
         'the owner should be that which was set'
       )
     })
@@ -93,7 +89,7 @@ describe('when in Funding stage', () => {
     it('should buy when whitelisted', async () => {
       const preBuyerTokenBalance = await poa.balanceOf(whitelistedBuyerAddress)
       const preOwnerTokenBalance = await poa.balanceOf(ownerAddress)
-      await poa.buy.sendTransaction({
+      await poa.buy({
         from: whitelistedBuyerAddress,
         value: amount
       })
@@ -113,7 +109,7 @@ describe('when in Funding stage', () => {
 
     it('should NOT buy when NOT whitelisted', async () => {
       try {
-        await poa.buy.sendTransaction({
+        await poa.buy({
           from: nonWhitelistedBuyerAddress,
           value: amount
         })
@@ -128,7 +124,7 @@ describe('when in Funding stage', () => {
 
     it('should NOT buy if more than is available', async () => {
       try {
-        await poa.buy.sendTransaction({
+        await poa.buy({
           from: whitelistedBuyerAddress,
           value: amount.mul(2)
         })
@@ -143,7 +139,7 @@ describe('when in Funding stage', () => {
 
     it('should NOT be able to be activated by custodian', async () => {
       try {
-        await poa.activate.sendTransaction({
+        await poa.activate({
           from: custodianAddress
         })
         assert(false, 'the contract should throw')
@@ -157,7 +153,7 @@ describe('when in Funding stage', () => {
 
     it('should NOT be able to be terminated', async () => {
       try {
-        await poa.terminate.sendTransaction({
+        await poa.terminate({
           from: brokerAddress
         })
         assert(false, 'the contract should throw')
@@ -171,7 +167,7 @@ describe('when in Funding stage', () => {
 
     it('should NOT allow reclaiming', async () => {
       try {
-        await poa.reclaim.sendTransaction({
+        await poa.reclaim({
           from: whitelistedBuyerAddress
         })
         assert(false, 'the contract should throw')
@@ -185,7 +181,7 @@ describe('when in Funding stage', () => {
 
     it('should NOT allow payouts', async () => {
       try {
-        await poa.payout.sendTransaction({
+        await poa.payout({
           from: brokerAddress
         })
         assert(false, 'the contract should throw')
@@ -199,7 +195,7 @@ describe('when in Funding stage', () => {
 
     it('should NOT allow claiming', async () => {
       try {
-        await poa.claim.sendTransaction({
+        await poa.claim({
           from: whitelistedBuyerAddress
         })
         assert(false, 'the contract should throw')
@@ -214,7 +210,7 @@ describe('when in Funding stage', () => {
     it('should enter Pending stage once all tokens have been bought', async () => {
       const preBuyerTokenBalance = await poa.balanceOf(whitelistedBuyerAddress)
       const preOwnerTokenBalance = await poa.balanceOf(ownerAddress)
-      await poa.buy.sendTransaction({
+      await poa.buy({
         from: whitelistedBuyerAddress,
         value: amount
       })
@@ -249,27 +245,21 @@ describe('when in Pending stage', () => {
     const amount = new BigNumber(1e18)
     let poa
     let wht
-    let umb
-    let act
 
     before('setup contract pending state', async () => {
-      const reg = await setupPoaRegistry()
+      const { registry, whitelist } = await setupRegistry()
+      wht = whitelist
       poa = await PoaToken.new(
         'TestToken',
         'TST',
         ownerAddress,
         custodianAddress,
+        registry.address,
         100,
-        amount,
-        reg.address
+        amount
       )
-      wht = await BrickblockWhitelist.new()
-      act = await BrickblockAccessToken.new()
-      umb = await PoaManagerStub.new()
-      await umb.changeAccessTokenAddress(act.address)
-      await umb.addBroker(brokerAddress)
       await wht.addAddress(whitelistedBuyerAddress)
-      await poa.buy.sendTransaction({
+      await poa.buy({
         from: whitelistedBuyerAddress,
         value: amount
       })
@@ -286,7 +276,7 @@ describe('when in Pending stage', () => {
 
     it('should NOT allow buying', async () => {
       try {
-        await poa.buy.sendTransaction({
+        await poa.buy({
           from: whitelistedBuyerAddress
         })
         assert(false, 'the contract should throw')
@@ -300,7 +290,7 @@ describe('when in Pending stage', () => {
 
     it('should NOT enter Active stage if not custodian', async () => {
       try {
-        await poa.activate.sendTransaction({
+        await poa.activate({
           from: whitelistedBuyerAddress
         })
         assert(false, 'the contract should throw')
@@ -314,7 +304,7 @@ describe('when in Pending stage', () => {
 
     it('should NOT allow reclaiming', async () => {
       try {
-        await poa.reclaim.sendTransaction({
+        await poa.reclaim({
           from: whitelistedBuyerAddress
         })
         assert(false, 'the contract should throw')
@@ -328,7 +318,7 @@ describe('when in Pending stage', () => {
 
     it('should NOT allow payouts', async () => {
       try {
-        await poa.payout.sendTransaction({
+        await poa.payout({
           from: brokerAddress
         })
         assert(false, 'the contract should throw')
@@ -342,7 +332,7 @@ describe('when in Pending stage', () => {
 
     it('should NOT allow claiming', async () => {
       try {
-        await poa.claim.sendTransaction({
+        await poa.claim({
           from: whitelistedBuyerAddress
         })
         assert(false, 'the contract should throw')
@@ -355,7 +345,7 @@ describe('when in Pending stage', () => {
     })
 
     it('should enter Active stage if custodian', async () => {
-      await poa.activate.sendTransaction({
+      await poa.activate({
         from: custodianAddress
       })
       const stage = await poa.stage()
@@ -378,45 +368,36 @@ describe('when in Active stage', () => {
     const amount = new BigNumber(1e18)
     let poa
     let wht
-    let umb
-    let act
 
     before('setup contracts state', async () => {
-      const reg = await setupPoaRegistry()
+      const { registry, whitelist } = await setupRegistry()
+      const reg = registry
+      wht = whitelist
       poa = await PoaToken.new(
         'TestToken',
         'TST',
         ownerAddress,
         custodianAddress,
+        reg.address,
         100,
-        2e18,
-        reg.address
+        amount
       )
-      wht = await BrickblockWhitelist.new()
-      act = await BrickblockAccessToken.new()
-      umb = await PoaManagerStub.new()
-      await poa.changeAccessToken(act.address)
-      await umb.changeAccessTokenAddress(act.address)
-      await umb.addFakeToken(poa.address)
       await wht.addAddress(whitelistedBuyerAddress1)
       await wht.addAddress(whitelistedBuyerAddress2)
-      await poa.buy.sendTransaction({
+      await poa.buy({
         from: whitelistedBuyerAddress1,
-        value: amount
+        value: amount.div(2)
       })
-      await poa.buy.sendTransaction({
+      await poa.buy({
         from: whitelistedBuyerAddress2,
-        value: amount
+        value: amount.div(2)
       })
-      await poa.activate.sendTransaction({
+      await poa.activate({
         from: custodianAddress
       })
+      await finalizeBbk(reg)
+      await lockAllBbk(reg)
     })
-    /*
-    should do the following:
-    terminate
-    transfer
-    */
 
     it('should be in Active stage', async () => {
       const stage = await poa.stage()
@@ -440,29 +421,29 @@ describe('when in Active stage', () => {
 
     it('should run payout when broker', async () => {
       const preTotalPayout = await poa.totalPayout()
-      const preBrokerTokenBalance = await act.balanceOf(brokerAddress)
+      const preBrokerEtherBalance = await getEtherBalance(brokerAddress)
       const fee = await poa.calculateFee(amount)
-      await poa.payout.sendTransaction({
+      await poa.payout({
         from: brokerAddress,
         value: amount
       })
       const postTotalPayout = await poa.totalPayout()
-      const postBrokerTokenBalance = await act.balanceOf(brokerAddress)
+      const postBrokerEtherBalance = await getEtherBalance(brokerAddress)
       assert(
         postTotalPayout.minus(preTotalPayout).toString(),
         amount.toString(),
         'totalPayout should be incremented by the ether value of the transaction'
       )
       assert(
-        preBrokerTokenBalance.minus(postBrokerTokenBalance).toString(),
+        preBrokerEtherBalance.minus(postBrokerEtherBalance).toString(),
         fee.toString(),
-        'the broker token balance should be decremented by the fee value'
+        'the broker ether balance should be decremented by the fee value'
       )
     })
 
     it('should NOT run payout when NOT broker', async () => {
       try {
-        await poa.payout.sendTransaction({
+        await poa.payout({
           from: custodianAddress,
           value: amount
         })
@@ -478,7 +459,7 @@ describe('when in Active stage', () => {
     it('should allow claiming dividends', async () => {
       const preEtherBalance = await getEtherBalance(whitelistedBuyerAddress1)
       const currentPayout = await poa.currentPayout(whitelistedBuyerAddress1)
-      await poa.claim.sendTransaction({
+      await poa.claim({
         from: whitelistedBuyerAddress1
       })
       const postEtherBalance = await getEtherBalance(whitelistedBuyerAddress1)
@@ -490,7 +471,7 @@ describe('when in Active stage', () => {
 
     it('should NOT allow claiming the same payout again', async () => {
       try {
-        await poa.claim.sendTransaction({
+        await poa.claim({
           from: whitelistedBuyerAddress1
         })
         assert(false, 'the contract should throw')
@@ -504,7 +485,7 @@ describe('when in Active stage', () => {
 
     it('should NOT allow claiming from a non-investor', async () => {
       try {
-        await poa.claim.sendTransaction({
+        await poa.claim({
           from: brokerAddress
         })
         assert(false, 'the contract should throw')

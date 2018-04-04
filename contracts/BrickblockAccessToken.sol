@@ -146,6 +146,7 @@ contract BrickblockAccessToken is PausableToken {
   )
     public
   {
+    require(_registryAddress != address(0));
     registry = Registry(_registryAddress);
   }
 

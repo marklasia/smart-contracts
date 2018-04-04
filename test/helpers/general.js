@@ -2,11 +2,74 @@ const WarpTool = artifacts.require('tools/WarpTool')
 const BrickblockContractRegistry = artifacts.require(
   'BrickblockContractRegistry'
 )
+const BrickblockWhitelist = artifacts.require('BrickblockWhitelist')
+const BrickblockFeeManager = artifacts.require('BrickblockFeeManager')
+const BrickblockAccessToken = artifacts.require('BrickblockAccessToken')
+const BrickblockToken = artifacts.require('BrickblockToken')
+const BrickblockAccount = artifacts.require('BrickblockAccount')
 
 const BigNumber = require('bignumber.js')
 
-const setupRegistry = () => {
-  return BrickblockContractRegistry.new()
+const setupRegistry = async () => {
+  const reg = await BrickblockContractRegistry.new()
+  const wht = await BrickblockWhitelist.new()
+  const fmr = await BrickblockFeeManager.new(reg.address)
+  const act = await BrickblockAccessToken.new(reg.address)
+  const bbk = await BrickblockToken.new(web3.eth.accounts[0])
+  const bat = await BrickblockAccount.new(reg.address, 1000)
+  await reg.updateContract('Whitelist', wht.address)
+  await reg.updateContract('FeeManager', fmr.address)
+  await reg.updateContract('AccessToken', act.address)
+  await reg.updateContract('BrickblockToken', bbk.address)
+  await reg.updateContract('BrickblockAccount', bat.address)
+
+  return {
+    whitelist: wht,
+    feeManager: fmr,
+    accessToken: act,
+    registry: reg
+  }
+}
+
+const finalizeBbk = async reg => {
+  const bbkAddress = await reg.getContractAddress('BrickblockToken')
+  const bbk = BrickblockToken.at(bbkAddress)
+  const actAddress = await reg.getContractAddress('AccessToken')
+  await bbk.changeFountainContractAddress(actAddress)
+  const accounts = web3.eth.accounts.slice(1)
+  for (const account of accounts) {
+    await bbk.distributeTokens(account, 1e18)
+    const bbkBalance = await bbk.balanceOf(account)
+    assert.equal(
+      bbkBalance.toString(),
+      new BigNumber(1e18).toString(),
+      'each account should get 1e18 BBK'
+    )
+  }
+
+  await bbk.finalizeTokenSale()
+  await bbk.unpause()
+  const paused = await bbk.paused()
+  assert.equal(paused, false, 'BBK should be unpaused')
+}
+
+const lockAllBbk = async reg => {
+  const bbkAddress = await reg.getContractAddress('BrickblockToken')
+  const actAddress = await reg.getContractAddress('AccessToken')
+  const bbk = BrickblockToken.at(bbkAddress)
+  const act = BrickblockAccessToken.at(actAddress)
+  const accounts = web3.eth.accounts
+  for (const account of accounts) {
+    const balance = await bbk.balanceOf(account)
+    await bbk.approve(act.address, balance, { from: account })
+    await act.lockBBK(balance, { from: account })
+    const lockedBBK = await act.lockedBbkOf(account)
+    assert.equal(
+      lockedBBK.toString(),
+      balance.toString(),
+      'each account should lock BBK token balance'
+    )
+  }
 }
 
 const warpBlocks = blocks => {
@@ -84,6 +147,8 @@ const bigZero = new BigNumber(0)
 
 module.exports = {
   setupRegistry,
+  finalizeBbk,
+  lockAllBbk,
   bigZero,
   gasPrice,
   getEtherBalance,
