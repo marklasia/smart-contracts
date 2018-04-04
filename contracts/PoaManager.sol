@@ -9,6 +9,7 @@ contract PoaManager is Ownable {
   using SafeMath for uint256;
 
   Registry private registry;
+  
   struct Broker {
     address _address;
     bool _active;
@@ -19,9 +20,6 @@ contract PoaManager is Ownable {
     bool _active;
   }
 
-  address accessTokenAddress;
-  // fee percentage used to calculate ACT fee from total value
-  uint256 public feePercentage = 5;
   // List of all brokers ever added: active or inactive
   Broker[] public brokers;
   // List of all tokens ever added: active or inactive
@@ -58,13 +56,6 @@ contract PoaManager is Ownable {
     _;
   }
 
-  modifier isContract(address addr) {
-    uint _size;
-    assembly { _size := extcodesize(addr) }
-    require(_size > 0);
-    _;
-  }
-
   // Instantiate the PoaManager contract.
   function PoaManager(address _registry)
     public
@@ -74,14 +65,6 @@ contract PoaManager is Ownable {
     // ensure that 1st element of tokens is not active
     tokens.push(Token(address(0), false));
     brokers.push(Broker(address(0), false));
-  }
-
-  function calculateFee(uint256 _value)
-    public
-    view
-    returns (uint256)
-  {
-    return feePercentage.mul(_value).div(1000);
   }
 
   // List all active broker addresses
@@ -203,8 +186,6 @@ contract PoaManager is Ownable {
     onlyActiveBroker
     returns (address)
   {
-    require(accessTokenAddress != address(0));
-    uint256 _fee = calculateFee(_supply);
     address _tokenAddress = new PoaToken(
       _name,
       _symbol,
