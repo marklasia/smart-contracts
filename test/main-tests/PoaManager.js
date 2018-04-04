@@ -1,5 +1,4 @@
 const PoaManager = artifacts.require('PoaManager.sol')
-// const PoaToken = artifacts.require('PoaToken.sol')
 const {
   structToObject,
   tupleToObject,
@@ -242,8 +241,6 @@ describe('when adjusting tokens', () => {
     let savedToken
     const activeBroker = accounts[1]
     const inactiveBroker = accounts[2]
-    const brokeBroker = accounts[3]
-    const zeroApprovalBroker = accounts[4]
     const custodian = accounts[5]
 
     before('setup contract state', async () => {
@@ -251,7 +248,6 @@ describe('when adjusting tokens', () => {
       pmr = await PoaManager.new(registry.address)
       await pmr.addBroker(activeBroker)
       await pmr.addBroker(inactiveBroker)
-      await pmr.addBroker(brokeBroker)
       await pmr.deactivateBroker(inactiveBroker)
     })
 
