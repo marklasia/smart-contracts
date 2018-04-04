@@ -1,17 +1,13 @@
-const BigNumber = require('bignumber.js')
-const leftPad = require('left-pad')
-
 const BrickblockWhitelist = artifacts.require('./BrickblockWhitelist.sol')
 
 describe('when deployed', () => {
   contract('BrickblockWhitelist', accounts => {
     const ownerAddress = accounts[0]
     const investor1Address = accounts[1]
-    const investor2Address = accounts[2]
     let whitelist
 
     before('setup contract and relevant accounts', async () => {
-      whitelist = await BrickblockWhitelist.deployed()
+      whitelist = await BrickblockWhitelist.new()
     })
 
     it('should have the owner set to contract creator', async () => {

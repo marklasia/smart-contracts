@@ -10,9 +10,7 @@ const assert = require('assert')
 const BigNumber = require('bignumber.js')
 
 describe('when using the contract registry', () => {
-  contract('BrickblockContractRegistry', accounts => {
-    const owner = accounts[0]
-    const notOwner = accounts[1]
+  contract('BrickblockContractRegistry', () => {
     const initialTestNumber = new BigNumber(123)
     let bbr
     let brokenGrc

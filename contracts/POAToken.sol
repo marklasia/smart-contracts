@@ -24,7 +24,6 @@ contract Whitelist {
   mapping (address => bool) public whitelisted;
 }
 
-
 // Proof-of-Asset contract representing a token backed by a foreign asset.
 contract PoaToken is StandardToken, Ownable {
 

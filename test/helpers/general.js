@@ -1,6 +1,13 @@
 const WarpTool = artifacts.require('tools/WarpTool')
+const BrickblockContractRegistry = artifacts.require(
+  'BrickblockContractRegistry'
+)
 
 const BigNumber = require('bignumber.js')
+
+const setupRegistry = () => {
+  return BrickblockContractRegistry.new()
+}
 
 const warpBlocks = blocks => {
   return new Promise(async resolve => {
@@ -40,9 +47,7 @@ const testWillThrow = async (fn, args) => {
   } catch (error) {
     assert(
       /invalid opcode/.test(error) || /revert/.test(error),
-      `the error message should be invalid opcode or revert, the error was ${
-        error
-      }`
+      `the error message should be invalid opcode or revert, the error was ${error}`
     )
   }
 }
@@ -78,6 +83,7 @@ const gasPrice = new BigNumber(30e9)
 const bigZero = new BigNumber(0)
 
 module.exports = {
+  setupRegistry,
   bigZero,
   gasPrice,
   getEtherBalance,

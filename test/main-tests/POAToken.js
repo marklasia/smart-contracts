@@ -1,9 +1,10 @@
-const POAToken = artifacts.require('PoaToken')
+const PoaToken = artifacts.require('PoaToken')
 const BrickblockAccessToken = artifacts.require('BrickblockAccessToken')
 const PoaManagerStub = artifacts.require('PoaManagerStub')
 const BrickblockWhitelist = artifacts.require('BrickblockWhitelist')
-const WarpTool = artifacts.require('tools/WarpTool')
 const BigNumber = require('bignumber.js')
+const { getEtherBalance } = require('../helpers/general')
+const { setupPoaRegistry } = require('../helpers/poa')
 
 const stages = {
   funding: 0,
@@ -13,31 +14,8 @@ const stages = {
   terminated: 4
 }
 
-function getEtherBalance(address) {
-  return new Promise((resolve, reject) => {
-    web3.eth.getBalance(address, (err, res) => {
-      if (err) reject(err)
-
-      resolve(res)
-    })
-  })
-}
-
-function warpBlocks(blocks) {
-  return new Promise((resolve, reject) => {
-    contract('WarpTool', async accounts => {
-      const warpTool = await WarpTool.new()
-      for (let i = 0; i < blocks - 1; i++) {
-        await warpTool.warp()
-      }
-
-      resolve(true)
-    })
-  })
-}
-
 describe('when in Funding stage', () => {
-  contract('POAToken', accounts => {
+  contract('PoaToken', accounts => {
     const ownerAddress = accounts[0]
     // for now this is the same... need to talk about this
     const brokerAddress = accounts[0]
@@ -47,30 +25,20 @@ describe('when in Funding stage', () => {
     const amount = new BigNumber(1e18)
     let poa
     let wht
-    let act
-    let umb
 
     // TODO: do we really want to differentiate owner and broker? cody does not think so...
     before('setup contracts state', async () => {
-      poa = await POAToken.new(
+      const reg = await setupPoaRegistry()
+      poa = await PoaToken.new(
         'TestToken',
         'TST',
         ownerAddress,
         custodianAddress,
         100,
-        2e18
+        2e18,
+        reg.address
       )
       wht = await BrickblockWhitelist.new()
-      act = await BrickblockAccessToken.new()
-      umb = await PoaManagerStub.new()
-      await poa.changeWhitelist(wht.address)
-      await act.changeUmbrellaAddress(umb.address)
-      await umb.changeAccessTokenAddress(act.address)
-      await umb.addBroker(brokerAddress)
-      await act.mint(brokerAddress, 50e18)
-      await act.approve.sendTransaction(poa.address, 50e18, {
-        from: brokerAddress
-      })
       await wht.addAddress(whitelistedBuyerAddress)
     })
 
@@ -273,37 +241,33 @@ describe('when in Funding stage', () => {
 })
 
 describe('when in Pending stage', () => {
-  contract('POAToken', accounts => {
+  contract('PoaToken', accounts => {
     const ownerAddress = accounts[0]
     const brokerAddress = accounts[0]
     const custodianAddress = accounts[1]
     const whitelistedBuyerAddress = accounts[2]
-    const nonWhitelistedBuyerAddress = accounts[3]
     const amount = new BigNumber(1e18)
     let poa
     let wht
     let umb
+    let act
 
     before('setup contract pending state', async () => {
-      poa = await POAToken.new(
+      const reg = await setupPoaRegistry()
+      poa = await PoaToken.new(
         'TestToken',
         'TST',
         ownerAddress,
         custodianAddress,
         100,
-        amount
+        amount,
+        reg.address
       )
       wht = await BrickblockWhitelist.new()
       act = await BrickblockAccessToken.new()
       umb = await PoaManagerStub.new()
-      await poa.changeWhitelist(wht.address)
-      await act.changeUmbrellaAddress(umb.address)
       await umb.changeAccessTokenAddress(act.address)
       await umb.addBroker(brokerAddress)
-      await act.mint(brokerAddress, 50e18)
-      await act.approve.sendTransaction(poa.address, 50e18, {
-        from: brokerAddress
-      })
       await wht.addAddress(whitelistedBuyerAddress)
       await poa.buy.sendTransaction({
         from: whitelistedBuyerAddress,
@@ -405,39 +369,35 @@ describe('when in Pending stage', () => {
 })
 
 describe('when in Active stage', () => {
-  contract('POAToken', accounts => {
+  contract('PoaToken', accounts => {
     const ownerAddress = accounts[0]
     const brokerAddress = accounts[0]
     const custodianAddress = accounts[1]
     const whitelistedBuyerAddress1 = accounts[2]
     const whitelistedBuyerAddress2 = accounts[3]
-    const nonWhitelistedBuyerAddress = accounts[4]
     const amount = new BigNumber(1e18)
     let poa
     let wht
     let umb
+    let act
 
     before('setup contracts state', async () => {
-      poa = await POAToken.new(
+      const reg = await setupPoaRegistry()
+      poa = await PoaToken.new(
         'TestToken',
         'TST',
         ownerAddress,
         custodianAddress,
         100,
-        2e18
+        2e18,
+        reg.address
       )
       wht = await BrickblockWhitelist.new()
       act = await BrickblockAccessToken.new()
       umb = await PoaManagerStub.new()
-      await poa.changeWhitelist(wht.address)
       await poa.changeAccessToken(act.address)
-      await act.changeUmbrellaAddress(umb.address)
       await umb.changeAccessTokenAddress(act.address)
       await umb.addFakeToken(poa.address)
-      await act.mint(brokerAddress, 50e18)
-      await act.approve.sendTransaction(poa.address, 50e18, {
-        from: brokerAddress
-      })
       await wht.addAddress(whitelistedBuyerAddress1)
       await wht.addAddress(whitelistedBuyerAddress2)
       await poa.buy.sendTransaction({
@@ -558,33 +518,7 @@ describe('when in Active stage', () => {
   })
 })
 
-describe('when a contract does NOT meet its funding goal', () => {
-  contract('POAToken', accounts => {
-    const ownerAddress = accounts[0]
-    let poa
-
-    before('setup contract state', async () => {
-      poa = POAToken.new()
-    })
-
-    it('should derp', async () => {
-      assert(true)
-    })
-  })
-})
+describe('when a contract does NOT meet its funding goal', () => {})
 
 // TODO: this may not be needed
-describe('when a contract has problems after becoming Active (acts of god etc?)', () => {
-  contract('POAToken', accounts => {
-    const ownerAddress = accounts[0]
-    let poa
-
-    before('setup contract state', async () => {
-      poa = await POAToken.new()
-    })
-
-    it('should derp', async () => {
-      assert(true)
-    })
-  })
-})
+describe('when a contract has problems after becoming Active (acts of god etc?)', () => {})

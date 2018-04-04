@@ -2,7 +2,7 @@
 // const POAToken = artifacts.require('PoaToken.sol')
 // const BrickblockAccessToken = artifacts.require('BrickblockAccessToken.sol')
 // const BigNumber = require('bignumber.js')
-// 
+//
 // // assumes even length arrays of addresses and statuses for Broker or Token
 // function structToObject(arrayResponse) {
 //   const addressIndex = 0
