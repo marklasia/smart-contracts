@@ -1,4 +1,4 @@
-pragma solidity 0.4.18;
+pragma solidity 0.4.21;
 
 import "./OraclizeAPI.sol";
 
@@ -9,7 +9,9 @@ contract ExchangeRates {
   // points to currencySettings from callback
   mapping (bytes32 => bytes8) public queryTypes;
   // storage for query settings... modifiable for each currency
-  mapping (bytes8 => Settings) currencySettings;
+  mapping (bytes8 => Settings) public  currencySettings;
+
+  mapping (bytes8 => bytes32[5]) public queryStrings;
 
   struct Settings {
     bytes32[5] queryString;
@@ -73,7 +75,7 @@ contract ExchangeRateProvider is usingOraclize {
       bytes32 _queryId = oraclize_query(
         _callInterval,
         "URL",
-        _queryString,
+        toString(_queryString),
         _callbackGasLimit
       );
     }
@@ -89,7 +91,7 @@ contract ExchangeRateProvider is usingOraclize {
     ExchangeRates _exchangeRates = ExchangeRates(
       registry.getContractAddress("ExchangeRates")
     );
-
+    bytes32[5] memory _queryString = _exchangeRates.queryStrings(_exchangeRates.queryTypes(_queryId));
     Settings memory _rateSettings = _exchangeRates.currencySettings(_exchangeRates.queryTypes(_queryId));
 
     bool _ratesActive = _exchangeRates.ratesActive;
