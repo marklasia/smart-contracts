@@ -1,4 +1,4 @@
-pragma solidity 0.4.21;
+pragma solidity 0.4.18;
 
 import "./OraclizeAPI.sol";
 
@@ -86,7 +86,7 @@ contract ExchangeRateProvider is usingOraclize {
       registry.getContractAddress("ExchangeRates")
     );
     bool _ratesActive = _exchangeRates.ratesActive();
-    bytes8 _queryType =_exchangeRates.queryTypes(_queryId);
+    bytes8 _queryType = _exchangeRates.queryTypes(_queryId);
     uint256 _callInterval;
     uint256 _callbackGasLimit;
     bytes32[5] memory _queryString;

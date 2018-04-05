@@ -1,4 +1,4 @@
-pragma solidity 0.4.21;
+pragma solidity 0.4.18;
 
 import "./OraclizeAPI.sol";
 
@@ -95,18 +95,18 @@ contract ExchangeRates is usingOraclize {
     );
 
     if (_queryId.length == 0) {
-      emit QueryNoMinBalance();
+      QueryNoMinBalance();
       return false;
     } else {
       queryTypes[_queryId] = stringToBytes8(_queryType);
-      emit QuerySent(_queryType);
+      QuerySent(_queryType);
       return true;
     }
   }
 
   function setRate(
     bytes32 _queryId,
-    uint _result
+    uint256 _result
   )
     public
     onlyContract("ExchangeRatesProvider")
@@ -147,8 +147,8 @@ contract ExchangeRates is usingOraclize {
     onlyOwner
   {
     require(
-      bytes(_currencyName).length > 0
-      && bytes(_currencyName).length < 8
+      bytes(_currencyName).length > 0 &&
+      bytes(_currencyName).length < 8
     );
     uint256 _callIntervalValue = _callInterval > 0
       ? _callInterval
