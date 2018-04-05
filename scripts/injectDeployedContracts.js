@@ -30,7 +30,7 @@ const cpoaMainnetAddresses = process.env.CUSTOM_POA_MAINNET_ADDRESSES
   ? process.env.CUSTOM_POA_MAINNET_ADDRESSES.split(',')
   : []
 
-const bbkABI = path.resolve('./build/contracts/Brickblock.json')
+const pmrABI = path.resolve('./build/contracts/PoaManager.json')
 
 const resetCpoaAddressesConfig = () => {
   fs.writeFileSync(cpoaAddressConfigPath, JSON.stringify({}, null, 2))
@@ -103,9 +103,9 @@ if (
   console.error('no contract addresses in .env!')
   process.exit(-1)
 } else {
-  setupContract(bbkRopstenAddress, bbkABI, 3)
-  setupContract(bbkKovanAddress, bbkABI, 42)
-  setupContract(bbkRinkebyAddress, bbkABI, 4)
+  setupContract(bbkRopstenAddress, pmrABI, 3)
+  setupContract(bbkKovanAddress, pmrABI, 42)
+  setupContract(bbkRinkebyAddress, pmrABI, 4)
   resetCpoaAddressesConfig()
   exportCustomPoaAddresses(cpoaRopstenAddresses, 'ropsten')
   exportCustomPoaAddresses(cpoaKovanAddresses, 'kovan')
