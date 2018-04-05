@@ -91,7 +91,7 @@ describe('when interacting with Fee manager', () => {
     const tokenLockAmount = new BigNumber(1e24)
     let bbk
     let act
-    let bfm
+    let fmr
 
     before('setup contracts', async () => {
       const contracts = await setupContracts(
@@ -106,7 +106,7 @@ describe('when interacting with Fee manager', () => {
       )
       bbk = contracts.bbk
       act = contracts.act
-      bfm = contracts.bfm
+      fmr = contracts.fmr
       await testLockAndApproveMany(bbk, act, contributors, tokenLockAmount)
     })
 
@@ -116,12 +116,12 @@ describe('when interacting with Fee manager', () => {
 
     it('should distribute ACT tokens to locked BBK contributors when paying FeeManager', async () => {
       const feeValue = new BigNumber(10e18)
-      await testPayFee(feePayer, contributors, feeValue, act, bfm)
+      await testPayFee(feePayer, contributors, feeValue, act, fmr)
     })
 
     it('should allow ACT holders to burn ACT for ETH', async () => {
       const claimers = [...contributors, owner]
-      await testClaimFeeMany(claimers, act, bfm)
+      await testClaimFeeMany(claimers, act, fmr)
     })
   })
 })
@@ -140,7 +140,7 @@ describe('when ACT has been distributed', () => {
     const feeValue = new BigNumber(10e18)
     let bbk
     let act
-    let bfm
+    let fmr
 
     before('setup contracts', async () => {
       const contracts = await setupContracts(
@@ -155,9 +155,9 @@ describe('when ACT has been distributed', () => {
       )
       bbk = contracts.bbk
       act = contracts.act
-      bfm = contracts.bfm
+      fmr = contracts.fmr
       await testLockAndApproveMany(bbk, act, contributors, tokenLockAmount)
-      await testPayFee(feePayer, contributors, feeValue, act, bfm)
+      await testPayFee(feePayer, contributors, feeValue, act, fmr)
     })
 
     it('should transfer BEFORE unlocking act balance', async () => {
@@ -215,7 +215,7 @@ describe('when testing different scenarios...', () => {
     const feeValue = new BigNumber(10e18)
     let bbk
     let act
-    let bfm
+    let fmr
 
     beforeEach('setup contracts', async () => {
       const contracts = await setupContracts(
@@ -230,23 +230,23 @@ describe('when testing different scenarios...', () => {
       )
       bbk = contracts.bbk
       act = contracts.act
-      bfm = contracts.bfm
+      fmr = contracts.fmr
     })
 
     it('lock -> payFee -> transfer -> claim', async () => {
       await testLockAndApproveMany(bbk, act, contributors, tokenLockAmount)
-      await testPayFee(feePayer, contributors, feeValue, act, bfm)
+      await testPayFee(feePayer, contributors, feeValue, act, fmr)
       // this should work for all contributors since they have the same balance
       const actBalance = await act.balanceOf(contributors[0])
       await testTransferActMany(act, contributors, recipient, actBalance)
       // all ACT should be owned by recipient and owner after transfers
       const claimers = [recipient, owner]
-      await testClaimFeeMany(claimers, act, bfm)
+      await testClaimFeeMany(claimers, act, fmr)
     })
 
     it('lock -> payFee -> transferFrom -> claim', async () => {
       await testLockAndApproveMany(bbk, act, contributors, tokenLockAmount)
-      await testPayFee(feePayer, contributors, feeValue, act, bfm)
+      await testPayFee(feePayer, contributors, feeValue, act, fmr)
       // this should work for all contributors since they have the same balance
       const actBalance = await act.balanceOf(contributors[0])
       await testApproveActMany(act, contributors, nonContributor, actBalance)
@@ -259,23 +259,23 @@ describe('when testing different scenarios...', () => {
       )
       // all ACT should be owned by recipient and owner after transfers
       const claimers = [recipient, owner]
-      await testClaimFeeMany(claimers, act, bfm)
+      await testClaimFeeMany(claimers, act, fmr)
     })
 
     it('lock -> 50% payFee -> transfer -> claim', async () => {
       await testLockAndApproveMany(bbk, act, contributors, tokenLockAmount)
-      await testPayFee(feePayer, contributors, feeValue, act, bfm)
+      await testPayFee(feePayer, contributors, feeValue, act, fmr)
       // this should work for all contributors since they have the same balance
       const actBalance = await act.balanceOf(contributors[0])
       await testTransferActMany(act, contributors, recipient, actBalance.div(2))
       // all ACT should be owned by recipient and owner after transfers
       const claimers = [...contributors, recipient, owner]
-      await testClaimFeeMany(claimers, act, bfm)
+      await testClaimFeeMany(claimers, act, fmr)
     })
 
     it('lock -> 50% payFee -> transferFrom -> claim', async () => {
       await testLockAndApproveMany(bbk, act, contributors, tokenLockAmount)
-      await testPayFee(feePayer, contributors, feeValue, act, bfm)
+      await testPayFee(feePayer, contributors, feeValue, act, fmr)
       // this should work for all contributors since they have the same balance
       const actBalance = await act.balanceOf(contributors[0])
       await testApproveActMany(
@@ -293,26 +293,26 @@ describe('when testing different scenarios...', () => {
       )
       // all ACT should be owned by recipient and owner after transfers
       const claimers = [...contributors, recipient, owner]
-      await testClaimFeeMany(claimers, act, bfm)
+      await testClaimFeeMany(claimers, act, fmr)
     })
 
     it('lock -> payFee -> 1 50% transfer -> claim', async () => {
       await testLockAndApproveMany(bbk, act, contributors, tokenLockAmount)
-      await testPayFee(feePayer, contributors, feeValue, act, bfm)
+      await testPayFee(feePayer, contributors, feeValue, act, fmr)
       const actBalance = await act.balanceOf(contributor)
       await testTransferAct(act, contributor, recipient, actBalance.div(2))
       const claimers = [...contributors, recipient, owner]
-      await testClaimFeeMany(claimers, act, bfm)
+      await testClaimFeeMany(claimers, act, fmr)
     })
 
     it('lock -> payFee -> 1 50% transferFrom -> claim', async () => {
       await testLockAndApproveMany(bbk, act, contributors, tokenLockAmount)
-      await testPayFee(feePayer, contributors, feeValue, act, bfm)
+      await testPayFee(feePayer, contributors, feeValue, act, fmr)
       const actBalance = await act.balanceOf(contributor)
       await testApproveAct(act, contributor, nonContributor, actBalance.div(2))
       await testTransferAct(act, contributor, recipient, actBalance.div(2))
       const claimers = [...contributors, recipient, owner]
-      await testClaimFeeMany(claimers, act, bfm)
+      await testClaimFeeMany(claimers, act, fmr)
     })
 
     it('lock -> 1 unlock -> payFee -> claim', async () => {
@@ -324,22 +324,22 @@ describe('when testing different scenarios...', () => {
         contributors.filter(account => account != contributor),
         feeValue,
         act,
-        bfm
+        fmr
       )
       const claimers = [
         ...contributors.filter(account => account != contributor),
         owner
       ]
-      await testClaimFeeMany(claimers, act, bfm)
+      await testClaimFeeMany(claimers, act, fmr)
     })
 
     it('lock -> 1 50% unlock -> 1 payFee -> claim', async () => {
       await testLockAndApproveMany(bbk, act, contributors, tokenLockAmount)
       const lockedBalance = await act.lockedBbkOf(contributor)
       await testUnlockBBK(bbk, act, contributor, lockedBalance.div(2))
-      await testPayFee(feePayer, contributors, feeValue, act, bfm)
+      await testPayFee(feePayer, contributors, feeValue, act, fmr)
       const claimers = [...contributors, owner]
-      await testClaimFeeMany(claimers, act, bfm)
+      await testClaimFeeMany(claimers, act, fmr)
     })
 
     it('lock -> 1 unlock -> payFee -> 1 transfer -> claim', async () => {
@@ -351,7 +351,7 @@ describe('when testing different scenarios...', () => {
       await testUnlockBBK(bbk, act, contributor, lockedBalance.div(2))
 
       // payfee
-      await testPayFee(feePayer, contributors, feeValue, act, bfm)
+      await testPayFee(feePayer, contributors, feeValue, act, fmr)
 
       // transfer
       const actBalance = await act.balanceOf(contributor)
@@ -359,7 +359,7 @@ describe('when testing different scenarios...', () => {
 
       // claim
       const claimers = [...contributors, recipient, owner]
-      await testClaimFeeMany(claimers, act, bfm)
+      await testClaimFeeMany(claimers, act, fmr)
     })
   })
 })

@@ -2,7 +2,12 @@ const PoaToken = artifacts.require('PoaToken')
 const BigNumber = require('bignumber.js')
 const { getEtherBalance } = require('../helpers/general')
 const { stages } = require('../helpers/poa')
-const { setupRegistry, finalizeBbk, lockAllBbk } = require('../helpers/general')
+const {
+  setupRegistry,
+  finalizeBbk,
+  lockAllBbk,
+  testWillThrow
+} = require('../helpers/general')
 
 describe('when in Funding stage', () => {
   contract('PoaToken', accounts => {
@@ -108,103 +113,41 @@ describe('when in Funding stage', () => {
     })
 
     it('should NOT buy when NOT whitelisted', async () => {
-      try {
-        await poa.buy({
+      await testWillThrow(poa.buy, [
+        {
           from: nonWhitelistedBuyerAddress,
           value: amount
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the message should contain invalid opcode'
-        )
-      }
+        }
+      ])
     })
 
     it('should NOT buy if more than is available', async () => {
-      try {
-        await poa.buy({
+      await testWillThrow(poa.buy, [
+        {
           from: whitelistedBuyerAddress,
           value: amount.mul(2)
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+        }
+      ])
     })
 
     it('should NOT be able to be activated by custodian', async () => {
-      try {
-        await poa.activate({
-          from: custodianAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.activate, [{ from: custodianAddress }])
     })
 
     it('should NOT be able to be terminated', async () => {
-      try {
-        await poa.terminate({
-          from: brokerAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.terminate, [{ from: brokerAddress }])
     })
 
     it('should NOT allow reclaiming', async () => {
-      try {
-        await poa.reclaim({
-          from: whitelistedBuyerAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.reclaim, [{ from: whitelistedBuyerAddress }])
     })
 
     it('should NOT allow payouts', async () => {
-      try {
-        await poa.payout({
-          from: brokerAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.payout, [{ from: brokerAddress }])
     })
 
     it('should NOT allow claiming', async () => {
-      try {
-        await poa.claim({
-          from: whitelistedBuyerAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.claim, [{ from: whitelistedBuyerAddress }])
     })
 
     it('should enter Pending stage once all tokens have been bought', async () => {
@@ -275,73 +218,23 @@ describe('when in Pending stage', () => {
     })
 
     it('should NOT allow buying', async () => {
-      try {
-        await poa.buy({
-          from: whitelistedBuyerAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.buy, [{ from: whitelistedBuyerAddress }])
     })
 
     it('should NOT enter Active stage if not custodian', async () => {
-      try {
-        await poa.activate({
-          from: whitelistedBuyerAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.activate, [{ from: whitelistedBuyerAddress }])
     })
 
     it('should NOT allow reclaiming', async () => {
-      try {
-        await poa.reclaim({
-          from: whitelistedBuyerAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.reclaim, [{ from: whitelistedBuyerAddress }])
     })
 
     it('should NOT allow payouts', async () => {
-      try {
-        await poa.payout({
-          from: brokerAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.payout, [{ from: brokerAddress }])
     })
 
     it('should NOT allow claiming', async () => {
-      try {
-        await poa.claim({
-          from: whitelistedBuyerAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.claim, [{ from: whitelistedBuyerAddress }])
     })
 
     it('should enter Active stage if custodian', async () => {
@@ -442,18 +335,9 @@ describe('when in Active stage', () => {
     })
 
     it('should NOT run payout when NOT broker', async () => {
-      try {
-        await poa.payout({
-          from: custodianAddress,
-          value: amount
-        })
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.payout, [
+        { from: custodianAddress, value: amount }
+      ])
     })
 
     it('should allow claiming dividends', async () => {
@@ -470,36 +354,11 @@ describe('when in Active stage', () => {
     })
 
     it('should NOT allow claiming the same payout again', async () => {
-      try {
-        await poa.claim({
-          from: whitelistedBuyerAddress1
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.claim, [{ from: whitelistedBuyerAddress1 }])
     })
 
     it('should NOT allow claiming from a non-investor', async () => {
-      try {
-        await poa.claim({
-          from: brokerAddress
-        })
-        assert(false, 'the contract should throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error message should contain invalid opcode'
-        )
-      }
+      await testWillThrow(poa.claim, [{ from: brokerAddress }])
     })
   })
 })
-
-describe('when a contract does NOT meet its funding goal', () => {})
-
-// TODO: this may not be needed
-describe('when a contract has problems after becoming Active (acts of god etc?)', () => {})
