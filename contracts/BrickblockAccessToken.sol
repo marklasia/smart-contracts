@@ -56,7 +56,7 @@ contract BrickblockAccessToken is PausableToken {
     glossary:
       dividendParadigm: the way of handling dividends, and the per token data structures
         * totalLockedBBK * (totalMintedPerToken - distributedPerBBK) / 1e18
-        * this is they typical way of handling dividends.
+        * this is the typical way of handling dividends.
         * per token data structures are stored * 1e18 (for more accuracy)
         * this works fine until BBK is locked or unlocked.
           * need to still know the amount they HAD locked before a change.
@@ -90,7 +90,6 @@ contract BrickblockAccessToken is PausableToken {
             * balances is set to private (cannot guarantee accuracy of this)
             * balances not updated to correct values unless a
               transfer/transferFrom happens
-          *
         * dividendParadigm + securedFundsParadigm + doubleEntryParadigm
           * totalLockedBBK * (totalMintedPerToken - distributedPerBBK[adr]) / 1e18
             + securedTokenDistributions[adr]
