@@ -2,7 +2,8 @@ const PoaManager = artifacts.require('PoaManager.sol')
 const {
   structToObject,
   tupleToObject,
-  setupRegistry
+  setupRegistry,
+  testWillThrow
 } = require('../helpers/general')
 
 const placeholderBroker = {
@@ -144,18 +145,7 @@ describe('when adjusting brokers', () => {
     })
 
     it('should NOT deactivate a broker when the broker is already inactive', async () => {
-      try {
-        await pmr.deactivateBroker(broker1)
-        assert(
-          false,
-          'the contract should throw when trying to deactivate a deactivated broker'
-        )
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode shoudl be in the error'
-        )
-      }
+      await testWillThrow(pmr.deactivateBroker, [broker1])
     })
 
     it('should activate a broker when the broker is inactive', async () => {
@@ -178,15 +168,7 @@ describe('when adjusting brokers', () => {
     })
 
     it('should NOT activate a broker which is already active', async () => {
-      try {
-        await pmr.activateBroker(broker1)
-        assert(false)
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode should be in the error'
-        )
-      }
+      await testWillThrow(pmr.activateBroker, [broker1])
     })
 
     it('should get the broker status', async () => {
@@ -210,27 +192,11 @@ describe('when adjusting brokers', () => {
     })
 
     it('should NOT add brokers that have already been added', async () => {
-      try {
-        await pmr.addBroker(broker2)
-        assert(false, 'the contract should throw here')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode should be in the error'
-        )
-      }
+      await testWillThrow(pmr.addBroker, [broker2])
     })
 
-    it('should only allow broker registration from owner address', async () => {
-      try {
-        await pmr.addBroker(broker3, { from: broker3 })
-        assert(false, 'Expected to throw')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'the error should include invalid opcode'
-        )
-      }
+    it('should NOT allow broker registration from NON owner', async () => {
+      await testWillThrow(pmr.addBroker, [broker3, { from: broker3 }])
     })
   })
 })
@@ -291,51 +257,40 @@ describe('when adjusting tokens', () => {
     })
 
     it('should NOT add a token from a deactivated broker', async () => {
-      try {
-        await pmr.addToken('test2', 'TS2', custodian, 1000, 1e18, {
-          from: inactiveBroker
-        })
-        assert(false, 'inactive brokers shouldn NOT be able to add tokens')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode should be in the error'
-        )
-      }
+      await testWillThrow(pmr.addToken, [
+        'test2',
+        'TS2',
+        custodian,
+        1000,
+        1e18,
+        { from: inactiveBroker }
+      ])
     })
 
     it('should NOT add a token from a non-broker', async () => {
       const preToken = await pmr.getToken(savedToken)
       const preTokenStatus = tupleToObject(preToken).active
       assert(preTokenStatus, 'the token should be active')
-      try {
-        await pmr.addToken('test2', 'TS2', custodian, 1000, 1e18, {
+      await testWillThrow(pmr.addToken, [
+        'test2',
+        'TS2',
+        custodian,
+        1000,
+        1e18,
+        {
           from: accounts[4]
-        })
-        assert(false, 'non brokers shouldn NOT be able to add tokens')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode should be in the error'
-        )
-      }
+        }
+      ])
     })
 
     it('should NOT deactivate an active token when NOT owner', async () => {
       const preToken = await pmr.getToken(savedToken)
       const preTokenStatus = tupleToObject(preToken).active
       assert(preTokenStatus, 'the token should be active')
-      try {
-        await pmr.deactivateToken(savedToken, {
-          from: activeBroker
-        })
-        assert(false, 'non-owners should NOT be able to deactivate a token')
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode should be in the error'
-        )
-      }
+      await testWillThrow(pmr.deactivateToken, [
+        savedToken,
+        { from: activeBroker }
+      ])
     })
 
     it('should deactivate an active token when owner', async () => {
@@ -360,18 +315,7 @@ describe('when adjusting tokens', () => {
         preTokenStatus === false,
         'the token should be inactive'
       )
-      try {
-        await pmr.deactivateToken(savedToken)
-        assert(
-          false,
-          'deactivated tokens should not be able to be deactivated again'
-        )
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode should be in the error'
-        )
-      }
+      await testWillThrow(pmr.deactivateToken, [savedToken])
     })
 
     it('should NOT activate an inactive token when NOT owner', async () => {
@@ -382,20 +326,10 @@ describe('when adjusting tokens', () => {
         preTokenStatus === false,
         'the token should be inactive'
       )
-      try {
-        await pmr.activateToken(savedToken, {
-          from: activeBroker
-        })
-        assert(
-          false,
-          'deactivated tokens should not be able to be activated by non-owners'
-        )
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode should be in the error'
-        )
-      }
+      await testWillThrow(pmr.activateToken, [
+        savedToken,
+        { from: activeBroker }
+      ])
     })
 
     it('should activate an inactive token when owner', async () => {
@@ -416,18 +350,7 @@ describe('when adjusting tokens', () => {
       const preToken = await pmr.getToken(savedToken)
       const preTokenStatus = tupleToObject(preToken).active
       assert(preTokenStatus, 'the token should be active')
-      try {
-        await pmr.activateToken(savedToken)
-        assert(
-          false,
-          'deactivated tokens should not be able to be deactivated again'
-        )
-      } catch (error) {
-        assert(
-          /invalid opcode/.test(error),
-          'invalid opcode should be in the error'
-        )
-      }
+      await testWillThrow(pmr.activateToken, [savedToken])
     })
   })
 })
