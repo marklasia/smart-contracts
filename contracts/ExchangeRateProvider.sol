@@ -11,8 +11,6 @@ contract ExchangeRates {
   // storage for query settings... modifiable for each currency
   mapping (bytes8 => Settings) public  currencySettings;
 
-  mapping (bytes8 => bytes32[5]) public queryStrings;
-
   struct Settings {
     bytes32[5] queryString;
     uint256 callInterval;
@@ -91,7 +89,7 @@ contract ExchangeRateProvider is usingOraclize {
     ExchangeRates _exchangeRates = ExchangeRates(
       registry.getContractAddress("ExchangeRates")
     );
-    bytes32[5] memory _queryString = _exchangeRates.queryStrings(_exchangeRates.queryTypes(_queryId));
+
     Settings memory _rateSettings = _exchangeRates.currencySettings(_exchangeRates.queryTypes(_queryId));
 
     bool _ratesActive = _exchangeRates.ratesActive;

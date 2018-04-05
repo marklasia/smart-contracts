@@ -38,7 +38,6 @@ contract ExchangeRates is usingOraclize {
   mapping (bytes32 => bytes8) public queryTypes;
   // storage for query settings... modifiable for each currency
   mapping (bytes8 => Settings) public currencySettings;
-  mapping (bytes8 => bytes32[5]) public queryStrings;
 
   struct Settings {
     bytes32[5] queryString;
@@ -76,7 +75,7 @@ contract ExchangeRates is usingOraclize {
     registry = Registry(_registryAddress);
   }
 
-  function fetchRate(bytes _queryType)
+  function fetchRate(string _queryType)
     public
     onlyAllowed
     payable
@@ -87,20 +86,20 @@ contract ExchangeRates is usingOraclize {
       registry.getContractAddress("ExchangeRatesProvider")
     );
     // get settings to use in query to provider
-    Settings memory _settings = currencySettings[_queryType];
+    Settings memory _settings = currencySettings[stringToBytes8(_queryType)];
     // make query on provider contract
     bytes32 _queryId = provider.query(
-      toString(_settings.queryString),
+      _settings.queryString,
       _settings.callInterval,
       _settings.callbackGasLimit
     );
 
     if (_queryId.length == 0) {
-      QueryNoMinBalance();
+      emit QueryNoMinBalance();
       return false;
     } else {
-      queryTypes[_queryId] = bytes(_settings.currencyName);
-      QuerySent(_settings.currencyName);
+      queryTypes[_queryId] = stringToBytes8(_queryType);
+      emit QuerySent(_queryType);
       return true;
     }
   }
@@ -114,7 +113,7 @@ contract ExchangeRates is usingOraclize {
     returns (bool)
   {
     // get the query type (usd, eur, etc)
-    bytes32 _queryType = queryTypes[_queryId];
+    bytes8 _queryType = queryTypes[_queryId];
     // make sure that it is a valid _queryId
     require(_queryType.length > 0);
     // set _queryId to empty (uninitialized, to prevent from being called again)
@@ -124,10 +123,13 @@ contract ExchangeRates is usingOraclize {
     // get the settings for a given _queryType
     Settings memory _settings = currencySettings[_queryType];
     // event for particular rate that was updated
-    RateUpdated(
+    /*
+    TODO: make yet another string conversion function...
+     RateUpdated(
       _settings.currencyName,
       rates[_queryType]
     );
+    */
     if (shouldClearRateIntervals) {
       _settings.callInterval = 0;
     }
@@ -136,7 +138,7 @@ contract ExchangeRates is usingOraclize {
 
   function setRateSettings(
     string _currencyName,
-    bytes32[5] _queryString,
+    string _queryString,
     uint256 _callInterval,
     uint256 _callbackGasLimit
 
@@ -144,15 +146,18 @@ contract ExchangeRates is usingOraclize {
     public
     onlyOwner
   {
-    require(bytes32(_currencyName).length > 0);
+    require(
+      bytes(_currencyName).length > 0
+      && bytes(_currencyName).length < 8
+    );
     uint256 _callIntervalValue = _callInterval > 0
       ? _callInterval
       : defaultCallInterval;
     uint256 _callbackGasLimitValue = _callbackGasLimit > 0
       ? _callbackGasLimit
       : defaultCallbackGasLimit;
-    currencySettings[bytes8(_currencyName)] = Settings(
-      _queryString,
+    currencySettings[stringToBytes8(_currencyName)] = Settings(
+      toBytes32(_queryString),
       _callIntervalValue,
       _callbackGasLimitValue
     );
@@ -174,6 +179,17 @@ contract ExchangeRates is usingOraclize {
   {
     shouldClearRateIntervals = true;
     return true;
+  }
+
+  function stringToBytes8(string _string)
+    pure
+    private
+    returns (bytes8 _convertedBytes8)
+  {
+    bytes8 _convertedBytes8;
+    assembly {
+      _convertedBytes8 := mload(add(_convertedBytes8, 8))
+    }
   }
 
   // creates a bytes32 array of 5 from string (max length 160)
