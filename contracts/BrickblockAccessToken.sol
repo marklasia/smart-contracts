@@ -68,6 +68,7 @@ contract BrickblockAccessToken is PausableToken {
             * (100 * (100 - 100) === 0)
         * all minting activity related balance increments are tracked through this
 
+      TODO: clarify this phrase somehow
       securedFundsParadigm: the funds that are bumped dividends out during lock / unlock
         * securedTokenDistributions (mapping)
         * needed in order to track ACT balance after lock/unlockBBK
