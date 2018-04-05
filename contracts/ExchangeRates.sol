@@ -3,24 +3,44 @@ pragma solidity 0.4.18;
 import "./OraclizeAPI.sol";
 
 
+contract ExchangeRateProvider {
+  function query(
+    bytes32[5] _queryString,
+    uint256 _callInterval,
+    uint256 _callbackGasLimit
+  )
+    public
+    returns (bytes32)
+  {}
+}
+
+
+contract Registry {
+  function getContractAddress(string _name)
+    public
+    returns (address)
+  {}
+}
+
+
 contract ExchangeRates is usingOraclize {
+  Registry private registry;
   bool public ratesActive;
   bool public shouldClearRateIntervals;
   address public owner;
   uint256 public defaultCallbackGasLimit;
   uint256 public defaultCallbackGasPrice;
-  uint256 public defualtCallInterval;
+  uint256 public defaultCallInterval;
 
   // the actual exchange rate for each currency
-  mapping (bytes => uint256) rates;
+  mapping (bytes32 => uint256) public rates;
   // points to currencySettings from callback
-  mapping (bytes32 => bytes) queryTypes;
+  mapping (bytes32 => bytes8) public queryTypes;
   // storage for query settings... modifiable for each currency
-  mapping (bytes => Settings) currencySettings;
+  mapping (bytes8 => Settings) currencySettings;
 
   struct Settings {
-    string currencyName;
-    string queryString;
+    bytes32[5] queryString;
     uint256 callInterval;
     uint256 callbackGasLimit;
   }
@@ -39,25 +59,67 @@ contract ExchangeRates is usingOraclize {
     _;
   }
 
-  function ExchangeRates()
+  modifier onlyContract(string _contractName)
+  {
+    require(
+      msg.sender == registry.getContractAddress(_contractName)
+    );
+    _;
+  }
+
+  function ExchangeRates(address _registryAddress)
     public
     payable
-  {}
-
-  // callback function to get results of oraclize call
-  function __callback(bytes32 _queryId, string _result, bytes _proof)
-    public
   {
-    // make sure that the caller is oraclize
-    require(msg.sender == oraclize_cbAddress());
+    require(_registryAddress != address(0));
+    registry = Registry(_registryAddress);
+  }
+
+  function fetchRate(bytes _queryType)
+    public
+    onlyAllowed
+    payable
+    returns (bool)
+  {
+    // get the oraclize provider from registry
+    ExchangeRateProvider provider = ExchangeRateProvider(
+      registry.getContractAddress("ExchangeRatesProvider")
+    );
+    // get settings to use in query to provider
+    Settings memory _settings = currencySettings[_queryType];
+    // make query on provider contract
+    bytes32 _queryId = provider.query(
+      toString(_settings.queryString),
+      _settings.callInterval,
+      _settings.callbackGasLimit
+    );
+
+    if (_queryId.length == 0) {
+      QueryNoMinBalance();
+      return false;
+    } else {
+      queryTypes[_queryId] = bytes(_settings.currencyName);
+      QuerySent(_settings.currencyName);
+      return true;
+    }
+  }
+
+  function setRate(
+    bytes32 _queryId,
+    uint _result
+  )
+    public
+    onlyContract("ExchangeRatesProvider")
+    returns (bool)
+  {
     // get the query type (usd, eur, etc)
-    bytes _queryType = queryTypes[_queryId];
+    bytes32 _queryType = queryTypes[_queryId];
     // make sure that it is a valid _queryId
     require(_queryType.length > 0);
     // set _queryId to empty (uninitialized, to prevent from being called again)
     delete queryTypes[_queryId];
     // fetch rate depending on _queryType
-    rates[_queryType] = parseInt(_result);
+    rates[_queryType] = _result;
     // get the settings for a given _queryType
     Settings memory _settings = currencySettings[_queryType];
     // event for particular rate that was updated
@@ -68,41 +130,12 @@ contract ExchangeRates is usingOraclize {
     if (shouldClearRateIntervals) {
       _settings.callInterval = 0;
     }
-    // check if call interval has been set, if so, call again with the interval
-    if (_settings.callInterval > 0 && ratesActive) {
-      fetchRate(_queryType);
-    }
-  }
-
-  function fetchRate(bytes _queryType)
-    public
-    onlyAllowed
-    payable
-    returns (bool)
-  {
-    // check if contract has balance needed for query
-    if (oraclize_getPrice("URL") > this.balance) {
-      QueryNoMinBalance();
-      return false;
-    } else {
-      // get the settings for a given _queryType
-      Settings memory _settings = currencySettings[_queryType];
-      // make query based on currencySettings for a given _queryType
-      bytes32 _queryId = oraclize_query(
-        _settings.callInterval,
-        "URL",
-        _settings.queryString,
-        _settings.callbackGasLimit
-      );
-      queryTypes[_queryId] = bytes(_settings.currencyName);
-      QuerySent(_settings.currencyName);
-    }
     return true;
   }
 
-  function updateRate(
+  function setRateSettings(
     string _currencyName,
-    string _queryString,
+    bytes32[5] _queryString,
     uint256 _callInterval,
     uint256 _callbackGasLimit
 
@@ -110,11 +143,17 @@ contract ExchangeRates is usingOraclize {
     public
     onlyOwner
   {
-    currencySettings[bytes(_currencyName)] = Settings(
-      _currencyName,
+    require(bytes32(_currencyName).length > 0);
+    uint256 _callIntervalValue = _callInterval > 0
+      ? _callInterval
+      : defaultCallInterval;
+    uint256 _callbackGasLimitValue = _callbackGasLimit > 0
+      ? _callbackGasLimit
+      : defaultCallbackGasLimit;
+    currencySettings[bytes8(_currencyName)] = Settings(
       _queryString,
-      _callInterval,
-      _callbackGasLimit
+      _callIntervalValue,
+      _callbackGasLimitValue
     );
   }
 
@@ -134,6 +173,93 @@ contract ExchangeRates is usingOraclize {
   {
     shouldClearRateIntervals = true;
     return true;
+  }
+
+  // creates a bytes32 array of 5 from string (max length 160)
+  // needed for contract communication
+  function toBytes32(string _string)
+    pure
+    public
+    returns(bytes32[5])
+  {
+    bytes memory _stringBytes = bytes(_string);
+    uint _bytes32ArrayByteCount = 5 * 32;
+    uint _remainingBytes32Bytes;
+    uint _bytes32HolderIndex = 0;
+    bytes memory _bytes32Holder = new bytes(32);
+    string memory _stringSegmentHolder;
+    bytes32 _convertedBytes32;
+    bytes32[5] memory _bytes32ArrayResult;
+
+    uint _bytes32Counter = 0;
+    // loop through each byte in in a bytes32 array with a length of 5
+    for (
+      uint _byteCounter = 1;
+      _byteCounter <= _bytes32ArrayByteCount;
+      _byteCounter++
+    ) {
+      // check to see if a bytes32 block is complete
+      _remainingBytes32Bytes = _byteCounter % 32;
+      if (_remainingBytes32Bytes == 0) {
+        // check to see if we have already written out all string bytes
+        if (_byteCounter > _stringBytes.length) {
+          _bytes32Holder[_bytes32HolderIndex] = 0x0;
+        } else {
+          _bytes32Holder[_bytes32HolderIndex] = _stringBytes[_byteCounter - 1];
+        }
+
+        _bytes32HolderIndex = 0;
+        _stringSegmentHolder = string(_bytes32Holder);
+
+        assembly {
+          _convertedBytes32 := mload(add(_stringSegmentHolder, 32))
+        }
+
+        _bytes32ArrayResult[_bytes32Counter] = _convertedBytes32;
+        _bytes32Counter = _bytes32Counter + 1;
+      } else {
+        if (_byteCounter > _stringBytes.length) {
+          _bytes32Holder[_bytes32HolderIndex] = 0x0;
+        } else {
+          _bytes32Holder[_bytes32HolderIndex] = _stringBytes[_byteCounter - 1];
+        }
+
+        _bytes32HolderIndex = _bytes32HolderIndex + 1;
+      }
+    }
+
+    return _bytes32ArrayResult;
+  }
+
+  // takes a fixed length array of 5 bytes32. needed for contract communication
+  function toString(bytes32[5] _data)
+    public
+    pure
+    returns (string)
+  {
+    require(_data.length == 5);
+    bytes memory _bytesString = new bytes(5 * 32);
+    uint256 _stringLength;
+
+    for (uint _bytesCounter = 0; _bytesCounter < _data.length; _bytesCounter++) {
+      for (uint _stringCounter = 0; _stringCounter < 32; _stringCounter++) {
+        byte _char = byte(
+          bytes32(
+            uint(_data[_bytesCounter]) * 2 ** (8 * _stringCounter)
+          )
+        );
+        if (_char != 0) {
+          _bytesString[_stringLength] = _char;
+          _stringLength += 1;
+        }
+      }
+    }
+
+    bytes memory _bytesStringTrimmed = new bytes(_stringLength);
+    for (_stringCounter = 0; _stringCounter < _stringLength; _stringCounter++) {
+      _bytesStringTrimmed[_stringCounter] = _bytesString[_stringCounter];
+    }
+    return string(_bytesStringTrimmed);
   }
 
   function selfDestruct()
