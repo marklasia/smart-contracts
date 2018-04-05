@@ -4,22 +4,18 @@ import "./OraclizeAPI.sol";
 
 
 contract ExchangeRates {
-  // the actual exchange rate for each currency
-  mapping (bytes32 => uint256) public rates;
   // points to currencySettings from callback
   mapping (bytes32 => bytes8) public queryTypes;
-  // storage for query settings... modifiable for each currency
-  mapping (bytes8 => Settings) public  currencySettings;
+  bool public ratesActive;
 
-  struct Settings {
-    bytes32[5] queryString;
-    uint256 callInterval;
-    uint256 callbackGasLimit;
-  }
-
-  function setRate(uint256 _rate)
+  function setRate(bytes32 _queryId, uint256 _rate)
     public
     returns (bool)
+  {}
+
+  function getCurrencySettings(bytes8 _queryType)
+    public
+    returns (uint256, uint256, bytes32[5])
   {}
 }
 
@@ -89,18 +85,20 @@ contract ExchangeRateProvider is usingOraclize {
     ExchangeRates _exchangeRates = ExchangeRates(
       registry.getContractAddress("ExchangeRates")
     );
-
-    Settings memory _rateSettings = _exchangeRates.currencySettings(_exchangeRates.queryTypes(_queryId));
-
-    bool _ratesActive = _exchangeRates.ratesActive;
+    bool _ratesActive = _exchangeRates.ratesActive();
+    bytes8 _queryType =_exchangeRates.queryTypes(_queryId);
+    uint256 _callInterval;
+    uint256 _callbackGasLimit;
+    bytes32[5] memory _queryString;
+    (_callInterval, _callbackGasLimit, _queryString) = _exchangeRates.getCurrencySettings(_queryType);
     // set rate on ExchangeRates contract
     require(_exchangeRates.setRate(_queryId, parseInt(_result)));
     // check if call interval has been set, if so, call again with the interval
-    if (_rateSettings.callInterval > 0 && _ratesActive) {
+    if (_callInterval > 0 && _ratesActive) {
       query(
-        toString(_rateSettings.queryString),
-        _rateSettings.callInterval,
-        _rateSettings.callbackGasLimit
+        _queryString,
+        _callInterval,
+        _callbackGasLimit
       );
     }
   }

@@ -186,7 +186,6 @@ contract ExchangeRates is usingOraclize {
     private
     returns (bytes8 _convertedBytes8)
   {
-    bytes8 _convertedBytes8;
     assembly {
       _convertedBytes8 := mload(add(_convertedBytes8, 8))
     }
