@@ -3,13 +3,14 @@ pragma solidity 0.4.18;
 import "./OraclizeAPI.sol";
 
 
-contract ExchangeRateProvider {
+contract ExRatesProvider {
   function query(
     bytes32[5] _queryString,
     uint256 _callInterval,
     uint256 _callbackGasLimit
   )
     public
+    payable
     returns (bytes32)
   {}
 }
@@ -18,6 +19,7 @@ contract ExchangeRateProvider {
 contract Registry {
   function getContractAddress(string _name)
     public
+    view
     returns (address)
   {}
 }
@@ -25,15 +27,15 @@ contract Registry {
 
 contract ExchangeRates is usingOraclize {
   Registry private registry;
-  bool public ratesActive;
-  bool public shouldClearRateIntervals;
+  bool public ratesActive = true;
+  bool public shouldClearRateIntervals = false;
   address public owner;
   uint256 public defaultCallbackGasLimit;
   uint256 public defaultCallbackGasPrice;
   uint256 public defaultCallInterval;
 
   // the actual exchange rate for each currency
-  mapping (bytes32 => uint256) public rates;
+  mapping (bytes8 => uint256) public rates;
   // points to currencySettings from callback
   mapping (bytes32 => bytes8) public queryTypes;
   // storage for query settings... modifiable for each currency
@@ -48,11 +50,6 @@ contract ExchangeRates is usingOraclize {
   event RateUpdated(string currency, uint256 rate);
   event QueryNoMinBalance();
   event QuerySent(string currency);
-
-  modifier onlyAllowed() {
-    require(msg.sender == owner || msg.sender == oraclize_cbAddress());
-    _;
-  }
 
   modifier onlyOwner() {
     require(msg.sender == owner);
@@ -73,22 +70,23 @@ contract ExchangeRates is usingOraclize {
   {
     require(_registryAddress != address(0));
     registry = Registry(_registryAddress);
+    owner = msg.sender;
   }
 
   function fetchRate(string _queryType)
-    public
-    onlyAllowed
+    external
+    onlyOwner
     payable
     returns (bool)
   {
     // get the oraclize provider from registry
-    ExchangeRateProvider provider = ExchangeRateProvider(
+    ExRatesProvider provider = ExRatesProvider(
       registry.getContractAddress("ExchangeRatesProvider")
     );
     // get settings to use in query to provider
     Settings memory _settings = currencySettings[stringToBytes8(_queryType)];
     // make query on provider contract
-    bytes32 _queryId = provider.query(
+    bytes32 _queryId = provider.query.value(msg.value)(
       _settings.queryString,
       _settings.callInterval,
       _settings.callbackGasLimit
@@ -108,7 +106,7 @@ contract ExchangeRates is usingOraclize {
     bytes32 _queryId,
     uint256 _result
   )
-    public
+    external
     onlyContract("ExchangeRatesProvider")
     returns (bool)
   {
@@ -136,31 +134,66 @@ contract ExchangeRates is usingOraclize {
     return true;
   }
 
-  function setRateSettings(
+  function setCurrencySettings(
     string _currencyName,
     string _queryString,
     uint256 _callInterval,
     uint256 _callbackGasLimit
-
   )
-    public
+    external
     onlyOwner
+    returns (bool)
   {
-    require(
-      bytes(_currencyName).length > 0 &&
-      bytes(_currencyName).length < 8
-    );
     uint256 _callIntervalValue = _callInterval > 0
       ? _callInterval
       : defaultCallInterval;
     uint256 _callbackGasLimitValue = _callbackGasLimit > 0
       ? _callbackGasLimit
       : defaultCallbackGasLimit;
-    currencySettings[stringToBytes8(_currencyName)] = Settings(
+    currencySettings[stringToBytes8(toUpperCase(_currencyName))] = Settings(
       toBytes32(_queryString),
       _callIntervalValue,
       _callbackGasLimitValue
     );
+    return true;
+  }
+
+  // for provider
+  function getCurrencySettings(bytes8 _queryType)
+    external
+    view
+    returns (uint256, uint256, bytes32[5])
+  {
+    Settings memory _settings = currencySettings[_queryType];
+    return (
+      _settings.callInterval,
+      _settings.callbackGasLimit,
+      _settings.queryString
+    );
+  }
+
+  // for users
+  function getCurrencySettingsReadable(string _queryTypeString)
+    external
+    view
+    returns (uint256, uint256, string)
+  {
+    Settings memory _settings = currencySettings[
+      stringToBytes8(toUpperCase(_queryTypeString))
+    ];
+    return (
+      _settings.callInterval,
+      _settings.callbackGasLimit,
+      toString(_settings.queryString)
+    );
+  }
+
+  function getRate(string _queryType)
+    external
+    view
+    returns (uint256)
+  {
+    return rates[stringToBytes8(_queryType)];
   }
 
   function stopRates()
@@ -168,7 +201,18 @@ contract ExchangeRates is usingOraclize {
     onlyOwner
     returns (bool)
   {
+    require(ratesActive == true);
     ratesActive = false;
+    return true;
+  }
+
+  function activateRates()
+    public
+    onlyOwner
+    returns (bool)
+  {
+    require(ratesActive == false);
+    ratesActive = true;
     return true;
   }
 
@@ -189,6 +233,40 @@ contract ExchangeRates is usingOraclize {
     assembly {
       _convertedBytes8 := mload(add(_convertedBytes8, 8))
     }
+  }
+
+  function toUpperCase(string _base)
+    pure
+    private
+    returns (string)
+  {
+    bytes memory _stringBytes = bytes(_base);
+    for (
+      uint _byteCounter = 0;
+      _byteCounter < _stringBytes.length;
+      _byteCounter++
+    ) {
+      if (
+        _stringBytes[_byteCounter] >= 0x61 &&
+        _stringBytes[_byteCounter] <= 0x7A
+      ) {
+        _stringBytes[_byteCounter] = bytes1(
+          uint8(_stringBytes[_byteCounter]) - 32
+        );
+      }
+    }
+    return string(_stringBytes);
+  }
+
+  function _upper(bytes1 _b1)
+    private
+    constant
+    returns (bytes1)
+  {
+    if (_b1 >= 0x61 && _b1 <= 0x7A) {
+      return bytes1(uint8(_b1) - 32);
+    }
+    return _b1;
   }
 
   // creates a bytes32 array of 5 from string (max length 160)

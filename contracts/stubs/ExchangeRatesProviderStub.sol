@@ -1,20 +1,17 @@
 pragma solidity 0.4.18;
 
-import "./OraclizeAPI.sol";
 
-
-contract ExchangeRates {
-  // points to currencySettings from callback
+contract ExRates {
   mapping (bytes32 => bytes8) public queryTypes;
   bool public ratesActive;
 
   function setRate(bytes32 _queryId, uint256 _rate)
-    public
+    external
     returns (bool)
   {}
 
   function getCurrencySettings(bytes8 _queryType)
-    public
+    external
     returns (uint256, uint256, bytes32[5])
   {}
 }
@@ -29,8 +26,16 @@ contract Registry {
 }
 
 
-contract ExchangeRateProvider is usingOraclize {
+contract ExchangeRatesProviderStub {
   Registry private registry;
+  // used for testing simulated pending query
+  bytes32 public pendingTestQueryId;
+  // used to check if should call again when testing recurision
+  uint256 public shouldCallAgainIn;
+  // used to check callback gas when testing recursion
+  uint256 public shouldCallAgainWithGas;
+  // used to check queryString when testing recursion
+  string public shouldCallAgainWithQuery;
 
   modifier onlyContract(string _contractName)
   {
@@ -40,7 +45,7 @@ contract ExchangeRateProvider is usingOraclize {
     _;
   }
 
-  function ExchangeRateProvider(address _registryAddress)
+  function ExchangeRatesProviderStub(address _registryAddress)
     public
   {
     require(_registryAddress != address(0));
@@ -53,30 +58,27 @@ contract ExchangeRateProvider is usingOraclize {
     uint256 _callbackGasLimit
   )
     public
-    onlyContract("ExchangeRates")
     payable
+    onlyContract("ExchangeRates")
     returns (bytes32)
   {
-    if (oraclize_getPrice("URL") > this.balance) {
+    // simulate price of 2 000 000 000
+    uint256 _simulatedPrice = 2e9;
+    if (_simulatedPrice > this.balance) {
       return 0x0;
     } else {
-      // make query based on currencySettings for a given _queryType
-      return oraclize_query(
-        _callInterval,
-        "URL",
-        toString(_queryString),
-        _callbackGasLimit
-      );
+      // simulate _queryId by hashing first element of bytes32 array
+      pendingTestQueryId = keccak256(_queryString[0]);
+      return pendingTestQueryId;
     }
   }
 
   // callback function to get results of oraclize call
-  function __callback(bytes32 _queryId, string _result, bytes _proof)
+  function simulate__callback(bytes32 _queryId, string _result)
     public
   {
     // make sure that the caller is oraclize
-    require(msg.sender == oraclize_cbAddress());
-    ExchangeRates _exchangeRates = ExchangeRates(
+    ExRates _exchangeRates = ExRates(
       registry.getContractAddress("ExchangeRates")
     );
     bool _ratesActive = _exchangeRates.ratesActive();
@@ -87,19 +89,22 @@ contract ExchangeRateProvider is usingOraclize {
     (_callInterval, _callbackGasLimit, _queryString) = _exchangeRates.getCurrencySettings(_queryType);
     // set rate on ExchangeRates contract
     require(_exchangeRates.setRate(_queryId, parseInt(_result)));
+    delete pendingTestQueryId;
     // check if call interval has been set, if so, call again with the interval
     if (_callInterval > 0 && _ratesActive) {
-      query(
-        _queryString,
-        _callInterval,
-        _callbackGasLimit
-      );
+      shouldCallAgainWithQuery = toString(_queryString);
+      shouldCallAgainIn = _callInterval;
+      shouldCallAgainWithGas = _callbackGasLimit;
+    } else {
+      shouldCallAgainWithQuery = "";
+      shouldCallAgainIn = 0;
+      shouldCallAgainWithGas = 0;
     }
   }
 
   // takes a fixed length array of 5 bytes32. needed for contract communication
   function toString(bytes32[5] _data)
-    internal
+    public
     pure
     returns (string)
   {
@@ -126,5 +131,42 @@ contract ExchangeRateProvider is usingOraclize {
       _bytesStringTrimmed[_stringCounter] = _bytesString[_stringCounter];
     }
     return string(_bytesStringTrimmed);
+  }
+
+  // taken from oraclize in order to parseInts during testing
+  // parseInt
+  function parseInt(string _a)
+    internal
+    pure
+    returns (uint)
+  {
+    return parseInt(_a, 0);
+  }
+
+  // parseInt(parseFloat*10^_b)
+  function parseInt(string _a, uint _b)
+    internal
+    pure
+    returns (uint)
+  {
+    bytes memory bresult = bytes(_a);
+    uint mint = 0;
+    bool decimals = false;
+    for (uint i = 0; i < bresult.length; i++) {
+      if ((bresult[i] >= 48) && (bresult[i] <= 57)) {
+        if (decimals) {
+          if (_b == 0)
+            break;
+          else
+            _b--;
+        }
+        mint *= 10;
+        mint += uint(bresult[i]) - 48;
+      } else if (bresult[i] == 46)
+        decimals = true;
+    }
+    if (_b > 0)
+      mint *= 10 ** _b;
+    return mint;
   }
 }
