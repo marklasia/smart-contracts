@@ -1,6 +1,6 @@
 pragma solidity 0.4.18;
 
-import "./OraclizeAPI.sol";
+import "./usingOraclize.sol";
 
 
 contract ExchangeRates {

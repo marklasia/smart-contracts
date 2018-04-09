@@ -1,6 +1,6 @@
 pragma solidity 0.4.18;
 
-import "./OraclizeAPI.sol";
+import "./usingOraclize.sol";
 
 
 contract ExRatesProvider {
@@ -29,6 +29,7 @@ contract ExchangeRates is usingOraclize {
   Registry private registry;
   bool public ratesActive = true;
   bool public shouldClearRateIntervals = false;
+  bool public isAlive = true;
   address public owner;
   uint256 public defaultCallbackGasLimit;
   uint256 public defaultCallbackGasPrice;
@@ -84,7 +85,7 @@ contract ExchangeRates is usingOraclize {
       registry.getContractAddress("ExchangeRatesProvider")
     );
     // get settings to use in query to provider
-    Settings memory _settings = currencySettings[stringToBytes8(_queryType)];
+    Settings memory _settings = currencySettings[toBytes8(_queryType)];
     // make query on provider contract
     bytes32 _queryId = provider.query.value(msg.value)(
       _settings.queryString,
@@ -96,7 +97,7 @@ contract ExchangeRates is usingOraclize {
       QueryNoMinBalance();
       return false;
     } else {
-      queryTypes[_queryId] = stringToBytes8(_queryType);
+      queryTypes[_queryId] = toBytes8(_queryType);
       QuerySent(_queryType);
       return true;
     }
@@ -150,8 +151,8 @@ contract ExchangeRates is usingOraclize {
     uint256 _callbackGasLimitValue = _callbackGasLimit > 0
       ? _callbackGasLimit
       : defaultCallbackGasLimit;
-    currencySettings[stringToBytes8(toUpperCase(_currencyName))] = Settings(
-      toBytes32(_queryString),
+    currencySettings[toBytes8(toUpperCase(_currencyName))] = Settings(
+      toBytes32Array(_queryString),
       _callIntervalValue,
       _callbackGasLimitValue
     );
@@ -179,12 +180,12 @@ contract ExchangeRates is usingOraclize {
     returns (uint256, uint256, string)
   {
     Settings memory _settings = currencySettings[
-      stringToBytes8(toUpperCase(_queryTypeString))
+      toBytes8(toUpperCase(_queryTypeString))
     ];
     return (
       _settings.callInterval,
       _settings.callbackGasLimit,
-      toString(_settings.queryString)
+      toLongString(_settings.queryString)
     );
   }
 
@@ -193,26 +194,15 @@ contract ExchangeRates is usingOraclize {
     view
     returns (uint256)
   {
-    return rates[stringToBytes8(_queryType)];
+    return rates[toBytes8(_queryType)];
   }
 
-  function stopRates()
+  function toggleRatesActive()
     public
     onlyOwner
     returns (bool)
   {
-    require(ratesActive == true);
-    ratesActive = false;
-    return true;
-  }
-
-  function activateRates()
-    public
-    onlyOwner
-    returns (bool)
-  {
-    require(ratesActive == false);
-    ratesActive = true;
+    ratesActive = !ratesActive;
     return true;
   }
 
@@ -225,22 +215,24 @@ contract ExchangeRates is usingOraclize {
     return true;
   }
 
-  function stringToBytes8(string _string)
+  function toBytes8(string _string)
     pure
-    private
+    public
     returns (bytes8 _convertedBytes8)
   {
+    require(bytes(_string).length <= 8);
     assembly {
-      _convertedBytes8 := mload(add(_convertedBytes8, 8))
+      _convertedBytes8 := mload(add(_string, 32))
     }
   }
 
   function toUpperCase(string _base)
     pure
-    private
+    public
     returns (string)
   {
     bytes memory _stringBytes = bytes(_base);
+    require(_stringBytes.length <= 8);
     for (
       uint _byteCounter = 0;
       _byteCounter < _stringBytes.length;
@@ -258,20 +250,9 @@ contract ExchangeRates is usingOraclize {
     return string(_stringBytes);
   }
 
-  function _upper(bytes1 _b1)
-    private
-    constant
-    returns (bytes1)
-  {
-    if (_b1 >= 0x61 && _b1 <= 0x7A) {
-      return bytes1(uint8(_b1) - 32);
-    }
-    return _b1;
-  }
-
   // creates a bytes32 array of 5 from string (max length 160)
   // needed for contract communication
-  function toBytes32(string _string)
+  function toBytes32Array(string _string)
     pure
     public
     returns(bytes32[5])
@@ -326,7 +307,7 @@ contract ExchangeRates is usingOraclize {
   }
 
   // takes a fixed length array of 5 bytes32. needed for contract communication
-  function toString(bytes32[5] _data)
+  function toLongString(bytes32[5] _data)
     public
     pure
     returns (string)

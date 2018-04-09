@@ -5,6 +5,9 @@ const ExchangeRatesProvider = artifacts.require(
   './stubs/ExchangeRatesProviderStub'
 )
 const Registry = artifacts.require('BrickblockContractRegistry')
+const { sendTransaction, getEtherBalance, getGasUsed } = require('./general')
+
+const trimBytes = string => string.replace(/\0/g, '')
 
 const setupContracts = async () => {
   const reg = await Registry.new()
@@ -40,11 +43,14 @@ const testUninitializedSettings = async exr => {
   assert.equal(preQueryString, '', 'queryString should start uninitialized')
 }
 
-const testSetCurrencySettings = async (exr, config) => {
-  const callInterval = new BigNumber(60)
-  const callbackGasLimit = new BigNumber(20e9)
-  const queryString = 'https://domain.com/api/?base=ETH&to=USD'
-
+const testSetCurrencySettings = async (
+  exr,
+  queryType,
+  callInterval,
+  callbackGasLimit,
+  queryString,
+  config
+) => {
   const [
     preCallInterval,
     preCallbackGasLimit,
@@ -52,7 +58,7 @@ const testSetCurrencySettings = async (exr, config) => {
   ] = await exr.getCurrencySettingsReadable('USD')
 
   await exr.setCurrencySettings(
-    'USD',
+    queryType,
     queryString,
     callInterval,
     callbackGasLimit,
@@ -122,11 +128,115 @@ const testSetRate = async (exr, exp) => {
   // const rate = await exr.getRate('USD')
 }
 
+const testToggleRates = async (exr, config) => {
+  const preRatesActive = await exr.ratesActive()
+  await exr.toggleRatesActive(config)
+  const postRatesActive = await exr.ratesActive()
+
+  assert(
+    preRatesActive != postRatesActive,
+    'preRatesActive should be toggled to postRAtesActive'
+  )
+}
+
+const testStringToBytes8 = async (exr, stringInput) => {
+  const bytes8 = await exr.toBytes8(stringInput)
+  const bytes8ToString = web3.toAscii(bytes8)
+  const bytes8StringTrimmed = trimBytes(bytes8ToString)
+  assert.equal(
+    stringInput,
+    bytes8StringTrimmed,
+    'the bytes8 returned should convert back to the same string'
+  )
+}
+
+const testToUpperCase = async (exr, stringInput) => {
+  const uppercase = await exr.toUpperCase(stringInput)
+
+  assert.equal(
+    stringInput.toUpperCase(),
+    uppercase,
+    'the returned string should be uppercase'
+  )
+}
+
+const testToBytes32Array = async (exr, stringInput) => {
+  const bytes32ArrayOutput = await exr.toBytes32Array(stringInput)
+  const bytesArrayToString = bytes32ArrayOutput.reduce(
+    (string, item) => trimBytes(string.concat(web3.toAscii(item))),
+    ''
+  )
+
+  assert.equal(
+    stringInput,
+    bytesArrayToString,
+    'the bytes32 array returned should convert back to the same string'
+  )
+}
+
+const testToLongString = async (exr, stringToBeConverted) => {
+  const bytes32Array = await exr.toBytes32Array(stringToBeConverted)
+  const convertedString = await exr.toLongString(bytes32Array)
+
+  assert.equal(
+    stringToBeConverted,
+    convertedString,
+    'the string converted back from bytes32 array should match the string originally given'
+  )
+}
+
+const testSelfDestruct = async (exr, caller) => {
+  const owner = web3.eth.accounts[0]
+  assert(
+    caller != web3.eth.accounts[9],
+    'please pick another account... cannot use this account for this test'
+  )
+  const funder = web3.eth.accounts[9]
+  const preOwnerBalance = await getEtherBalance(owner)
+  const preAlive = await exr.isAlive()
+  await sendTransaction(web3, {
+    from: funder,
+    to: exr.address,
+    value: 1e18
+  })
+  const preKillContractBalance = await getEtherBalance(exr.address)
+  const tx = await exr.selfDestruct({ from: caller, gasPrice: 1e9 })
+  const gasUsed = await getGasUsed(tx)
+  const expectedOwnerBalance = preOwnerBalance
+    .add(1e18)
+    .sub(new BigNumber(gasUsed).mul(1e9))
+  const postOwnerBalance = await getEtherBalance(owner)
+  const postAlive = await exr.isAlive()
+
+  assert(preAlive, 'the contract should be alive')
+  assert(
+    !postAlive,
+    'the contract should NOT be alive after running selfDestruct'
+  )
+
+  assert.equal(
+    preKillContractBalance.toString(),
+    new BigNumber(1e18).toString(),
+    'the balance of the contract should be 1e18'
+  )
+  assert.equal(
+    expectedOwnerBalance.toString(),
+    postOwnerBalance.toString(),
+    'the owner balance should match the expected balance after self destruction'
+  )
+}
+
 module.exports = {
   setupContracts,
   testUninitializedSettings,
   testSetCurrencySettings,
   testFetchRate,
   testSettingsExists,
-  testSetRate
+  testSetRate,
+  testToggleRates,
+  testStringToBytes8,
+  testToUpperCase,
+  testToBytes32Array,
+  testToLongString,
+  testSelfDestruct
 }

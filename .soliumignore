@@ -1,4 +1,4 @@
 
 node_modules
-contracts/OraclizeAPI.sol
+contracts/usingOraclize.sol
 contracts/stubs/ExchangeRatesProviderStub.sol

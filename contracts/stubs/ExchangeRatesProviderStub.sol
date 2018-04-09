@@ -82,23 +82,25 @@ contract ExchangeRatesProviderStub {
       registry.getContractAddress("ExchangeRates")
     );
     bool _ratesActive = _exchangeRates.ratesActive();
-    bytes8 _queryType = _exchangeRates.queryTypes(_queryId);
-    uint256 _callInterval;
-    uint256 _callbackGasLimit;
-    bytes32[5] memory _queryString;
-    (_callInterval, _callbackGasLimit, _queryString) = _exchangeRates.getCurrencySettings(_queryType);
+
     // set rate on ExchangeRates contract
     require(_exchangeRates.setRate(_queryId, parseInt(_result)));
     delete pendingTestQueryId;
-    // check if call interval has been set, if so, call again with the interval
+
     if (_callInterval > 0 && _ratesActive) {
+      uint256 _callInterval;
+      uint256 _callbackGasLimit;
+      bytes32[5] memory _queryString;
+      (
+        _callInterval,
+        _callbackGasLimit,
+        _queryString
+      ) = _exchangeRates.getCurrencySettings(_queryType);
+      bytes8 _queryType = _exchangeRates.queryTypes(_queryId);
+
       shouldCallAgainWithQuery = toString(_queryString);
       shouldCallAgainIn = _callInterval;
       shouldCallAgainWithGas = _callbackGasLimit;
-    } else {
-      shouldCallAgainWithQuery = "";
-      shouldCallAgainIn = 0;
-      shouldCallAgainWithGas = 0;
     }
   }
 
