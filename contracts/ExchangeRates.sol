@@ -1,7 +1,5 @@
 pragma solidity 0.4.18;
 
-import "./usingOraclize.sol";
-
 
 contract ExRatesProvider {
   function query(
@@ -25,7 +23,7 @@ contract Registry {
 }
 
 
-contract ExchangeRates is usingOraclize {
+contract ExchangeRates {
   Registry private registry;
   bool public ratesActive = true;
   bool public shouldClearRateIntervals = false;
@@ -122,13 +120,12 @@ contract ExchangeRates is usingOraclize {
     // get the settings for a given _queryType
     Settings memory _settings = currencySettings[_queryType];
     // event for particular rate that was updated
-    /*
-    TODO: make yet another string conversion function...
-     RateUpdated(
-      _settings.currencyName,
-      rates[_queryType]
+
+    RateUpdated(
+      toShortString(_queryType),
+      _result
     );
-    */
+
     if (shouldClearRateIntervals) {
       _settings.callInterval = 0;
     }
@@ -206,12 +203,12 @@ contract ExchangeRates is usingOraclize {
     return true;
   }
 
-  function clearRateIntervals()
+  function toggleClearRateIntervals()
     public
     onlyOwner
     returns (bool)
   {
-    shouldClearRateIntervals = true;
+    shouldClearRateIntervals = !shouldClearRateIntervals;
     return true;
   }
 
@@ -304,6 +301,33 @@ contract ExchangeRates is usingOraclize {
     }
 
     return _bytes32ArrayResult;
+  }
+
+  function toShortString(bytes8 _data)
+    public
+    pure
+    returns (string)
+  {
+    bytes memory _bytesString = new bytes(8);
+    uint256 _charCount = 0;
+    uint256 _bytesCounter;
+    uint256 _charCounter;
+
+    for (_bytesCounter = 0; _bytesCounter < 8; _bytesCounter++) {
+      bytes1 _char = bytes1(bytes8(uint256(_data) * 2 ** (8 * _bytesCounter)));
+      if (_char != 0) {
+        _bytesString[_charCount] = _char;
+        _charCount++;
+      }
+    }
+
+    bytes memory _bytesStringTrimmed = new bytes(_charCount);
+
+    for (_charCounter = 0; _charCounter < _charCount; _charCounter++) {
+      _bytesStringTrimmed[_charCounter] = _bytesString[_charCounter];
+    }
+
+    return string(_bytesStringTrimmed);
   }
 
   // takes a fixed length array of 5 bytes32. needed for contract communication

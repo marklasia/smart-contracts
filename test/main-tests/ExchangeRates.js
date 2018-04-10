@@ -11,10 +11,14 @@ const {
   testToUpperCase,
   testToBytes32Array,
   testToLongString,
-  testSelfDestruct
+  testToShortString,
+  testSelfDestruct,
+  testGetRate,
+  testToggleClearRateIntervals,
+  testSetRateClearIntervals
 } = require('../helpers/exr')
 
-describe('when interacting with ExchangeRates', () => {
+describe('when performing owner only functions', () => {
   contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
     const owner = accounts[0]
     const notOwner = accounts[1]
@@ -24,11 +28,9 @@ describe('when interacting with ExchangeRates', () => {
     const queryType = 'USD'
     let exr
     let exp
-    let reg
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
-      reg = contracts.reg
       exr = contracts.exr
       exp = contracts.exp
     })
@@ -61,31 +63,43 @@ describe('when interacting with ExchangeRates', () => {
 
     it('should NOT fetchRate when NOT owner', async () => {
       await testWillThrow(testFetchRate, [
-        reg,
         exr,
+        exp,
         'USD',
         { from: notOwner, value: 1e18 }
       ])
     })
 
     it('should fetch rate', async () => {
-      await testFetchRate(reg, exr, 'USD', { from: owner, value: 1e18 })
+      await testFetchRate(exr, exp, 'USD', { from: owner, value: 1e18 })
     })
 
     it('should have rates set by the exRatesProvider', async () => {
-      await testSetRate(exr, exp)
+      await testSetRate(exr, exp, 100)
     })
 
     it('should stop rates when active', async () => {
-      await testToggleRates(exr, { from: owner })
+      await testToggleRates(exr, false, { from: owner })
     })
 
     it('should start rates when inactive', async () => {
-      await testToggleRates(exr, { from: owner })
+      await testToggleRates(exr, true, { from: owner })
     })
 
     it('should NOT toggle rates when NOT owner', async () => {
-      await testWillThrow(testToggleRates, [exr, { from: notOwner }])
+      await testWillThrow(testToggleRates, [exr, true, { from: notOwner }])
+    })
+
+    it('should toggle clear rate intervals when owner', async () => {
+      await testToggleClearRateIntervals(exr, true, { from: owner })
+    })
+
+    it('should NOT toggle clear rate intervals when NOT owner', async () => {
+      await testWillThrow(testToggleClearRateIntervals, [
+        exr,
+        true,
+        { from: notOwner }
+      ])
     })
   })
 })
@@ -131,26 +145,22 @@ describe('when using utility functions', () => {
         'some long query string that is more than 32 characters long'
       )
     })
+
+    it('should turn a bytes8 into a string', async () => {
+      await testToShortString(exr, 'test')
+    })
   })
 })
 
-describe('when derping', async () => {
+describe('when self destructing', async () => {
   contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
     const owner = accounts[0]
     const notOwner = accounts[1]
-    const callInterval = new BigNumber(60)
-    const callbackGasLimit = new BigNumber(20e9)
-    const queryString = 'https://domain.com/api/?base=ETH&to=USD'
-    const queryType = 'USD'
     let exr
-    let exp
-    let reg
 
     beforeEach('setup contracts', async () => {
       const contracts = await setupContracts()
-      reg = contracts.reg
       exr = contracts.exr
-      exp = contracts.exp
     })
 
     it('should selfDestruct', async () => {
@@ -163,19 +173,67 @@ describe('when derping', async () => {
   })
 })
 
+describe('when trying various scenarios through different lifecycles', async () => {
+  contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
+    const owner = accounts[0]
+    const callInterval = new BigNumber(60)
+    const callbackGasLimit = new BigNumber(20e9)
+    const queryString = 'https://domain.com/api/?base=ETH&to=USD'
+    const queryType = 'USD'
+    let exr
+    let exp
+
+    before('setup contracts', async () => {
+      const contracts = await setupContracts()
+      exr = contracts.exr
+      exp = contracts.exp
+    })
+
+    it('should do things', async () => {
+      let defaultRate = 100
+      await testSetCurrencySettings(
+        exr,
+        queryType,
+        callInterval,
+        callbackGasLimit,
+        queryString,
+        { from: owner }
+      )
+      await testFetchRate(exr, exp, queryType, { from: owner, value: 1e18 })
+      await testSetRate(exr, exp, defaultRate)
+      await testGetRate(exr, defaultRate, queryType)
+      await testToggleRates(exr, false, { from: owner })
+      await testToggleClearRateIntervals(exr, true, { from: owner })
+      defaultRate++
+      await testSetRateClearIntervals(exr, exp, defaultRate)
+    })
+  })
+})
+
 /*
   TODO: test the intervals and other lifecycle stuff
   STILL NEED TO TEST
   fetchRate
   setRate
   setCurrencySettings
-  getCurrencySettings
+  getCurrencySettings (do a unit test)
   getCurrencySettingsReadable
   getRate
   toggleRatesActive
   clearRateIntervals
 
-  
+  process for testing regular usage:
+    setCurrencySettings
+    fetchRate
+    setRate (through simulate__callback)
+    getRate
+    toggleRatesActive (false)
+    simulate__callback
+    toggleRatesActive (true)
+    clearRateIntervals
+    simulate__callback
+    getCurrencySettingsReadable
+
 
   ALREADY TESTED
   toBytes8

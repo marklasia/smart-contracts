@@ -11,6 +11,7 @@ contract ExRates {
   {}
 
   function getCurrencySettings(bytes8 _queryType)
+    view
     external
     returns (uint256, uint256, bytes32[5])
   {}
@@ -81,26 +82,31 @@ contract ExchangeRatesProviderStub {
     ExRates _exchangeRates = ExRates(
       registry.getContractAddress("ExchangeRates")
     );
+
     bool _ratesActive = _exchangeRates.ratesActive();
+    bytes8 _queryType = _exchangeRates.queryTypes(_queryId);
+    uint256 _callInterval;
+    uint256 _callbackGasLimit;
+    bytes32[5] memory _queryString;
+    (
+      _callInterval,
+      _callbackGasLimit,
+      _queryString
+    ) = _exchangeRates.getCurrencySettings(_queryType);
 
     // set rate on ExchangeRates contract
-    require(_exchangeRates.setRate(_queryId, parseInt(_result)));
-    delete pendingTestQueryId;
+    _exchangeRates.setRate(_queryId, parseInt(_result));
 
     if (_callInterval > 0 && _ratesActive) {
-      uint256 _callInterval;
-      uint256 _callbackGasLimit;
-      bytes32[5] memory _queryString;
-      (
-        _callInterval,
-        _callbackGasLimit,
-        _queryString
-      ) = _exchangeRates.getCurrencySettings(_queryType);
-      bytes8 _queryType = _exchangeRates.queryTypes(_queryId);
-
       shouldCallAgainWithQuery = toString(_queryString);
       shouldCallAgainIn = _callInterval;
       shouldCallAgainWithGas = _callbackGasLimit;
+      pendingTestQueryId = keccak256(_result);
+    } else {
+      delete pendingTestQueryId;
+      shouldCallAgainWithQuery = '';
+      shouldCallAgainIn = 0;
+      shouldCallAgainWithGas = 0;
     }
   }
 

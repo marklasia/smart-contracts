@@ -115,27 +115,113 @@ const testSettingsExists = async (exr, queryType) => {
   }
 }
 
-const testFetchRate = async (reg, exr, queryType, config) => {
+const testFetchRate = async (exr, exp, queryType, config) => {
   await testSettingsExists(exr, queryType)
-  // const preQueryType = await exr.queryTypes(queryType)
   await exr.fetchRate(queryType, config)
-  // const postQueryType = await exr.queryTypes(queryType)
-}
-
-const testSetRate = async (exr, exp) => {
   const pendingQueryId = await exp.pendingTestQueryId()
-  await exp.simulate__callback(pendingQueryId, '100')
-  // const rate = await exr.getRate('USD')
+  const queryType8 = await exr.queryTypes(pendingQueryId)
+  const queryStringConverted = trimBytes(web3.toAscii(queryType8))
+
+  assert.equal(
+    queryType,
+    queryStringConverted,
+    'the converted querystring converted from bytes8 found by pendingQueryId should match'
+  )
 }
 
-const testToggleRates = async (exr, config) => {
+const testSetRate = async (exr, exp, rate) => {
+  const bigRate = new BigNumber(rate)
+  const prePendingQueryId = await exp.pendingTestQueryId()
+  const queryTypeBytes = await exr.queryTypes(prePendingQueryId)
+  const queryType = trimBytes(web3.toAscii(queryTypeBytes))
+
+  await exp.simulate__callback(prePendingQueryId, bigRate.toString())
+
+  const postPendingQueryId = await exp.pendingTestQueryId()
+  const actualRate = await exr.getRate(queryType)
+
+  // check on recursive callback settings
+  const [
+    callInterval,
+    callbackGasLimit,
+    queryString
+  ] = await exr.getCurrencySettingsReadable(queryType)
+
+  const shouldCallAgainWithQuery = await exp.shouldCallAgainWithQuery()
+  const shouldCallAgainIn = await exp.shouldCallAgainIn()
+  const shouldCallAgainWithGas = await exp.shouldCallAgainWithGas()
+
+  assert.equal(
+    shouldCallAgainIn.toString(),
+    callInterval.toString(),
+    'callInterval in settings should match shouldCallAgainIn'
+  )
+  assert.equal(
+    shouldCallAgainWithQuery,
+    queryString,
+    'queryString should match shouldCallAgainWithQuery'
+  )
+  assert.equal(
+    shouldCallAgainWithGas.toString(),
+    callbackGasLimit.toString(),
+    'callbackGasLimit should match shouldCallAgainWithGas'
+  )
+  assert(
+    queryTypeBytes != '0x' + '00'.repeat(8),
+    'queryTypeBytes should not be empty'
+  )
+  assert.equal(
+    postPendingQueryId,
+    '0x' + '00'.repeat(32),
+    'the pending query id should be empty after callback completed'
+  )
+  assert.equal(
+    bigRate.toString(),
+    actualRate.toString(),
+    'the rate on exr should match the rate set'
+  )
+}
+
+const testGetRate = async (exr, rate, queryType) => {
+  const bigRate = new BigNumber(rate)
+  const actualRate = await exr.getRate(queryType)
+  assert.equal(
+    bigRate.toString(),
+    actualRate.toString(),
+    'the rate should match the expected rate'
+  )
+}
+
+const testToggleRates = async (exr, shouldBeActive, config) => {
   const preRatesActive = await exr.ratesActive()
   await exr.toggleRatesActive(config)
   const postRatesActive = await exr.ratesActive()
 
+  if (shouldBeActive) {
+    assert(shouldBeActive, 'ratesActive should be true')
+  } else {
+    assert(!shouldBeActive, 'ratesActive should NOT be true')
+  }
+
+  assert(preRatesActive != postRatesActive, 'preRatesActive should be toggled')
+}
+
+const testToggleClearRateIntervals = async (exr, shouldClear, config) => {
+  const preShouldClearIntervals = await exr.shouldClearRateIntervals()
+
+  await exr.toggleClearRateIntervals(config)
+
+  const postShouldClearIntervals = await exr.shouldClearRateIntervals()
+
+  if (shouldClear) {
+    assert(shouldClear, 'shouldClearRateIntervals should be true')
+  } else {
+    assert(!shouldClear, 'shouldClearRateIntervals should NOT be true')
+  }
+
   assert(
-    preRatesActive != postRatesActive,
-    'preRatesActive should be toggled to postRAtesActive'
+    preShouldClearIntervals != postShouldClearIntervals,
+    'preShouldClearIntervals should be toggled'
   )
 }
 
@@ -185,6 +271,17 @@ const testToLongString = async (exr, stringToBeConverted) => {
   )
 }
 
+const testToShortString = async (exr, stringToBeConverted) => {
+  const bytes8 = await exr.toBytes8(stringToBeConverted)
+  const convertedString = await exr.toShortString(bytes8)
+
+  assert.equal(
+    stringToBeConverted,
+    convertedString,
+    'the string converted back from byets8 array should match the original string given'
+  )
+}
+
 const testSelfDestruct = async (exr, caller) => {
   const owner = web3.eth.accounts[0]
   assert(
@@ -226,6 +323,82 @@ const testSelfDestruct = async (exr, caller) => {
   )
 }
 
+const testSetRateClearIntervals = async (exr, exp, rate) => {
+  const bigRate = new BigNumber(rate)
+  const prePendingQueryId = await exp.pendingTestQueryId()
+  const queryTypeBytes = await exr.queryTypes(prePendingQueryId)
+  const queryType = trimBytes(web3.toAscii(queryTypeBytes))
+
+  const [
+    // eslint-disable-next-line no-unused-vars
+    preCallInterval,
+    preCallbackGasLimit,
+    preQueryString
+  ] = await exr.getCurrencySettingsReadable(queryType)
+
+  await exp.simulate__callback(prePendingQueryId, bigRate.toString())
+
+  const postPendingQueryId = await exp.pendingTestQueryId()
+  const actualRate = await exr.getRate(queryType)
+
+  // check on recursive callback settings
+  const [
+    postCallInterval,
+    postCallbackGasLimit,
+    postQueryString
+  ] = await exr.getCurrencySettingsReadable(queryType)
+
+  const shouldCallAgainWithQuery = await exp.shouldCallAgainWithQuery()
+  const shouldCallAgainIn = await exp.shouldCallAgainIn()
+  const shouldCallAgainWithGas = await exp.shouldCallAgainWithGas()
+
+  assert.equal(
+    postCallInterval.toString(),
+    new BigNumber(0).toString(),
+    'callInterval in exchange rates settings should be 0'
+  )
+  assert.equal(
+    postCallbackGasLimit.toString(),
+    preCallbackGasLimit.toString(),
+    'the callback gas limit should remain unchanged'
+  )
+  assert.equal(
+    postQueryString,
+    preQueryString,
+    'the query string should remain unchanged'
+  )
+  assert.equal(
+    shouldCallAgainIn.toString(),
+    new BigNumber(0).toString(),
+    'shouldCallAgainIn in provider should be 0'
+  )
+  assert.equal(
+    shouldCallAgainWithQuery,
+    '',
+    'shouldCallAgainWithQuery should be empty'
+  )
+  assert.equal(
+    shouldCallAgainWithGas.toString(),
+    new BigNumber(0).toString(),
+    'shouldCallAgainWithGas be 0'
+  )
+  assert(
+    queryTypeBytes != '0x' + '00'.repeat(8),
+    'queryTypeBytes should not be empty'
+  )
+  assert.equal(
+    postPendingQueryId,
+    '0x' + '00'.repeat(32),
+    'the pending query id should be empty after callback completed'
+  )
+  assert.equal(
+    bigRate.toString(),
+    actualRate.toString(),
+    'the rate on exr should match the rate set'
+  )
+  console.log(actualRate.toString())
+}
+
 module.exports = {
   setupContracts,
   testUninitializedSettings,
@@ -238,5 +411,9 @@ module.exports = {
   testToUpperCase,
   testToBytes32Array,
   testToLongString,
-  testSelfDestruct
+  testToShortString,
+  testSelfDestruct,
+  testGetRate,
+  testToggleClearRateIntervals,
+  testSetRateClearIntervals
 }
