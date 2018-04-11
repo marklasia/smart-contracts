@@ -5,7 +5,8 @@ contract ExRatesProvider {
   function query(
     bytes32[5] _queryString,
     uint256 _callInterval,
-    uint256 _callbackGasLimit
+    uint256 _callbackGasLimit,
+    bytes8 _queryType
   )
     public
     payable
@@ -85,20 +86,24 @@ contract ExchangeRates {
     // get settings to use in query to provider
     Settings memory _settings = currencySettings[toBytes8(_queryType)];
     // make query on provider contract
-    bytes32 _queryId = provider.query.value(msg.value)(
+    provider.query.value(msg.value)(
       _settings.queryString,
       _settings.callInterval,
-      _settings.callbackGasLimit
+      _settings.callbackGasLimit,
+      toBytes8(_queryType)
     );
+  }
 
-    if (_queryId.length == 0) {
-      QueryNoMinBalance();
-      return false;
-    } else {
-      queryTypes[_queryId] = toBytes8(_queryType);
-      QuerySent(_queryType);
-      return true;
-    }
+  function setQueryId(
+    bytes32 _queryId,
+    bytes8 _queryType
+  )
+    external
+    onlyContract("ExchangeRatesProvider")
+    returns (bool)
+  {
+    queryTypes[_queryId] = _queryType;
+    return true;
   }
 
   function setRate(
@@ -112,7 +117,7 @@ contract ExchangeRates {
     // get the query type (usd, eur, etc)
     bytes8 _queryType = queryTypes[_queryId];
     // make sure that it is a valid _queryId
-    require(_queryType.length > 0);
+    require(_queryType[0] != 0);
     // set _queryId to empty (uninitialized, to prevent from being called again)
     delete queryTypes[_queryId];
     // fetch rate depending on _queryType

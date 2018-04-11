@@ -204,6 +204,7 @@ describe('when trying various scenarios through different lifecycles', async () 
       await testGetRate(exr, defaultRate, queryType)
       await testToggleRates(exr, false, { from: owner })
       await testToggleClearRateIntervals(exr, true, { from: owner })
+      await testSetQueryId(exr, identifier, queryType)
       defaultRate++
       await testSetRateClearIntervals(exr, exp, defaultRate)
     })
@@ -216,7 +217,7 @@ describe('when trying various scenarios through different lifecycles', async () 
   fetchRate
   setRate
   setCurrencySettings
-  getCurrencySettings (do a unit test)
+  getCurrencySettings
   getCurrencySettingsReadable
   getRate
   toggleRatesActive
@@ -239,6 +240,7 @@ describe('when trying various scenarios through different lifecycles', async () 
   toBytes8
   toUpperCase
   toBytes32Array
+  toShortString
   toLongString
   selfDestruct
 */

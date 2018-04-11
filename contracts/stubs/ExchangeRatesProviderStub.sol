@@ -10,6 +10,14 @@ contract ExRates {
     returns (bool)
   {}
 
+  function setQueryId(
+    bytes32 _queryId,
+    bytes8 _queryType
+  )
+    external
+    returns (bool)
+  {}
+
   function getCurrencySettings(bytes8 _queryType)
     view
     external
@@ -31,6 +39,8 @@ contract ExchangeRatesProviderStub {
   Registry private registry;
   // used for testing simulated pending query
   bytes32 public pendingTestQueryId;
+  // used for tetsing simulated testing recursion
+  bytes8 public pendingQueryType;
   // used to check if should call again when testing recurision
   uint256 public shouldCallAgainIn;
   // used to check callback gas when testing recursion
@@ -38,10 +48,12 @@ contract ExchangeRatesProviderStub {
   // used to check queryString when testing recursion
   string public shouldCallAgainWithQuery;
 
-  modifier onlyContract(string _contractName)
+  modifier onlyAllowed()
   {
+    address _exchangeRates = registry.getContractAddress("ExchangeRates");
+    address _this = address(this);
     require(
-      msg.sender == registry.getContractAddress(_contractName)
+      msg.sender == _exchangeRates || msg.sender == _this
     );
     _;
   }
@@ -56,22 +68,37 @@ contract ExchangeRatesProviderStub {
   function query(
     bytes32[5] _queryString,
     uint256 _callInterval,
-    uint256 _callbackGasLimit
+    uint256 _callbackGasLimit,
+    bytes8 _queryType
   )
     public
     payable
-    onlyContract("ExchangeRates")
-    returns (bytes32)
+    onlyAllowed
+    returns (bool)
   {
     // simulate price of 2 000 000 000
     uint256 _simulatedPrice = 2e9;
     if (_simulatedPrice > this.balance) {
-      return 0x0;
+      return false;
     } else {
       // simulate _queryId by hashing first element of bytes32 array
       pendingTestQueryId = keccak256(_queryString[0]);
-      return pendingTestQueryId;
+      setQueryId(pendingTestQueryId, _queryType);
     }
+    return true;
+  }
+
+  // needed to manually set queryId/queryType when testing...
+  // run after a callback where recursion is expected
+  function setQueryId(bytes32 _identifier, _queryType)
+    public
+    returns (bool)
+  {
+    ExRates _exchangeRates = ExRates(
+      registry.getContractAddress("ExchangeRates")
+    );
+
+    _exchangeRates.setQueryId(_identifier, _queryType);
   }
 
   // callback function to get results of oraclize call
@@ -98,12 +125,14 @@ contract ExchangeRatesProviderStub {
     _exchangeRates.setRate(_queryId, parseInt(_result));
 
     if (_callInterval > 0 && _ratesActive) {
+      pendingTestQueryId = keccak256(_result);
+      pendingQueryType = _queryType;
       shouldCallAgainWithQuery = toString(_queryString);
       shouldCallAgainIn = _callInterval;
       shouldCallAgainWithGas = _callbackGasLimit;
-      pendingTestQueryId = keccak256(_result);
     } else {
       delete pendingTestQueryId;
+      delete pendingQueryType;
       shouldCallAgainWithQuery = '';
       shouldCallAgainIn = 0;
       shouldCallAgainWithGas = 0;

@@ -170,11 +170,20 @@ const testSetRate = async (exr, exp, rate) => {
     queryTypeBytes != '0x' + '00'.repeat(8),
     'queryTypeBytes should not be empty'
   )
-  assert.equal(
-    postPendingQueryId,
-    '0x' + '00'.repeat(32),
-    'the pending query id should be empty after callback completed'
-  )
+
+  if (shouldCallAgainIn.greaterThan(0)) {
+    assert(
+      postPendingQueryId != prePendingQueryId,
+      'prePendingQueryId should not equal postPendingQueryId'
+    )
+  } else {
+    assert.equal(
+      postPendingQueryId,
+      '0x' + '00'.repeat(32),
+      'the pending query id should be empty after callback completed'
+    )
+  }
+
   assert.equal(
     bigRate.toString(),
     actualRate.toString(),
@@ -335,9 +344,7 @@ const testSetRateClearIntervals = async (exr, exp, rate) => {
     preCallbackGasLimit,
     preQueryString
   ] = await exr.getCurrencySettingsReadable(queryType)
-
   await exp.simulate__callback(prePendingQueryId, bigRate.toString())
-
   const postPendingQueryId = await exp.pendingTestQueryId()
   const actualRate = await exr.getRate(queryType)
 
