@@ -84,20 +84,20 @@ contract ExchangeRatesProviderStub {
       // simulate _queryId by hashing first element of bytes32 array
       pendingTestQueryId = keccak256(_queryString[0]);
       setQueryId(pendingTestQueryId, _queryType);
+      return true;
     }
-    return true;
   }
 
   // needed to manually set queryId/queryType when testing...
   // run after a callback where recursion is expected
-  function setQueryId(bytes32 _identifier, _queryType)
+  function setQueryId(bytes32 _identifier, bytes8 _queryType)
     public
     returns (bool)
   {
     ExRates _exchangeRates = ExRates(
       registry.getContractAddress("ExchangeRates")
     );
-
+    pendingTestQueryId = _identifier;
     _exchangeRates.setQueryId(_identifier, _queryType);
   }
 
@@ -127,7 +127,7 @@ contract ExchangeRatesProviderStub {
     if (_callInterval > 0 && _ratesActive) {
       pendingTestQueryId = keccak256(_result);
       pendingQueryType = _queryType;
-      shouldCallAgainWithQuery = toString(_queryString);
+      shouldCallAgainWithQuery = toLongString(_queryString);
       shouldCallAgainIn = _callInterval;
       shouldCallAgainWithGas = _callbackGasLimit;
     } else {
@@ -140,7 +140,7 @@ contract ExchangeRatesProviderStub {
   }
 
   // takes a fixed length array of 5 bytes32. needed for contract communication
-  function toString(bytes32[5] _data)
+  function toLongString(bytes32[5] _data)
     public
     pure
     returns (string)

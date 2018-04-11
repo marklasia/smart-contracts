@@ -123,9 +123,8 @@ contract ExchangeRates {
     // fetch rate depending on _queryType
     rates[_queryType] = _result;
     // get the settings for a given _queryType
-    Settings memory _settings = currencySettings[_queryType];
+    Settings storage _settings = currencySettings[_queryType];
     // event for particular rate that was updated
-
     RateUpdated(
       toShortString(_queryType),
       _result
@@ -196,7 +195,9 @@ contract ExchangeRates {
     view
     returns (uint256)
   {
-    return rates[toBytes8(_queryType)];
+    uint256 _rate = rates[toBytes8(_queryType)];
+    require(_rate > 0);
+    return _rate;
   }
 
   function toggleRatesActive()

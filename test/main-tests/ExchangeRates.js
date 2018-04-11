@@ -6,7 +6,7 @@ const {
   testSetCurrencySettings,
   testFetchRate,
   testSetRate,
-  testToggleRates,
+  testToggleRatesActive,
   testStringToBytes8,
   testToUpperCase,
   testToBytes32Array,
@@ -15,7 +15,10 @@ const {
   testSelfDestruct,
   testGetRate,
   testToggleClearRateIntervals,
-  testSetRateClearIntervals
+  testSetRateClearIntervals,
+  testSetQueryId,
+  testSetRateRatesActiveFalse,
+  testUpdatedCurrencySettings
 } = require('../helpers/exr')
 
 describe('when performing owner only functions', () => {
@@ -79,15 +82,19 @@ describe('when performing owner only functions', () => {
     })
 
     it('should stop rates when active', async () => {
-      await testToggleRates(exr, false, { from: owner })
+      await testToggleRatesActive(exr, false, { from: owner })
     })
 
     it('should start rates when inactive', async () => {
-      await testToggleRates(exr, true, { from: owner })
+      await testToggleRatesActive(exr, true, { from: owner })
     })
 
     it('should NOT toggle rates when NOT owner', async () => {
-      await testWillThrow(testToggleRates, [exr, true, { from: notOwner }])
+      await testWillThrow(testToggleRatesActive, [
+        exr,
+        true,
+        { from: notOwner }
+      ])
     })
 
     it('should toggle clear rate intervals when owner', async () => {
@@ -173,7 +180,7 @@ describe('when self destructing', async () => {
   })
 })
 
-describe('when trying various scenarios through different lifecycles', async () => {
+describe('when setting rate settings, fetching, and clearing intervals', async () => {
   contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
     const owner = accounts[0]
     const callInterval = new BigNumber(60)
@@ -182,15 +189,16 @@ describe('when trying various scenarios through different lifecycles', async () 
     const queryType = 'USD'
     let exr
     let exp
+    let defaultRate
 
     before('setup contracts', async () => {
       const contracts = await setupContracts()
       exr = contracts.exr
       exp = contracts.exp
+      defaultRate = 100
     })
 
-    it('should do things', async () => {
-      let defaultRate = 100
+    it('should start by setting and fetching rate from owner', async () => {
       await testSetCurrencySettings(
         exr,
         queryType,
@@ -200,47 +208,171 @@ describe('when trying various scenarios through different lifecycles', async () 
         { from: owner }
       )
       await testFetchRate(exr, exp, queryType, { from: owner, value: 1e18 })
+    })
+
+    it('should set rate with simulated callback', async () => {
       await testSetRate(exr, exp, defaultRate)
+    })
+
+    it('should get the correct rate', async () => {
       await testGetRate(exr, defaultRate, queryType)
-      await testToggleRates(exr, false, { from: owner })
-      await testToggleClearRateIntervals(exr, true, { from: owner })
-      await testSetQueryId(exr, identifier, queryType)
       defaultRate++
+    })
+
+    it('should toggle clearRateIntervals', async () => {
+      await testToggleClearRateIntervals(exr, true, { from: owner })
+    })
+
+    it('should simulate a recurisve call where clearRateIntervals is true', async () => {
+      await testSetQueryId(exr, exp, queryType)
+      await testSetRate(exr, exp, defaultRate, true)
+    })
+
+    it('should get the correct rate', async () => {
+      await testGetRate(exr, defaultRate, queryType)
+      defaultRate++
+    })
+
+    it('should simulate recursive callback where clearRateIntervals is true', async () => {
+      await testSetQueryId(exr, exp, queryType)
       await testSetRateClearIntervals(exr, exp, defaultRate)
     })
   })
 })
 
-/*
-  TODO: test the intervals and other lifecycle stuff
-  STILL NEED TO TEST
-  fetchRate
-  setRate
-  setCurrencySettings
-  getCurrencySettings
-  getCurrencySettingsReadable
-  getRate
-  toggleRatesActive
-  clearRateIntervals
+describe('when setting rate settings, fetching rates, and setting ratesActive to false', () => {
+  contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
+    const owner = accounts[0]
+    const callInterval = new BigNumber(60)
+    const callbackGasLimit = new BigNumber(20e9)
+    const queryString = 'https://domain.com/api/?base=ETH&to=USD'
+    const queryType = 'USD'
+    let exr
+    let exp
+    let defaultRate
 
-  process for testing regular usage:
-    setCurrencySettings
-    fetchRate
-    setRate (through simulate__callback)
-    getRate
-    toggleRatesActive (false)
-    simulate__callback
-    toggleRatesActive (true)
-    clearRateIntervals
-    simulate__callback
-    getCurrencySettingsReadable
+    before('setup contracts', async () => {
+      const contracts = await setupContracts()
+      exr = contracts.exr
+      exp = contracts.exp
+      defaultRate = 50
+    })
 
+    it('should start by setting and fetching rate from owner', async () => {
+      await testSetCurrencySettings(
+        exr,
+        queryType,
+        callInterval,
+        callbackGasLimit,
+        queryString,
+        { from: owner }
+      )
+      await testFetchRate(exr, exp, queryType, { from: owner, value: 1e18 })
+    })
 
-  ALREADY TESTED
-  toBytes8
-  toUpperCase
-  toBytes32Array
-  toShortString
-  toLongString
-  selfDestruct
-*/
+    it('should set rate with simulated callback', async () => {
+      await testSetRate(exr, exp, defaultRate)
+    })
+
+    it('should get the correct rate', async () => {
+      await testGetRate(exr, defaultRate, queryType)
+      defaultRate++
+    })
+
+    it('should toggle ratesActive', async () => {
+      await testToggleRatesActive(exr, true, { from: owner })
+    })
+
+    it('should simulate a recurisve call where ratesActive is false', async () => {
+      await testSetQueryId(exr, exp, queryType)
+      await testSetRateRatesActiveFalse(exr, exp, defaultRate)
+    })
+  })
+})
+
+describe('when setting rate settings then changing them later', async () => {
+  contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
+    const owner = accounts[0]
+    const callInterval = new BigNumber(60)
+    const callbackGasLimit = new BigNumber(20e9)
+    const queryString = 'https://domain.com/api/?base=ETH&to=USD'
+    const queryType = 'USD'
+    let exr
+    let exp
+    let defaultRate
+    let updatedCallInterval
+    let updatedCallbackGasLimit
+    let updatedQueryString
+
+    before('setup contracts', async () => {
+      const contracts = await setupContracts()
+      exr = contracts.exr
+      exp = contracts.exp
+      defaultRate = 33
+    })
+
+    it('should start by setting and fetching rate from owner', async () => {
+      await testSetCurrencySettings(
+        exr,
+        queryType,
+        callInterval,
+        callbackGasLimit,
+        queryString,
+        { from: owner }
+      )
+      await testFetchRate(exr, exp, queryType, { from: owner, value: 1e18 })
+    })
+
+    it('should set rate with simulated callback', async () => {
+      await testSetRate(exr, exp, defaultRate)
+    })
+
+    it('should get the correct rate', async () => {
+      await testGetRate(exr, defaultRate, queryType)
+      defaultRate++
+    })
+
+    it('should update the settings while rate queries are already in progress', async () => {
+      updatedCallInterval = callInterval.add(20)
+      updatedCallbackGasLimit = callbackGasLimit.add(500)
+      updatedQueryString = 'https://otherdomain.com/api/?base=ETH&to=USD'
+      await testSetCurrencySettings(
+        exr,
+        queryType,
+        updatedCallInterval,
+        updatedCallbackGasLimit,
+        updatedQueryString,
+        { from: owner }
+      )
+    })
+
+    it('should set rate with simulated callback', async () => {
+      await testSetQueryId(exr, exp, queryType)
+      await testSetRate(exr, exp, defaultRate)
+    })
+
+    it('should have the correct pending values in test stub', async () => {
+      await testUpdatedCurrencySettings(
+        exr,
+        exp,
+        updatedCallInterval,
+        updatedCallbackGasLimit,
+        updatedQueryString
+      )
+    })
+
+    it('should get the correct rate', async () => {
+      await testGetRate(exr, defaultRate, queryType)
+      defaultRate++
+    })
+
+    it('should set rate with simulated callback', async () => {
+      await testSetQueryId(exr, exp, queryType)
+      await testSetRate(exr, exp, defaultRate)
+    })
+
+    it('should get the correct rate', async () => {
+      await testGetRate(exr, defaultRate, queryType)
+    })
+  })
+})

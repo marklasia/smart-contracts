@@ -3,18 +3,26 @@ pragma solidity 0.4.18;
 import "./usingOraclize.sol";
 
 
-contract ExchangeRates {
-  // points to currencySettings from callback
+contract ExRates {
   mapping (bytes32 => bytes8) public queryTypes;
   bool public ratesActive;
 
   function setRate(bytes32 _queryId, uint256 _rate)
-    public
+    external
+    returns (bool)
+  {}
+
+  function setQueryId(
+    bytes32 _queryId,
+    bytes8 _queryType
+  )
+    external
     returns (bool)
   {}
 
   function getCurrencySettings(bytes8 _queryType)
-    public
+    view
+    external
     returns (uint256, uint256, bytes32[5])
   {}
 }
@@ -32,10 +40,11 @@ contract Registry {
 contract ExchangeRateProvider is usingOraclize {
   Registry private registry;
 
-  modifier onlyContract(string _contractName)
+  modifier onlyAllowed()
   {
     require(
-      msg.sender == registry.getContractAddress(_contractName)
+      msg.sender == registry.getContractAddress("ExchangeRates") ||
+      msg.sender == oraclize_cbAddress()
     );
     _;
   }
@@ -50,24 +59,37 @@ contract ExchangeRateProvider is usingOraclize {
   function query(
     bytes32[5] _queryString,
     uint256 _callInterval,
-    uint256 _callbackGasLimit
+    uint256 _callbackGasLimit,
+    bytes8 _queryType
   )
-    public
-    onlyContract("ExchangeRates")
+    onlyAllowed
     payable
-    returns (bytes32)
+    public
+    returns (bool)
   {
     if (oraclize_getPrice("URL") > this.balance) {
-      return 0x0;
+      return false;
     } else {
       // make query based on currencySettings for a given _queryType
-      return oraclize_query(
+      bytes32 _queryId = oraclize_query(
         _callInterval,
         "URL",
         toString(_queryString),
         _callbackGasLimit
       );
+      setQueryId(_queryId, _queryType);
+      return true;
     }
+  }
+
+  function setQueryId(bytes32 _identifier, bytes8 _queryType)
+    private
+    returns (bool)
+  {
+    ExRates _exchangeRates = ExRates(
+      registry.getContractAddress("ExchangeRates")
+    );
+    _exchangeRates.setQueryId(_identifier, _queryType);
   }
 
   // callback function to get results of oraclize call
@@ -76,7 +98,7 @@ contract ExchangeRateProvider is usingOraclize {
   {
     // make sure that the caller is oraclize
     require(msg.sender == oraclize_cbAddress());
-    ExchangeRates _exchangeRates = ExchangeRates(
+    ExRates _exchangeRates = ExRates(
       registry.getContractAddress("ExchangeRates")
     );
     bool _ratesActive = _exchangeRates.ratesActive();
@@ -84,15 +106,22 @@ contract ExchangeRateProvider is usingOraclize {
     uint256 _callInterval;
     uint256 _callbackGasLimit;
     bytes32[5] memory _queryString;
-    (_callInterval, _callbackGasLimit, _queryString) = _exchangeRates.getCurrencySettings(_queryType);
+    (
+      _callInterval,
+      _callbackGasLimit,
+      _queryString
+    ) = _exchangeRates.getCurrencySettings(_queryType);
+
     // set rate on ExchangeRates contract
     require(_exchangeRates.setRate(_queryId, parseInt(_result)));
+
     // check if call interval has been set, if so, call again with the interval
     if (_callInterval > 0 && _ratesActive) {
       query(
         _queryString,
         _callInterval,
-        _callbackGasLimit
+        _callbackGasLimit,
+        _queryType
       );
     }
   }
