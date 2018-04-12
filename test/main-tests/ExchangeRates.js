@@ -18,7 +18,8 @@ const {
   testSetRateClearIntervals,
   testSetQueryId,
   testSetRateRatesActiveFalse,
-  testUpdatedCurrencySettings
+  testUpdatedCurrencySettings,
+  testGetCurrencySettings
 } = require('../helpers/exr')
 
 describe('when performing owner only functions', () => {
@@ -112,7 +113,8 @@ describe('when performing owner only functions', () => {
 })
 
 describe('when using utility functions', () => {
-  contract('ExchangeRates', () => {
+  contract('ExchangeRates', accounts => {
+    const owner = accounts[0]
     let exr
 
     before('setup contracts', async () => {
@@ -121,7 +123,7 @@ describe('when using utility functions', () => {
     })
 
     it('should turn a string into bytes8', async () => {
-      await testStringToBytes8(exr, 'usd')
+      await testStringToBytes8(exr, 'USD')
     })
 
     it('should NOT turn a string longer than 8 characters to bytes8', async () => {
@@ -155,6 +157,19 @@ describe('when using utility functions', () => {
 
     it('should turn a bytes8 into a string', async () => {
       await testToShortString(exr, 'test')
+    })
+
+    it('should get previously set currency settings', async () => {
+      await testGetCurrencySettings(
+        exr,
+        'USD',
+        30,
+        100000,
+        'https://domain.com/api/rates?currency=ETH',
+        {
+          from: owner
+        }
+      )
     })
   })
 })

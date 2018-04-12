@@ -1,8 +1,8 @@
 const assert = require('assert')
 const BigNumber = require('bignumber.js')
 const ExchangeRates = artifacts.require('ExchangeRates')
-const ExchangeRatesProvider = artifacts.require(
-  './stubs/ExchangeRatesProviderStub'
+const ExchangeRateProvider = artifacts.require(
+  './stubs/ExchangeRateProviderStub'
 )
 const Registry = artifacts.require('BrickblockContractRegistry')
 const { sendTransaction, getEtherBalance, getGasUsed } = require('./general')
@@ -12,9 +12,9 @@ const trimBytes = string => string.replace(/\0/g, '')
 const setupContracts = async () => {
   const reg = await Registry.new()
   const exr = await ExchangeRates.new(reg.address)
-  const exp = await ExchangeRatesProvider.new(reg.address)
+  const exp = await ExchangeRateProvider.new(reg.address)
   await reg.updateContractAddress('ExchangeRates', exr.address)
-  await reg.updateContractAddress('ExchangeRatesProvider', exp.address)
+  await reg.updateContractAddress('ExchangeRateProvider', exp.address)
 
   return {
     reg,
@@ -150,7 +150,6 @@ const testSetRate = async (exr, exp, rate, isAfterClearRateIntervals) => {
   const shouldCallAgainWithQuery = await exp.shouldCallAgainWithQuery()
   const shouldCallAgainIn = await exp.shouldCallAgainIn()
   const shouldCallAgainWithGas = await exp.shouldCallAgainWithGas()
-
   if (isAfterClearRateIntervals) {
     assert(
       shouldCallAgainIn.greaterThan(0),
@@ -542,6 +541,49 @@ const testUpdatedCurrencySettings = async (
   )
 }
 
+const testGetCurrencySettings = async (
+  exr,
+  queryTypeString,
+  callInterval,
+  callbackGasLimit,
+  queryString,
+  config
+) => {
+  await testSetCurrencySettings(
+    exr,
+    queryTypeString,
+    callInterval,
+    callbackGasLimit,
+    queryString,
+    config
+  )
+  const queryTypeBytes = await exr.toBytes8(queryTypeString)
+
+  const [
+    actualCallInterval,
+    actualCallbackGasLimit,
+    actualQueryStringBytes
+  ] = await exr.getCurrencySettings(queryTypeBytes)
+
+  const actualQueryString = await exr.toLongString(actualQueryStringBytes)
+
+  assert.equal(
+    callInterval.toString(),
+    actualCallInterval.toString(),
+    'callInteval should match returned actualCallInterval'
+  )
+  assert.equal(
+    callbackGasLimit.toString(),
+    actualCallbackGasLimit.toString(),
+    'callbackGasLimit should match returned actualCallbackGasLimit'
+  )
+  assert.equal(
+    queryString,
+    actualQueryString,
+    'queryString should match returned actualQueryString'
+  )
+}
+
 module.exports = {
   setupContracts,
   testUninitializedSettings,
@@ -561,5 +603,6 @@ module.exports = {
   testSetRateClearIntervals,
   testSetQueryId,
   testSetRateRatesActiveFalse,
-  testUpdatedCurrencySettings
+  testUpdatedCurrencySettings,
+  testGetCurrencySettings
 }

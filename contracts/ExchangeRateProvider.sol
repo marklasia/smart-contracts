@@ -1,6 +1,7 @@
 pragma solidity 0.4.18;
 
-import "./usingOraclize.sol";
+import "./OraclizeAPI.sol";
+import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
 contract ExRates {
@@ -37,7 +38,7 @@ contract Registry {
 }
 
 
-contract ExchangeRateProvider is usingOraclize {
+contract ExchangeRateProvider is usingOraclize, Ownable {
   Registry private registry;
 
   modifier onlyAllowed()
@@ -56,7 +57,7 @@ contract ExchangeRateProvider is usingOraclize {
     registry = Registry(_registryAddress);
   }
 
-  function query(
+  function sendQuery(
     bytes32[5] _queryString,
     uint256 _callInterval,
     uint256 _callbackGasLimit,
@@ -74,7 +75,7 @@ contract ExchangeRateProvider is usingOraclize {
       bytes32 _queryId = oraclize_query(
         _callInterval,
         "URL",
-        toString(_queryString),
+        toLongString(_queryString),
         _callbackGasLimit
       );
       setQueryId(_queryId, _queryType);
@@ -117,7 +118,7 @@ contract ExchangeRateProvider is usingOraclize {
 
     // check if call interval has been set, if so, call again with the interval
     if (_callInterval > 0 && _ratesActive) {
-      query(
+      sendQuery(
         _queryString,
         _callInterval,
         _callbackGasLimit,
@@ -127,7 +128,7 @@ contract ExchangeRateProvider is usingOraclize {
   }
 
   // takes a fixed length array of 5 bytes32. needed for contract communication
-  function toString(bytes32[5] _data)
+  function toLongString(bytes32[5] _data)
     internal
     pure
     returns (string)
@@ -156,4 +157,16 @@ contract ExchangeRateProvider is usingOraclize {
     }
     return string(_bytesStringTrimmed);
   }
+
+  function selfDestruct()
+    public
+    onlyOwner
+  {
+    selfdestruct(owner);
+  }
+
+  function()
+    payable
+    public
+  {}
 }

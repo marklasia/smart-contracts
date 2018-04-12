@@ -1,8 +1,10 @@
 pragma solidity 0.4.18;
 
+import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+
 
 contract ExRatesProvider {
-  function query(
+  function sendQuery(
     bytes32[5] _queryString,
     uint256 _callInterval,
     uint256 _callbackGasLimit,
@@ -10,7 +12,7 @@ contract ExRatesProvider {
   )
     public
     payable
-    returns (bytes32)
+    returns (bool)
   {}
 }
 
@@ -24,15 +26,20 @@ contract Registry {
 }
 
 
-contract ExchangeRates {
+contract ExchangeRates is Ownable {
   Registry private registry;
   bool public ratesActive = true;
   bool public shouldClearRateIntervals = false;
   bool public isAlive = true;
-  address public owner;
   uint256 public defaultCallbackGasLimit;
   uint256 public defaultCallbackGasPrice;
   uint256 public defaultCallInterval;
+
+  struct Settings {
+    bytes32[5] queryString;
+    uint256 callInterval;
+    uint256 callbackGasLimit;
+  }
 
   // the actual exchange rate for each currency
   mapping (bytes8 => uint256) public rates;
@@ -41,20 +48,9 @@ contract ExchangeRates {
   // storage for query settings... modifiable for each currency
   mapping (bytes8 => Settings) public currencySettings;
 
-  struct Settings {
-    bytes32[5] queryString;
-    uint256 callInterval;
-    uint256 callbackGasLimit;
-  }
-
   event RateUpdated(string currency, uint256 rate);
   event QueryNoMinBalance();
   event QuerySent(string currency);
-
-  modifier onlyOwner() {
-    require(msg.sender == owner);
-    _;
-  }
 
   modifier onlyContract(string _contractName)
   {
@@ -73,24 +69,39 @@ contract ExchangeRates {
     owner = msg.sender;
   }
 
+  // this doesn't work with external. I think because it is internally calling
+  // getCurrencySettings? Though it seems that accessing the struct directly
+  // doesn't work either
   function fetchRate(string _queryType)
-    external
+    public
     onlyOwner
     payable
     returns (bool)
   {
     // get the oraclize provider from registry
     ExRatesProvider provider = ExRatesProvider(
-      registry.getContractAddress("ExchangeRatesProvider")
+      registry.getContractAddress("ExchangeRateProvider")
     );
     // get settings to use in query to provider
-    Settings memory _settings = currencySettings[toBytes8(_queryType)];
+    bytes8 _queryTypeBytes = toBytes8(toUpperCase(_queryType));
+    uint256 _callInterval;
+    uint256 _callbackGasLimit;
+    bytes32[5] memory _queryString;
+    (
+      _callInterval,
+      _callbackGasLimit,
+      _queryString
+    ) = getCurrencySettings(_queryTypeBytes);
+    // check that queryString isn't empty
+    require(bytes(toLongString(_queryString)).length > 0);
     // make query on provider contract
-    provider.query.value(msg.value)(
-      _settings.queryString,
-      _settings.callInterval,
-      _settings.callbackGasLimit,
-      toBytes8(_queryType)
+    require(
+      provider.sendQuery.value(msg.value)(
+        _queryString,
+        _callInterval,
+        _callbackGasLimit,
+        toBytes8(_queryType)
+      )
     );
   }
 
@@ -99,7 +110,7 @@ contract ExchangeRates {
     bytes8 _queryType
   )
     external
-    onlyContract("ExchangeRatesProvider")
+    onlyContract("ExchangeRateProvider")
     returns (bool)
   {
     queryTypes[_queryId] = _queryType;
@@ -111,7 +122,7 @@ contract ExchangeRates {
     uint256 _result
   )
     external
-    onlyContract("ExchangeRatesProvider")
+    onlyContract("ExchangeRateProvider")
     returns (bool)
   {
     // get the query type (usd, eur, etc)
@@ -162,7 +173,7 @@ contract ExchangeRates {
 
   // for provider
   function getCurrencySettings(bytes8 _queryType)
-    external
+    public
     view
     returns (uint256, uint256, bytes32[5])
   {
@@ -201,7 +212,7 @@ contract ExchangeRates {
   }
 
   function toggleRatesActive()
-    public
+    external
     onlyOwner
     returns (bool)
   {
@@ -210,7 +221,7 @@ contract ExchangeRates {
   }
 
   function toggleClearRateIntervals()
-    public
+    external
     onlyOwner
     returns (bool)
   {
@@ -310,8 +321,8 @@ contract ExchangeRates {
   }
 
   function toShortString(bytes8 _data)
-    public
     pure
+    public
     returns (string)
   {
     bytes memory _bytesString = new bytes(8);
@@ -338,8 +349,8 @@ contract ExchangeRates {
 
   // takes a fixed length array of 5 bytes32. needed for contract communication
   function toLongString(bytes32[5] _data)
-    public
     pure
+    public
     returns (string)
   {
     require(_data.length == 5);
@@ -368,14 +379,14 @@ contract ExchangeRates {
   }
 
   function selfDestruct()
-    public
     onlyOwner
+    public
   {
     selfdestruct(owner);
   }
 
   function()
-    public
     payable
+    public
   {}
 }

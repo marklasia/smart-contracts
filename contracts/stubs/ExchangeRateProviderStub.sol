@@ -35,7 +35,7 @@ contract Registry {
 }
 
 
-contract ExchangeRatesProviderStub {
+contract ExchangeRateProviderStub {
   Registry private registry;
   // used for testing simulated pending query
   bytes32 public pendingTestQueryId;
@@ -58,14 +58,14 @@ contract ExchangeRatesProviderStub {
     _;
   }
 
-  function ExchangeRatesProviderStub(address _registryAddress)
+  function ExchangeRateProviderStub(address _registryAddress)
     public
   {
     require(_registryAddress != address(0));
     registry = Registry(_registryAddress);
   }
 
-  function query(
+  function sendQuery(
     bytes32[5] _queryString,
     uint256 _callInterval,
     uint256 _callbackGasLimit,
@@ -133,7 +133,7 @@ contract ExchangeRatesProviderStub {
     } else {
       delete pendingTestQueryId;
       delete pendingQueryType;
-      shouldCallAgainWithQuery = '';
+      shouldCallAgainWithQuery = "";
       shouldCallAgainIn = 0;
       shouldCallAgainWithGas = 0;
     }

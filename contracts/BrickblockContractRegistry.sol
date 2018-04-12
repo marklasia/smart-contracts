@@ -5,7 +5,6 @@ import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 contract BrickblockContractRegistry is Ownable {
 
-  address public owner;
   mapping (bytes => address) contractAddresses;
 
   event UpdateContractEvent(string name, address indexed contractAddress);
