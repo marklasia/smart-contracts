@@ -391,3 +391,11 @@ describe('when setting rate settings then changing them later', async () => {
     })
   })
 })
+
+/*
+  stuff that needs testing:
+  need to test for empty stuff everywhere
+  need to change the timing of pending getting set...
+    testSetRate in general is dumb
+    
+*/

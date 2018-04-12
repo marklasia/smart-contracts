@@ -31,6 +31,11 @@ THE SOFTWARE.
 // This api is currently targeted at 0.4.18, please import oraclizeAPI_pre0.4.sol or oraclizeAPI_0.4 where necessary
 pragma solidity ^0.4.18;
 
+// thrown in to make truffle happy
+contract OraclizeAPI {
+
+}
+
 contract OraclizeI {
     address public cbAddress;
     function query(uint _timestamp, string _datasource, string _arg) external payable returns (bytes32 _id);
