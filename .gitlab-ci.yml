@@ -45,4 +45,5 @@ build:
   cache:
     policy: pull
   script:
+    - cat .env.example > .env
     - yarn build
