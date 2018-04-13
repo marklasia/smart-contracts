@@ -138,7 +138,7 @@ const testSetRate = async (exr, exp, rate, isAfterClearRateIntervals) => {
   await exp.simulate__callback(prePendingQueryId, bigRate.toString())
 
   const postPendingQueryId = await exp.pendingTestQueryId()
-  const actualRate = await exr.getRate(queryType)
+  const actualRate = await exr.getRateReadable(queryType)
 
   // check on recursive callback settings
   const [
@@ -213,7 +213,7 @@ const testSetRate = async (exr, exp, rate, isAfterClearRateIntervals) => {
 
 const testGetRate = async (exr, rate, queryType) => {
   const bigRate = new BigNumber(rate)
-  const actualRate = await exr.getRate(queryType)
+  const actualRate = await exr.getRateReadable(queryType)
   assert.equal(
     bigRate.toString(),
     actualRate.toString(),
@@ -367,7 +367,7 @@ const testSetRateClearIntervals = async (exr, exp, rate) => {
 
   await exp.simulate__callback(prePendingQueryId, bigRate.toString())
   const postPendingQueryId = await exp.pendingTestQueryId()
-  const actualRate = await exr.getRate(queryType)
+  const actualRate = await exr.getRateReadable(queryType)
 
   // check on recursive callback settings
   const [
@@ -454,7 +454,7 @@ const testSetRateRatesActiveFalse = async (exr, exp, rate) => {
 
   await exp.simulate__callback(prePendingQueryId, bigRate.toString())
   const postPendingQueryId = await exp.pendingTestQueryId()
-  const actualRate = await exr.getRate(queryType)
+  const actualRate = await exr.getRateReadable(queryType)
 
   // check on recursive callback settings
   const [

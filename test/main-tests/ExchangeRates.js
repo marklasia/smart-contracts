@@ -65,6 +65,15 @@ describe('when performing owner only functions', () => {
       )
     })
 
+    it('should NOT getRate when rate is 0 (uninitialized or error)', async () => {
+      const queryTypeBytes = await exr.toBytes8('USD')
+      await testWillThrow(exr.getRate, [queryTypeBytes])
+    })
+
+    it('should NOT getRateReadable when rate is 0 (uninitialized or error)', async () => {
+      await testWillThrow(exr.getRateReadable, [queryType])
+    })
+
     it('should NOT fetchRate when NOT owner', async () => {
       await testWillThrow(testFetchRate, [
         exr,
@@ -146,6 +155,12 @@ describe('when using utility functions', () => {
         exr,
         'some long query string that is more than 32 characters long'
       )
+    })
+
+    it('should NOT turn a string longer than 160 characters into a bytes32 array', async () => {
+      await testWillThrow(exr.toBytes32Array, [
+        "Now this is a story all about how\nMy life got flipped-turned upside down\nAnd I'd like to take a minute\nJust sit right there\nI'll tell you how I became the prince of a town called Bel-Air"
+      ])
     })
 
     it('should turn a bytes32 array with a length of 5 into a string', async () => {
@@ -392,10 +407,36 @@ describe('when setting rate settings then changing them later', async () => {
   })
 })
 
+// describe('when testing invalid values', async () => {
+//   contract('ExchangeRates/ExchangeRateProvider', accounts => {
+//     const owner = accounts[0]
+//     const callInterval = new BigNumber(60)
+//     const callbackGasLimit = new BigNumber(20e9)
+//     const queryString = 'https://domain.com/api/?base=ETH&to=USD'
+//     const queryType = 'USD'
+//     const queryTypeBytes = '0x5553440000000000'
+//     let exr
+//     let exp
+//     let defaultRate
+//     let updatedCallInterval
+//     let updatedCallbackGasLimit
+//     let updatedQueryString
+//
+//     before('setup contracts', async () => {
+//       const contracts = await setupContracts()
+//       exr = contracts.exr
+//       exp = contracts.exp
+//       defaultRate = 33
+//     })
+//
+//     it('should NOT return 0 value from getRate', async () => {
+//       await testWillThrow(exr.getRate, [queryTypeBytes])
+//     })
+//   })
+// })
+
 /*
   stuff that needs testing:
   need to test for empty stuff everywhere
-  need to change the timing of pending getting set...
-    testSetRate in general is dumb
-    
+  should NOT return 0
 */

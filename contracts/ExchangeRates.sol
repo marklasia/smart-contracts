@@ -3,6 +3,7 @@ pragma solidity 0.4.18;
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
+// minimal ExchangeRatesProvider definition
 contract ExRatesProvider {
   function sendQuery(
     bytes32[5] _queryString,
@@ -17,6 +18,7 @@ contract ExRatesProvider {
 }
 
 
+// minimal BrickblockContractRegistry definition
 contract Registry {
   function getContractAddress(string _name)
     public
@@ -26,13 +28,42 @@ contract Registry {
 }
 
 
+/*
+Q/A
+Q: Why are there two contracts for ExchangeRates?
+A: Testing Oraclize seems to be a bit difficult especially considering the
+bridge requires node v6... With that in mind, it was decided that the best way
+to move forward was to isolate the oraclize functionality and replace with
+a stub in order to facilitate effective tests.
+
+Q: Why are there so many crazy string and bytes functions?
+A: This is needed in order for the two contracts to talk to each other. Strings
+cannot be sent from one contract to another because this cannot be done with
+dynamically sized types, which is what a string is in
+solidity (dynamic bytes array).
+
+Q: Why are rates private?
+A: So that they can be returned through custom getters getRate and
+getRateReadable. This is so that we can revert when a rate has not been
+initialized or an error happened when fetching. Oraclize returns '' when
+erroring which we parse as a uint256 which turns to 0.
+*/
+
+// main contract
 contract ExchangeRates is Ownable {
+  // instance of Registry to be used for getting other contract addresses
   Registry private registry;
+  // flag used to tell recursive rate fetching to stop
   bool public ratesActive = true;
+  // flag used to clear out each rate interval one by one when fetching rates
   bool public shouldClearRateIntervals = false;
+  // used to check on if the contract has self destructed
   bool public isAlive = true;
+  // default callback gas limit for recursive functions if none is set
   uint256 public defaultCallbackGasLimit;
+  // default callback gas price for recursive functions if none is set
   uint256 public defaultCallbackGasPrice;
+  // default call interval for recursive functions if none is set
   uint256 public defaultCallInterval;
 
   struct Settings {
@@ -42,16 +73,21 @@ contract ExchangeRates is Ownable {
   }
 
   // the actual exchange rate for each currency
-  mapping (bytes8 => uint256) public rates;
+  // private so that when rate is 0 (error or unset) we can revert through
+  // getter functions getRate and getRateReadable
+  mapping (bytes8 => uint256) private rates;
   // points to currencySettings from callback
+  // is used to validate queryIds from ExchangeRateProvider
   mapping (bytes32 => bytes8) public queryTypes;
   // storage for query settings... modifiable for each currency
+  // accessed and used by ExchangeRateProvider
   mapping (bytes8 => Settings) public currencySettings;
 
   event RateUpdated(string currency, uint256 rate);
   event QueryNoMinBalance();
   event QuerySent(string currency);
 
+  // used to only allow specific contract to call specific functions
   modifier onlyContract(string _contractName)
   {
     require(
@@ -60,6 +96,7 @@ contract ExchangeRates is Ownable {
     _;
   }
 
+  // constructor: sets registry for talking to ExchangeRateProvider
   function ExchangeRates(address _registryAddress)
     public
     payable
@@ -69,21 +106,26 @@ contract ExchangeRates is Ownable {
     owner = msg.sender;
   }
 
-  // this doesn't work with external. I think because it is internally calling
-  // getCurrencySettings? Though it seems that accessing the struct directly
-  // doesn't work either
+  /* this doesn't work with external. I think because it is internally calling
+  getCurrencySettings? Though it seems that accessing the struct directly
+  doesn't work either */
+
+  // start rate fetching for a specific currency. Kicks off the first of
+  // possibly many recursive query calls on ExchangeRateProvider to get rates.
   function fetchRate(string _queryType)
     public
     onlyOwner
     payable
     returns (bool)
   {
-    // get the oraclize provider from registry
+    // get the ExchangeRateProvider from registry
     ExRatesProvider provider = ExRatesProvider(
       registry.getContractAddress("ExchangeRateProvider")
     );
-    // get settings to use in query to provider
+    // convert _queryType to uppercase bytes8:
+    // cannot use strings to talk to other contracts
     bytes8 _queryTypeBytes = toBytes8(toUpperCase(_queryType));
+    // get settings to use in query on ExchangeRateProvider
     uint256 _callInterval;
     uint256 _callbackGasLimit;
     bytes32[5] memory _queryString;
@@ -92,9 +134,10 @@ contract ExchangeRates is Ownable {
       _callbackGasLimit,
       _queryString
     ) = getCurrencySettings(_queryTypeBytes);
-    // check that queryString isn't empty
+    // check that queryString isn't empty before making the query
     require(bytes(toLongString(_queryString)).length > 0);
-    // make query on provider contract
+    // make query on ExchangeRateProvider
+    // forward any ether value sent on to ExchangeRateProvider
     require(
       provider.sendQuery.value(msg.value)(
         _queryString,
@@ -105,6 +148,9 @@ contract ExchangeRates is Ownable {
     );
   }
 
+  // set a pending queryId callable only by ExchangeRateProvider
+  // set from sendQuery on ExchangeRateProvider
+  // used to check that correct query is being matched to correct values
   function setQueryId(
     bytes32 _queryId,
     bytes8 _queryType
@@ -117,6 +163,9 @@ contract ExchangeRates is Ownable {
     return true;
   }
 
+  // called only by ExchangeRateProvider
+  // sets the rate for a given currency when query __callback occurs.
+  // checks that the queryId returned is correct.
   function setRate(
     bytes32 _queryId,
     uint256 _result
@@ -127,7 +176,8 @@ contract ExchangeRates is Ownable {
   {
     // get the query type (usd, eur, etc)
     bytes8 _queryType = queryTypes[_queryId];
-    // make sure that it is a valid _queryId
+    // check that first byte of _queryType is not 0 (something wrong or empty)
+    // 
     require(_queryType[0] != 0);
     // set _queryId to empty (uninitialized, to prevent from being called again)
     delete queryTypes[_queryId];
@@ -201,12 +251,22 @@ contract ExchangeRates is Ownable {
     );
   }
 
-  function getRate(string _queryType)
+  function getRateReadable(string _queryType)
     external
     view
     returns (uint256)
   {
     uint256 _rate = rates[toBytes8(_queryType)];
+    require(_rate > 0);
+    return _rate;
+  }
+
+  function getRate(bytes8 _queryTypeBytes)
+    public
+    view
+    returns (uint256)
+  {
+    uint256 _rate = rates[_queryTypeBytes];
     require(_rate > 0);
     return _rate;
   }
@@ -246,7 +306,6 @@ contract ExchangeRates is Ownable {
     returns (string)
   {
     bytes memory _stringBytes = bytes(_base);
-    require(_stringBytes.length <= 8);
     for (
       uint _byteCounter = 0;
       _byteCounter < _stringBytes.length;
@@ -272,6 +331,7 @@ contract ExchangeRates is Ownable {
     returns(bytes32[5])
   {
     bytes memory _stringBytes = bytes(_string);
+    require(bytes(_stringBytes).length <= 5 * 32);
     uint _bytes32ArrayByteCount = 5 * 32;
     uint _remainingBytes32Bytes;
     uint _bytes32HolderIndex = 0;
@@ -316,7 +376,6 @@ contract ExchangeRates is Ownable {
         _bytes32HolderIndex = _bytes32HolderIndex + 1;
       }
     }
-
     return _bytes32ArrayResult;
   }
 
