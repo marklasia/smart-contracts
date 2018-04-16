@@ -26,17 +26,19 @@ module.exports = (deployer, network, accounts) => {
         await exr.setCurrencySettings(
           'USD',
           'json(https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD).USD',
-          60,
-          3e5,
+          30,
+          2.5e5,
           { from: owner }
         )
         await exr.setCurrencySettings(
           'EUR',
           'json(https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=EUR).EUR',
-          60,
-          3e5,
+          30,
+          2.5e5,
           { from: owner }
         )
+        await exr.fetchRate('USD', { value: 1e18 })
+        await exr.fetchRate('EUR', { value: 1e18 })
         return true
       })
       .catch(err => {

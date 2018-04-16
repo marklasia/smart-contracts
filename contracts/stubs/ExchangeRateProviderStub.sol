@@ -1,5 +1,7 @@
 pragma solidity 0.4.18;
 
+import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+
 
 contract ExRates {
   mapping (bytes32 => bytes8) public queryTypes;
@@ -49,6 +51,23 @@ contract ExchangeRateProviderStub {
   uint256 public shouldCallAgainWithGas;
   // used to check queryString when testing recursion
   string public shouldCallAgainWithQuery;
+  // used to check simulated gas price setting
+  uint256 public callbackGasPrice;
+
+  // ensure that only the oracle or ExchangeRates contract are allowed
+  modifier onlyAllowed()
+  {
+    require(
+      msg.sender == registry.getContractAddress("ExchangeRates")
+    );
+    _;
+  }
+
+  modifier onlyExchangeRates()
+  {
+    require(msg.sender == registry.getContractAddress("ExchangeRates"));
+    _;
+  }
 
   // constructor: set registry address
   function ExchangeRateProviderStub(address _registryAddress)
@@ -56,6 +75,16 @@ contract ExchangeRateProviderStub {
   {
     require(_registryAddress != address(0));
     registry = Registry(_registryAddress);
+  }
+
+  // SIMULATE: set callbackGasPrice
+  function setCallbackGasPrice(uint256 _gasPrice)
+    onlyExchangeRates
+    external
+    returns (bool)
+  {
+    callbackGasPrice = _gasPrice;
+    return true;
   }
 
   // SIMULATE: send query to oraclize, results sent to __callback
@@ -67,13 +96,16 @@ contract ExchangeRateProviderStub {
     uint256 _callbackGasLimit,
     bytes8 _queryType
   )
-    public
+    onlyAllowed
     payable
+    public
     returns (bool)
   {
     // simulate price of 2 000 000 000
     uint256 _simulatedPrice = 2e9;
     if (_simulatedPrice > this.balance) {
+      // set to empty if not enought ether
+      setQueryId(0x0, 0x0);
       return false;
     } else {
       // simulate _queryId by hashing first element of bytes32 array
@@ -224,10 +256,9 @@ contract ExchangeRateProviderStub {
 
   // used in case we need to get money out of the contract before replacing
   function selfDestruct(address _address)
+    onlyExchangeRates
     public
   {
-    // ensure that caller is ExchangeRates
-    require(msg.sender == registry.getContractAddress("ExchangeRates"));
     selfdestruct(_address);
   }
 

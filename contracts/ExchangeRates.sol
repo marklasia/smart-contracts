@@ -16,6 +16,11 @@ contract ExRatesProvider {
     returns (bool)
   {}
 
+  function setCallbackGasPrice(uint256 _gasPrice)
+    public
+    returns (bool)
+  {}
+
   function selfDestruct(address _address)
     public
   {}
@@ -61,12 +66,6 @@ contract ExchangeRates is Ownable {
   bool public ratesActive = true;
   // flag used to clear out each rate interval one by one when fetching rates
   bool public shouldClearRateIntervals = false;
-  // default callback gas limit for recursive functions if none is set
-  uint256 public defaultCallbackGasLimit;
-  // default callback gas price for recursive functions if none is set
-  uint256 public defaultCallbackGasPrice;
-  // default call interval for recursive functions if none is set
-  uint256 public defaultCallInterval;
 
   struct Settings {
     bytes32[5] queryString;
@@ -140,6 +139,7 @@ contract ExchangeRates is Ownable {
     require(bytes(toLongString(_queryString)).length > 0);
     // make query on ExchangeRateProvider
     // forward any ether value sent on to ExchangeRateProvider
+    // ensure that query has enough ether on ExchangeRateProvider
     require(
       provider.sendQuery.value(msg.value)(
         _queryString,
@@ -148,7 +148,10 @@ contract ExchangeRates is Ownable {
         toBytes8(_queryType)
       )
     );
+    return true;
   }
+
+  // ExchangeRateProvider ONLY FUNCTIONS:
 
   // set a pending queryId callable only by ExchangeRateProvider
   // set from sendQuery on ExchangeRateProvider
@@ -161,7 +164,12 @@ contract ExchangeRates is Ownable {
     onlyContract("ExchangeRateProvider")
     returns (bool)
   {
-    queryTypes[_queryId] = _queryType;
+    if (_queryId[0] != 0x0 && _queryType[0] != 0x0) {
+      QuerySent(toShortString(_queryType));
+      queryTypes[_queryId] = _queryType;
+    } else {
+      QueryNoMinBalance();
+    }
     return true;
   }
 
@@ -202,6 +210,8 @@ contract ExchangeRates is Ownable {
     return true;
   }
 
+  // SETTERS:
+
   /*
   set setting for a given currency:
   currencyName: used as identifier to store settings (stored as bytes8)
@@ -228,6 +238,85 @@ contract ExchangeRates is Ownable {
     );
     return true;
   }
+
+  // set only query string in settings
+  function setCurrencySettingQueryString(
+    string _currencyName,
+    string _queryString
+  )
+    external
+    onlyOwner
+    returns (bool)
+  {
+    Settings _settings = currencySettings[toBytes8(toUpperCase(_currencyName))];
+    _settings.queryString = toBytes32Array(_queryString);
+  }
+
+  // set only callInterval in settings
+  function setCurrencySettingCallInterval(
+    string _currencyName,
+    uint256 _callInterval
+  )
+    external
+    onlyOwner
+    returns (bool)
+  {
+    Settings _settings = currencySettings[toBytes8(toUpperCase(_currencyName))];
+    _settings.callInterval = _callInterval;
+  }
+
+  // set only callbackGasLimit in settings
+  function setCurrencySettingCallbackGasLimit(
+    string _currencyName,
+    uint256 _callbackGasLimit
+  )
+    external
+    onlyOwner
+    returns (bool)
+  {
+    Settings _settings = currencySettings[toBytes8(toUpperCase(_currencyName))];
+    _settings.callbackGasLimit = _callbackGasLimit;
+  }
+
+  // set callback gasPrice for all currencies
+  function setCallbackGasPrice(uint256 _gasPrice)
+    external
+    onlyOwner
+    returns (bool)
+  {
+    // get the ExchangeRateProvider from registry
+    ExRatesProvider provider = ExRatesProvider(
+      registry.getContractAddress("ExchangeRateProvider")
+    );
+    provider.setCallbackGasPrice(_gasPrice);
+
+    return true;
+  }
+
+  // set to active or inactive in order to stop recursive rate fetching
+  // rate needs to be fetched once in order for it to stop.
+  function toggleRatesActive()
+    external
+    onlyOwner
+    returns (bool)
+  {
+    ratesActive = !ratesActive;
+    return true;
+  }
+
+  // set rate intervals to 0, effectively stopping rate fetching
+  // AND clearing intervals
+  // needs to be fetched once for settings to take effect on a rate
+  function toggleClearRateIntervals()
+    external
+    onlyOwner
+    returns (bool)
+  {
+    shouldClearRateIntervals = !shouldClearRateIntervals;
+    return true;
+  }
+
+  // GETTERS:
 
   // get currency settings by bytes8 for ExchangeRateProvider
   // ExchangeRateProvider cannot get by string, must be fixed size bytes
@@ -285,29 +374,6 @@ contract ExchangeRates is Ownable {
     uint256 _rate = rates[toBytes8(_queryType)];
     require(_rate > 0);
     return _rate;
-  }
-
-  // set to active or inactive in order to stop recursive rate fetching
-  // rate needs to be fetched once in order for it to stop.
-  function toggleRatesActive()
-    external
-    onlyOwner
-    returns (bool)
-  {
-    ratesActive = !ratesActive;
-    return true;
-  }
-
-  // set rate intervals to 0, effectively stopping rate fetching
-  // AND clearing intervals
-  // needs to be fetched once for settings to take effect on a rate
-  function toggleClearRateIntervals()
-    external
-    onlyOwner
-    returns (bool)
-  {
-    shouldClearRateIntervals = !shouldClearRateIntervals;
-    return true;
   }
 
   // UTILITY FUNCTIONS:

@@ -1,14 +1,13 @@
 pragma solidity 0.4.18;
 
 import "./OraclizeAPI.sol";
-import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
 // minimal definition of ExchangeRates
 contract ExRates {
   mapping (bytes32 => bytes8) public queryTypes;
   bool public ratesActive;
-  
+
   function setRate(bytes32 _queryId, uint256 _rate)
     external
     returns (bool)
@@ -40,7 +39,7 @@ contract Registry {
 }
 
 
-contract ExchangeRateProvider is usingOraclize, Ownable {
+contract ExchangeRateProvider is usingOraclize {
   Registry private registry;
   // used to check on if the contract has self destructed
   bool public isAlive = true;
@@ -55,12 +54,28 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
     _;
   }
 
+  modifier onlyExchangeRates()
+  {
+    require(msg.sender == registry.getContractAddress("ExchangeRates"));
+    _;
+  }
+
   // constructor: setup and require registry
   function ExchangeRateProvider(address _registryAddress)
     public
   {
     require(_registryAddress != address(0));
     registry = Registry(_registryAddress);
+  }
+
+  // set gas price used for oraclize callbacks
+  function setCallbackGasPrice(uint256 _gasPrice)
+    onlyExchangeRates
+    external
+    returns (bool)
+  {
+    oraclize_setCustomGasPrice(_gasPrice);
+    return true;
   }
 
   // send query to oraclize, results sent to __callback
@@ -78,6 +93,7 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
   {
     // check that there is enough money to make the query
     if (oraclize_getPrice("URL") > this.balance) {
+      setQueryId(0x0, 0x0);
       return false;
     } else {
       // make query based on currencySettings for a given _queryType
@@ -108,7 +124,7 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
   }
 
   // callback function for returned results of oraclize call
-  function __callback(bytes32 _queryId, string _result, bytes _proof)
+  function __callback(bytes32 _queryId, string _result)
     public
   {
     // make sure that the caller is oraclize
@@ -196,10 +212,9 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
 
   // used in case we need to get money out of the contract before replacing
   function selfDestruct(address _address)
+    onlyExchangeRates
     public
   {
-    // ensure that caller is ExchangeRates
-    require(msg.sender == registry.getContractAddress("ExchangeRates"));
     selfdestruct(_address);
   }
 
