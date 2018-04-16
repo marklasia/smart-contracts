@@ -177,13 +177,13 @@ contract ExchangeRates is Ownable {
     // get the query type (usd, eur, etc)
     bytes8 _queryType = queryTypes[_queryId];
     // check that first byte of _queryType is not 0 (something wrong or empty)
-    // 
+    // if the queryType is 0 then the queryId is incorrect
     require(_queryType[0] != 0);
     // set _queryId to empty (uninitialized, to prevent from being called again)
     delete queryTypes[_queryId];
-    // fetch rate depending on _queryType
+    // set currency rate depending on _queryType (USD, EUR, etc.)
     rates[_queryType] = _result;
-    // get the settings for a given _queryType
+    // get the settings for a specific currency
     Settings storage _settings = currencySettings[_queryType];
     // event for particular rate that was updated
     RateUpdated(
@@ -191,12 +191,23 @@ contract ExchangeRates is Ownable {
       _result
     );
 
+    // check on if should clear rate intervals
+    // this is used as a way to clear out intervals for all active rates
     if (shouldClearRateIntervals) {
       _settings.callInterval = 0;
     }
+
     return true;
   }
 
+  /*
+  set setting for a given currency:
+  currencyName: used as identifier to store settings (stored as bytes8)
+  queryString: the http endpoint to hit to get data along with format
+    example: "json(https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=USD).USD"
+  callInterval: used to specifiy how often (if at all) the rate should refresh
+  callbackGasLimit: used to specify how much gas to give the oraclize callback
+  */
   function setCurrencySettings(
     string _currencyName,
     string _queryString,
@@ -207,21 +218,18 @@ contract ExchangeRates is Ownable {
     onlyOwner
     returns (bool)
   {
-    uint256 _callIntervalValue = _callInterval > 0
-      ? _callInterval
-      : defaultCallInterval;
-    uint256 _callbackGasLimitValue = _callbackGasLimit > 0
-      ? _callbackGasLimit
-      : defaultCallbackGasLimit;
+    // store settings by bytes8 of string, convert queryString to bytes array
     currencySettings[toBytes8(toUpperCase(_currencyName))] = Settings(
       toBytes32Array(_queryString),
-      _callIntervalValue,
-      _callbackGasLimitValue
+      _callInterval,
+      _callbackGasLimit
     );
     return true;
   }
 
-  // for provider
+  // get currency settings by bytes8 for ExchangeRateProvider
+  // ExchangeRateProvider cannot get by string, must be fixed size bytes
+  // getting this way avoids having to define struct in ExchangeRateProvider
   function getCurrencySettings(bytes8 _queryType)
     public
     view
@@ -235,12 +243,15 @@ contract ExchangeRates is Ownable {
     );
   }
 
-  // for users
+  // get currency settings by string.
+  // same as getCurrencySettings but by string
+  // meant for regular accounts to use more easily than with bytes8
   function getCurrencySettingsReadable(string _queryTypeString)
     external
     view
     returns (uint256, uint256, string)
   {
+    // convert string to bytes8 to accesss settings item
     Settings memory _settings = currencySettings[
       toBytes8(toUpperCase(_queryTypeString))
     ];
@@ -251,16 +262,8 @@ contract ExchangeRates is Ownable {
     );
   }
 
-  function getRateReadable(string _queryType)
-    external
-    view
-    returns (uint256)
-  {
-    uint256 _rate = rates[toBytes8(_queryType)];
-    require(_rate > 0);
-    return _rate;
-  }
-
+  // get rate by bytes, meant to be used by contracts
+  // if the rate is 0 (errored or uninitialized), it will throw
   function getRate(bytes8 _queryTypeBytes)
     public
     view
@@ -271,6 +274,19 @@ contract ExchangeRates is Ownable {
     return _rate;
   }
 
+  // same as getRate but uses string for easy use by regular accounts
+  function getRateReadable(string _queryType)
+    external
+    view
+    returns (uint256)
+  {
+    uint256 _rate = rates[toBytes8(_queryType)];
+    require(_rate > 0);
+    return _rate;
+  }
+
+  // set to active or inactive in order to stop recursive rate fetching
+  // rate needs to be fetched once in order for it to stop.
   function toggleRatesActive()
     external
     onlyOwner
@@ -280,6 +296,9 @@ contract ExchangeRates is Ownable {
     return true;
   }
 
+  // set rate intervals to 0, effectively stopping rate fetching
+  // AND clearing intervals
+  // needs to be fetched once for settings to take effect on a rate
   function toggleClearRateIntervals()
     external
     onlyOwner
@@ -289,17 +308,26 @@ contract ExchangeRates is Ownable {
     return true;
   }
 
+  // UTILITY FUNCTIONS:
+
+  // convert a string to bytes8 in order to access short strings by contracts
   function toBytes8(string _string)
     pure
     public
     returns (bytes8 _convertedBytes8)
   {
+    // make sure that there wont be any data loss by converting something more
+    // than 8 characters long
     require(bytes(_string).length <= 8);
     assembly {
+      // load memory location of _string with an offset of 32
+      // to avoid non-byte data
       _convertedBytes8 := mload(add(_string, 32))
     }
   }
 
+  // convert string to uppercase to ensure that there are not multiple
+  // instances of same currencies
   function toUpperCase(string _base)
     pure
     public
@@ -324,7 +352,7 @@ contract ExchangeRates is Ownable {
   }
 
   // creates a bytes32 array of 5 from string (max length 160)
-  // needed for contract communication
+  // needed for passing query strings between contracts
   function toBytes32Array(string _string)
     pure
     public
@@ -379,6 +407,7 @@ contract ExchangeRates is Ownable {
     return _bytes32ArrayResult;
   }
 
+  // convert bytes8 back to string, for use in readable events
   function toShortString(bytes8 _data)
     pure
     public
@@ -389,7 +418,17 @@ contract ExchangeRates is Ownable {
     uint256 _bytesCounter;
     uint256 _charCounter;
 
+    // loop through converted bytes from string
     for (_bytesCounter = 0; _bytesCounter < 8; _bytesCounter++) {
+      /*
+      convert bytes32 data to uint in order to increase the number enough to
+      shift bytes further left while pushing out leftmost bytes
+      then convert uint256 data back to bytes32
+      then convert to bytes1 where everything but the leftmost hex value (byte)
+      is cutoff leaving only the leftmost byte
+
+      TLDR: takes a single character from bytes based on counter
+      */
       bytes1 _char = bytes1(bytes8(uint256(_data) * 2 ** (8 * _bytesCounter)));
       if (_char != 0) {
         _bytesString[_charCount] = _char;
@@ -397,12 +436,16 @@ contract ExchangeRates is Ownable {
       }
     }
 
+    // create new bytes with correct length of string
     bytes memory _bytesStringTrimmed = new bytes(_charCount);
 
+    // loop through correct length bytes and throw in data from _bytesString
+    // which is probably padded
     for (_charCounter = 0; _charCounter < _charCount; _charCounter++) {
       _bytesStringTrimmed[_charCounter] = _bytesString[_charCounter];
     }
 
+    // return string which has been trimmed of any padding converted from bytes
     return string(_bytesStringTrimmed);
   }
 
@@ -412,17 +455,32 @@ contract ExchangeRates is Ownable {
     public
     returns (string)
   {
+    // ensure array length is correct length
     require(_data.length == 5);
+    // create new empty bytes array with same length as input
     bytes memory _bytesString = new bytes(5 * 32);
+    // keep track of string length for later usage in trimming
     uint256 _stringLength;
 
-    for (uint _bytesCounter = 0; _bytesCounter < _data.length; _bytesCounter++) {
-      for (uint _stringCounter = 0; _stringCounter < 32; _stringCounter++) {
-        byte _char = byte(
+    // loop through each bytes32 in array
+    for (uint _arrayCounter = 0; _arrayCounter < _data.length; _arrayCounter++) {
+      // loop through each byte in bytes32
+      for (uint _bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
+        /*
+        convert bytes32 data to uint in order to increase the number enough to
+        shift bytes further left while pushing out leftmost bytes
+        then convert uint256 data back to bytes32
+        then convert to bytes1 where everything but the leftmost hex value (byte)
+        is cutoff leaving only the leftmost byte
+
+        TLDR: takes a single character from bytes based on counter
+        */
+        bytes1 _char = bytes1(
           bytes32(
-            uint(_data[_bytesCounter]) * 2 ** (8 * _stringCounter)
+            uint(_data[_arrayCounter]) * 2 ** (8 * _bytesCounter)
           )
         );
+        // add the character if not empty
         if (_char != 0) {
           _bytesString[_stringLength] = _char;
           _stringLength += 1;
@@ -430,13 +488,18 @@ contract ExchangeRates is Ownable {
       }
     }
 
+    // new bytes with correct matching string length
     bytes memory _bytesStringTrimmed = new bytes(_stringLength);
-    for (_stringCounter = 0; _stringCounter < _stringLength; _stringCounter++) {
-      _bytesStringTrimmed[_stringCounter] = _bytesString[_stringCounter];
+    // loop through _bytesStringTrimmed throwing in
+    // non empty data from _bytesString
+    for (_bytesCounter = 0; _bytesCounter < _stringLength; _bytesCounter++) {
+      _bytesStringTrimmed[_bytesCounter] = _bytesString[_bytesCounter];
     }
+    // return trimmed bytes array converted to string
     return string(_bytesStringTrimmed);
   }
 
+  // can be called in order to get ether back if wanting to replace later on
   function selfDestruct()
     onlyOwner
     public
@@ -444,8 +507,12 @@ contract ExchangeRates is Ownable {
     selfdestruct(owner);
   }
 
+  // we don't need to send money to this contract.
+  // we do need to send to ExchangeRateProvider
   function()
     payable
     public
-  {}
+  {
+    revert();
+  }
 }
