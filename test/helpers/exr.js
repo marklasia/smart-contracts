@@ -134,12 +134,9 @@ const testSetRate = async (exr, exp, rate, isAfterClearRateIntervals) => {
   const prePendingQueryId = await exp.pendingTestQueryId()
   const queryTypeBytes = await exr.queryTypes(prePendingQueryId)
   const queryType = trimBytes(web3.toAscii(queryTypeBytes))
-
   await exp.simulate__callback(prePendingQueryId, bigRate.toString())
-
   const postPendingQueryId = await exp.pendingTestQueryId()
   const actualRate = await exr.getRateReadable(queryType)
-
   // check on recursive callback settings
   const [
     callInterval,
@@ -311,28 +308,27 @@ const testToShortString = async (exr, stringToBeConverted) => {
   )
 }
 
-const testSelfDestruct = async (exr, caller) => {
-  const owner = web3.eth.accounts[0]
+const testSelfDestruct = async (exr, exp, caller) => {
   assert(
     caller != web3.eth.accounts[9],
     'please pick another account... cannot use this account for this test'
   )
   const funder = web3.eth.accounts[9]
-  const preOwnerBalance = await getEtherBalance(owner)
-  const preAlive = await exr.isAlive()
+  const preCallerBalance = await getEtherBalance(caller)
+  const preAlive = await exp.isAlive()
   await sendTransaction(web3, {
     from: funder,
-    to: exr.address,
+    to: exp.address,
     value: 1e18
   })
-  const preKillContractBalance = await getEtherBalance(exr.address)
-  const tx = await exr.selfDestruct({ from: caller, gasPrice: 1e9 })
+  const preKillContractBalance = await getEtherBalance(exp.address)
+  const tx = await exr.killProvider(caller, { from: caller, gasPrice: 1e9 })
   const gasUsed = await getGasUsed(tx)
-  const expectedOwnerBalance = preOwnerBalance
+  const expectedOwnerBalance = preCallerBalance
     .add(1e18)
     .sub(new BigNumber(gasUsed).mul(1e9))
-  const postOwnerBalance = await getEtherBalance(owner)
-  const postAlive = await exr.isAlive()
+  const postCallerBalance = await getEtherBalance(caller)
+  const postAlive = await exp.isAlive()
 
   assert(preAlive, 'the contract should be alive')
   assert(
@@ -347,7 +343,7 @@ const testSelfDestruct = async (exr, caller) => {
   )
   assert.equal(
     expectedOwnerBalance.toString(),
-    postOwnerBalance.toString(),
+    postCallerBalance.toString(),
     'the owner balance should match the expected balance after self destruction'
   )
 }
@@ -437,6 +433,7 @@ const testSetQueryId = async (exr, exp, queryType) => {
     postQueryTypeBytes8,
     'the queryType should match the value set through queryId'
   )
+  return queryId
 }
 
 const testSetRateRatesActiveFalse = async (exr, exp, rate) => {

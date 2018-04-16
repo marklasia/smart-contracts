@@ -37,6 +37,8 @@ contract Registry {
 
 contract ExchangeRateProviderStub {
   Registry private registry;
+  // used to check on if the contract has self destructed
+  bool public isAlive = true;
   // used for testing simulated pending query
   bytes32 public pendingTestQueryId;
   // used for tetsing simulated testing recursion
@@ -48,16 +50,7 @@ contract ExchangeRateProviderStub {
   // used to check queryString when testing recursion
   string public shouldCallAgainWithQuery;
 
-  modifier onlyAllowed()
-  {
-    address _exchangeRates = registry.getContractAddress("ExchangeRates");
-    address _this = address(this);
-    require(
-      msg.sender == _exchangeRates || msg.sender == _this
-    );
-    _;
-  }
-
+  // constructor: set registry address
   function ExchangeRateProviderStub(address _registryAddress)
     public
   {
@@ -65,6 +58,9 @@ contract ExchangeRateProviderStub {
     registry = Registry(_registryAddress);
   }
 
+  // SIMULATE: send query to oraclize, results sent to __callback
+  // money can be forwarded on from ExchangeRates
+  // leave out modifier as shown in
   function sendQuery(
     bytes32[5] _queryString,
     uint256 _callInterval,
@@ -73,7 +69,6 @@ contract ExchangeRateProviderStub {
   )
     public
     payable
-    onlyAllowed
     returns (bool)
   {
     // simulate price of 2 000 000 000
@@ -88,20 +83,21 @@ contract ExchangeRateProviderStub {
     }
   }
 
-  // needed to manually set queryId/queryType when testing...
-  // run after a callback where recursion is expected
+  // set queryIds on ExchangeRates for later validation when __callback happens
   function setQueryId(bytes32 _identifier, bytes8 _queryType)
     public
     returns (bool)
   {
+    // get current address of ExchangeRates
     ExRates _exchangeRates = ExRates(
       registry.getContractAddress("ExchangeRates")
     );
     pendingTestQueryId = _identifier;
+    // run setQueryId on ExchangeRates
     _exchangeRates.setQueryId(_identifier, _queryType);
   }
 
-  // callback function to get results of oraclize call
+  // SIMULATE: callback function to get results of oraclize call
   function simulate__callback(bytes32 _queryId, string _result)
     public
   {
@@ -141,21 +137,36 @@ contract ExchangeRateProviderStub {
 
   // takes a fixed length array of 5 bytes32. needed for contract communication
   function toLongString(bytes32[5] _data)
-    public
     pure
+    public
     returns (string)
   {
+    // ensure array length is correct length
     require(_data.length == 5);
+    // create new empty bytes array with same length as input
     bytes memory _bytesString = new bytes(5 * 32);
+    // keep track of string length for later usage in trimming
     uint256 _stringLength;
 
-    for (uint _bytesCounter = 0; _bytesCounter < _data.length; _bytesCounter++) {
-      for (uint _stringCounter = 0; _stringCounter < 32; _stringCounter++) {
-        byte _char = byte(
+    // loop through each bytes32 in array
+    for (uint _arrayCounter = 0; _arrayCounter < _data.length; _arrayCounter++) {
+      // loop through each byte in bytes32
+      for (uint _bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
+        /*
+        convert bytes32 data to uint in order to increase the number enough to
+        shift bytes further left while pushing out leftmost bytes
+        then convert uint256 data back to bytes32
+        then convert to bytes1 where everything but the leftmost hex value (byte)
+        is cutoff leaving only the leftmost byte
+
+        TLDR: takes a single character from bytes based on counter
+        */
+        bytes1 _char = bytes1(
           bytes32(
-            uint(_data[_bytesCounter]) * 2 ** (8 * _stringCounter)
+            uint(_data[_arrayCounter]) * 2 ** (8 * _bytesCounter)
           )
         );
+        // add the character if not empty
         if (_char != 0) {
           _bytesString[_stringLength] = _char;
           _stringLength += 1;
@@ -163,10 +174,14 @@ contract ExchangeRateProviderStub {
       }
     }
 
+    // new bytes with correct matching string length
     bytes memory _bytesStringTrimmed = new bytes(_stringLength);
-    for (_stringCounter = 0; _stringCounter < _stringLength; _stringCounter++) {
-      _bytesStringTrimmed[_stringCounter] = _bytesString[_stringCounter];
+    // loop through _bytesStringTrimmed throwing in
+    // non empty data from _bytesString
+    for (_bytesCounter = 0; _bytesCounter < _stringLength; _bytesCounter++) {
+      _bytesStringTrimmed[_bytesCounter] = _bytesString[_bytesCounter];
     }
+    // return trimmed bytes array converted to string
     return string(_bytesStringTrimmed);
   }
 
@@ -206,4 +221,19 @@ contract ExchangeRateProviderStub {
       mint *= 10 ** _b;
     return mint;
   }
+
+  // used in case we need to get money out of the contract before replacing
+  function selfDestruct(address _address)
+    public
+  {
+    // ensure that caller is ExchangeRates
+    require(msg.sender == registry.getContractAddress("ExchangeRates"));
+    selfdestruct(_address);
+  }
+
+  // ensure that we can fund queries by paying the contract
+  function()
+    payable
+    public
+  {}
 }

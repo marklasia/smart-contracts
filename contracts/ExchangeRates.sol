@@ -15,6 +15,10 @@ contract ExRatesProvider {
     payable
     returns (bool)
   {}
+
+  function selfDestruct(address _address)
+    public
+  {}
 }
 
 
@@ -57,8 +61,6 @@ contract ExchangeRates is Ownable {
   bool public ratesActive = true;
   // flag used to clear out each rate interval one by one when fetching rates
   bool public shouldClearRateIntervals = false;
-  // used to check on if the contract has self destructed
-  bool public isAlive = true;
   // default callback gas limit for recursive functions if none is set
   uint256 public defaultCallbackGasLimit;
   // default callback gas price for recursive functions if none is set
@@ -499,12 +501,15 @@ contract ExchangeRates is Ownable {
     return string(_bytesStringTrimmed);
   }
 
-  // can be called in order to get ether back if wanting to replace later on
-  function selfDestruct()
-    onlyOwner
+  function killProvider(address _address)
     public
+    onlyOwner
   {
-    selfdestruct(owner);
+    // get the ExchangeRateProvider from registry
+    ExRatesProvider provider = ExRatesProvider(
+      registry.getContractAddress("ExchangeRateProvider")
+    );
+    provider.selfDestruct(_address);
   }
 
   // we don't need to send money to this contract.

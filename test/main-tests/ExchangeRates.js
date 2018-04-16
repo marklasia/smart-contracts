@@ -194,18 +194,20 @@ describe('when self destructing', async () => {
     const owner = accounts[0]
     const notOwner = accounts[1]
     let exr
+    let exp
 
     beforeEach('setup contracts', async () => {
       const contracts = await setupContracts()
       exr = contracts.exr
+      exp = contracts.exp
     })
 
-    it('should selfDestruct', async () => {
-      await testSelfDestruct(exr, owner)
+    it('should selfDestruct ExchangeRateProvider', async () => {
+      await testSelfDestruct(exr, exp, owner)
     })
 
-    it('should NOT selfDestruct if NOT owner', async () => {
-      await testWillThrow(testSelfDestruct, [exr, notOwner])
+    it('should NOT selfDestruct ExchangeRateProvicer if NOT owner', async () => {
+      await testWillThrow(testSelfDestruct, [exr, exp, notOwner])
     })
   })
 })

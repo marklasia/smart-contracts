@@ -8,7 +8,7 @@ import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 contract ExRates {
   mapping (bytes32 => bytes8) public queryTypes;
   bool public ratesActive;
-
+  
   function setRate(bytes32 _queryId, uint256 _rate)
     external
     returns (bool)
@@ -42,6 +42,8 @@ contract Registry {
 
 contract ExchangeRateProvider is usingOraclize, Ownable {
   Registry private registry;
+  // used to check on if the contract has self destructed
+  bool public isAlive = true;
 
   // ensure that only the oracle or ExchangeRates contract are allowed
   modifier onlyAllowed()
@@ -193,11 +195,12 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
   }
 
   // used in case we need to get money out of the contract before replacing
-  function selfDestruct()
+  function selfDestruct(address _address)
     public
-    onlyOwner
   {
-    selfdestruct(owner);
+    // ensure that caller is ExchangeRates
+    require(msg.sender == registry.getContractAddress("ExchangeRates"));
+    selfdestruct(_address);
   }
 
   // ensure that we can fund queries by paying the contract
