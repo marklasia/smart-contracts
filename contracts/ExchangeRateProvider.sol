@@ -4,6 +4,7 @@ import "./OraclizeAPI.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
+// minimal definition of ExchangeRates
 contract ExRates {
   mapping (bytes32 => bytes8) public queryTypes;
   bool public ratesActive;
@@ -29,6 +30,7 @@ contract ExRates {
 }
 
 
+// minimal definition of BrickblockContractRegistry
 contract Registry {
   function getContractAddress(string _name)
     public
@@ -41,6 +43,7 @@ contract Registry {
 contract ExchangeRateProvider is usingOraclize, Ownable {
   Registry private registry;
 
+  // ensure that only the oracle or ExchangeRates contract are allowed
   modifier onlyAllowed()
   {
     require(
@@ -50,6 +53,7 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
     _;
   }
 
+  // constructor: setup and require registry
   function ExchangeRateProvider(address _registryAddress)
     public
   {
@@ -57,6 +61,8 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
     registry = Registry(_registryAddress);
   }
 
+  // send query to oraclize, results sent to __callback
+  // money can be forwarded on from ExchangeRates
   function sendQuery(
     bytes32[5] _queryString,
     uint256 _callInterval,
@@ -68,6 +74,7 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
     public
     returns (bool)
   {
+    // check that there is enough money to make the query
     if (oraclize_getPrice("URL") > this.balance) {
       return false;
     } else {
@@ -78,30 +85,37 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
         toLongString(_queryString),
         _callbackGasLimit
       );
+      // set the queryId on ExchangeRates so that it knows about it and can
+      // accept it when __callback tries to set the rate
       setQueryId(_queryId, _queryType);
       return true;
     }
   }
 
+  // set queryIds on ExchangeRates for later validation when __callback happens
   function setQueryId(bytes32 _identifier, bytes8 _queryType)
     private
     returns (bool)
   {
+    // get current address of ExchangeRates
     ExRates _exchangeRates = ExRates(
       registry.getContractAddress("ExchangeRates")
     );
+    // run setQueryId on ExchangeRates
     _exchangeRates.setQueryId(_identifier, _queryType);
   }
 
-  // callback function to get results of oraclize call
+  // callback function for returned results of oraclize call
   function __callback(bytes32 _queryId, string _result, bytes _proof)
     public
   {
     // make sure that the caller is oraclize
     require(msg.sender == oraclize_cbAddress());
+    // get currency address of BrickblockContractRegistry
     ExRates _exchangeRates = ExRates(
       registry.getContractAddress("ExchangeRates")
     );
+    // get settings data from ExchangeRates
     bool _ratesActive = _exchangeRates.ratesActive();
     bytes8 _queryType = _exchangeRates.queryTypes(_queryId);
     uint256 _callInterval;
@@ -113,10 +127,11 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
       _queryString
     ) = _exchangeRates.getCurrencySettings(_queryType);
 
-    // set rate on ExchangeRates contract
+    // set rate on ExchangeRates contract giving queryId for validation
     require(_exchangeRates.setRate(_queryId, parseInt(_result)));
 
-    // check if call interval has been set, if so, call again with the interval
+    // check if call interval has been set and that _ratesActive is still true
+    // if so, call again with the interval
     if (_callInterval > 0 && _ratesActive) {
       sendQuery(
         _queryString,
@@ -129,21 +144,36 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
 
   // takes a fixed length array of 5 bytes32. needed for contract communication
   function toLongString(bytes32[5] _data)
-    internal
     pure
+    public
     returns (string)
   {
+    // ensure array length is correct length
     require(_data.length == 5);
+    // create new empty bytes array with same length as input
     bytes memory _bytesString = new bytes(5 * 32);
+    // keep track of string length for later usage in trimming
     uint256 _stringLength;
 
-    for (uint _bytesCounter = 0; _bytesCounter < _data.length; _bytesCounter++) {
-      for (uint _stringCounter = 0; _stringCounter < 32; _stringCounter++) {
-        byte _char = byte(
+    // loop through each bytes32 in array
+    for (uint _arrayCounter = 0; _arrayCounter < _data.length; _arrayCounter++) {
+      // loop through each byte in bytes32
+      for (uint _bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
+        /*
+        convert bytes32 data to uint in order to increase the number enough to
+        shift bytes further left while pushing out leftmost bytes
+        then convert uint256 data back to bytes32
+        then convert to bytes1 where everything but the leftmost hex value (byte)
+        is cutoff leaving only the leftmost byte
+
+        TLDR: takes a single character from bytes based on counter
+        */
+        bytes1 _char = bytes1(
           bytes32(
-            uint(_data[_bytesCounter]) * 2 ** (8 * _stringCounter)
+            uint(_data[_arrayCounter]) * 2 ** (8 * _bytesCounter)
           )
         );
+        // add the character if not empty
         if (_char != 0) {
           _bytesString[_stringLength] = _char;
           _stringLength += 1;
@@ -151,13 +181,18 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
       }
     }
 
+    // new bytes with correct matching string length
     bytes memory _bytesStringTrimmed = new bytes(_stringLength);
-    for (_stringCounter = 0; _stringCounter < _stringLength; _stringCounter++) {
-      _bytesStringTrimmed[_stringCounter] = _bytesString[_stringCounter];
+    // loop through _bytesStringTrimmed throwing in
+    // non empty data from _bytesString
+    for (_bytesCounter = 0; _bytesCounter < _stringLength; _bytesCounter++) {
+      _bytesStringTrimmed[_bytesCounter] = _bytesString[_bytesCounter];
     }
+    // return trimmed bytes array converted to string
     return string(_bytesStringTrimmed);
   }
 
+  // used in case we need to get money out of the contract before replacing
   function selfDestruct()
     public
     onlyOwner
@@ -165,6 +200,7 @@ contract ExchangeRateProvider is usingOraclize, Ownable {
     selfdestruct(owner);
   }
 
+  // ensure that we can fund queries by paying the contract
   function()
     payable
     public
