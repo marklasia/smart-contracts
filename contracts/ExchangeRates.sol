@@ -212,6 +212,17 @@ contract ExchangeRates is Ownable {
 
   // SETTERS:
 
+  // special function to set ACT price for use with FeeManager
+  function setActRate(uint256 _actRate)
+    onlyOwner
+    external
+    returns (bool)
+  {
+    require(_actRate > 0);
+    rates[toBytes8("ACT")] = _actRate;
+    return true;
+  }
+
   /*
   set setting for a given currency:
   currencyName: used as identifier to store settings (stored as bytes8)
