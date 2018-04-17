@@ -1,4 +1,8 @@
-const BrickblockToken = artifacts.require('./BrickblockToken.sol')
+const BrickblockContractRegistry = artifacts.require(
+  'BrickblockContractRegistry'
+)
+const ExchangeRates = artifacts.require('ExchangeRates')
+const ExchangeRateProvider = artifacts.require('ExchangeRateProvider')
 
 module.exports = (deployer, network, accounts) => {
   if (network != 'test') {
