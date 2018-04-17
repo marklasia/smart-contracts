@@ -24,7 +24,7 @@ const {
 } = require('../helpers/exr')
 
 describe('when performing owner only functions', () => {
-  contract('ExchangeRates/ExchangeRateProviderStub', accounts => {
+  contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
     const owner = accounts[0]
     const notOwner = accounts[1]
     const callInterval = new BigNumber(60)
@@ -209,7 +209,7 @@ describe('when using utility functions', () => {
 })
 
 describe('when self destructing', async () => {
-  contract('ExchangeRates/ExchangeRateProviderStub', accounts => {
+  contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
     const owner = accounts[0]
     const notOwner = accounts[1]
     let exr
@@ -307,7 +307,7 @@ describe('when testing events', async () => {
 })
 
 describe('when setting rate settings, fetching, and clearing intervals', async () => {
-  contract('ExchangeRates/ExchangeRateProviderStub', accounts => {
+  contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
     const owner = accounts[0]
     const callInterval = new BigNumber(60)
     const callbackGasLimit = new BigNumber(20e9)
@@ -367,7 +367,7 @@ describe('when setting rate settings, fetching, and clearing intervals', async (
 })
 
 describe('when setting rate settings, fetching rates, and setting ratesActive to false', () => {
-  contract('ExchangeRates/ExchangeRateProviderStub', accounts => {
+  contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
     const owner = accounts[0]
     const callInterval = new BigNumber(60)
     const callbackGasLimit = new BigNumber(20e9)
@@ -417,7 +417,7 @@ describe('when setting rate settings, fetching rates, and setting ratesActive to
 })
 
 describe('when setting rate settings then changing them later', async () => {
-  contract('ExchangeRates/ExchangeRateProviderStub', accounts => {
+  contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
     const owner = accounts[0]
     const callInterval = new BigNumber(60)
     const callbackGasLimit = new BigNumber(20e9)
