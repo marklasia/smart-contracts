@@ -1,4 +1,4 @@
 
 node_modules
-contracts/POAToken.sol
-contracts/Brickblock.sol
+contracts/OraclizeAPI.sol
+contracts/stubs/ExchangeRatesProviderStub.sol
