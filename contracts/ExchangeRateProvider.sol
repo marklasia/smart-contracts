@@ -100,7 +100,7 @@ contract ExchangeRateProvider is usingOraclize {
       bytes32 _queryId = oraclize_query(
         _callInterval,
         "URL",
-        toString(_queryString),
+        toLongString(_queryString),
         _callbackGasLimit
       );
       // set the queryId on ExchangeRates so that it knows about it and can
@@ -151,7 +151,7 @@ contract ExchangeRateProvider is usingOraclize {
     // check if call interval has been set and that _ratesActive is still true
     // if so, call again with the interval
     if (_callInterval > 0 && _ratesActive) {
-      query(
+      sendQuery(
         _queryString,
         _callInterval,
         _callbackGasLimit,
