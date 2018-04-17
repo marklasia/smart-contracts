@@ -1,9 +1,11 @@
 pragma solidity 0.4.18;
 
+import "zeppelin-solidity/contracts/ownership/Ownable.sol";
+
 
 // minimal ExchangeRatesProvider definition
 contract ExRatesProvider {
-  function query(
+  function sendQuery(
     bytes32[5] _queryString,
     uint256 _callInterval,
     uint256 _callbackGasLimit,
@@ -11,7 +13,7 @@ contract ExRatesProvider {
   )
     public
     payable
-    returns (bytes32)
+    returns (bool)
   {}
 
   function setCallbackGasPrice(uint256 _gasPrice)
@@ -65,6 +67,12 @@ contract ExchangeRates is Ownable {
   // flag used to clear out each rate interval one by one when fetching rates
   bool public shouldClearRateIntervals = false;
 
+  struct Settings {
+    bytes32[5] queryString;
+    uint256 callInterval;
+    uint256 callbackGasLimit;
+  }
+
   // the actual exchange rate for each currency
   // private so that when rate is 0 (error or unset) we can revert through
   // getter functions getRate and getRateReadable
@@ -75,12 +83,6 @@ contract ExchangeRates is Ownable {
   // storage for query settings... modifiable for each currency
   // accessed and used by ExchangeRateProvider
   mapping (bytes8 => Settings) public currencySettings;
-
-  struct Settings {
-    bytes32[5] queryString;
-    uint256 callInterval;
-    uint256 callbackGasLimit;
-  }
 
   event RateUpdated(string currency, uint256 rate);
   event QueryNoMinBalance();
@@ -113,14 +115,14 @@ contract ExchangeRates is Ownable {
   // start rate fetching for a specific currency. Kicks off the first of
   // possibly many recursive query calls on ExchangeRateProvider to get rates.
   function fetchRate(string _queryType)
-    external
+    public
     onlyOwner
     payable
     returns (bool)
   {
     // get the ExchangeRateProvider from registry
     ExRatesProvider provider = ExRatesProvider(
-      registry.getContractAddress("ExchangeRatesProvider")
+      registry.getContractAddress("ExchangeRateProvider")
     );
     // convert _queryType to uppercase bytes8:
     // cannot use strings to talk to other contracts
@@ -159,7 +161,7 @@ contract ExchangeRates is Ownable {
     bytes8 _queryType
   )
     external
-    onlyContract("ExchangeRatesProvider")
+    onlyContract("ExchangeRateProvider")
     returns (bool)
   {
     if (_queryId[0] != 0x0 && _queryType[0] != 0x0) {
@@ -179,7 +181,7 @@ contract ExchangeRates is Ownable {
     uint256 _result
   )
     external
-    onlyContract("ExchangeRatesProvider")
+    onlyContract("ExchangeRateProvider")
     returns (bool)
   {
     // get the query type (usd, eur, etc)
@@ -329,7 +331,7 @@ contract ExchangeRates is Ownable {
   // ExchangeRateProvider cannot get by string, must be fixed size bytes
   // getting this way avoids having to define struct in ExchangeRateProvider
   function getCurrencySettings(bytes8 _queryType)
-    external
+    public
     view
     returns (uint256, uint256, bytes32[5])
   {
@@ -484,8 +486,8 @@ contract ExchangeRates is Ownable {
 
   // convert bytes8 back to string, for use in readable events
   function toShortString(bytes8 _data)
-    public
     pure
+    public
     returns (string)
   {
     bytes memory _bytesString = new bytes(8);
@@ -526,8 +528,8 @@ contract ExchangeRates is Ownable {
 
   // takes a fixed length array of 5 bytes32. needed for contract communication
   function toLongString(bytes32[5] _data)
-    public
     pure
+    public
     returns (string)
   {
     // ensure array length is correct length
@@ -588,8 +590,8 @@ contract ExchangeRates is Ownable {
   // we don't need to send money to this contract.
   // we do need to send to ExchangeRateProvider
   function()
-    public
     payable
+    public
   {
     revert();
   }
