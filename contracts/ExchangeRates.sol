@@ -87,6 +87,7 @@ contract ExchangeRates is Ownable {
   event RateUpdated(string currency, uint256 rate);
   event QueryNoMinBalance();
   event QuerySent(string currency);
+  event Settingsupdated(string currency);
 
   // used to only allow specific contract to call specific functions
   modifier onlyContract(string _contractName)
@@ -139,14 +140,13 @@ contract ExchangeRates is Ownable {
     require(bytes(toLongString(_queryString)).length > 0);
     // make query on ExchangeRateProvider
     // forward any ether value sent on to ExchangeRateProvider
-    // ensure that query has enough ether on ExchangeRateProvider
-    require(
-      provider.sendQuery.value(msg.value)(
-        _queryString,
-        _callInterval,
-        _callbackGasLimit,
-        toBytes8(_queryType)
-      )
+    // setQuery is called from ExchangeRateProvider to trigger an event
+    // whether there is enough balance or not
+    provider.sendQuery.value(msg.value)(
+      _queryString,
+      _callInterval,
+      _callbackGasLimit,
+      toBytes8(_queryType)
     );
     return true;
   }
@@ -188,7 +188,7 @@ contract ExchangeRates is Ownable {
     bytes8 _queryType = queryTypes[_queryId];
     // check that first byte of _queryType is not 0 (something wrong or empty)
     // if the queryType is 0 then the queryId is incorrect
-    require(_queryType[0] != 0);
+    require(_queryType[0] != 0x0);
     // set _queryId to empty (uninitialized, to prevent from being called again)
     delete queryTypes[_queryId];
     // set currency rate depending on _queryType (USD, EUR, etc.)
@@ -236,6 +236,7 @@ contract ExchangeRates is Ownable {
       _callInterval,
       _callbackGasLimit
     );
+    Settingsupdated(_currencyName);
     return true;
   }
 
@@ -250,6 +251,8 @@ contract ExchangeRates is Ownable {
   {
     Settings _settings = currencySettings[toBytes8(toUpperCase(_currencyName))];
     _settings.queryString = toBytes32Array(_queryString);
+    Settingsupdated(_currencyName);
+    return true;
   }
 
   // set only callInterval in settings
@@ -263,6 +266,8 @@ contract ExchangeRates is Ownable {
   {
     Settings _settings = currencySettings[toBytes8(toUpperCase(_currencyName))];
     _settings.callInterval = _callInterval;
+    Settingsupdated(_currencyName);
+    return true;
   }
 
   // set only callbackGasLimit in settings
@@ -276,6 +281,8 @@ contract ExchangeRates is Ownable {
   {
     Settings _settings = currencySettings[toBytes8(toUpperCase(_currencyName))];
     _settings.callbackGasLimit = _callbackGasLimit;
+    Settingsupdated(_currencyName);
+    return true;
   }
 
   // set callback gasPrice for all currencies
@@ -289,7 +296,7 @@ contract ExchangeRates is Ownable {
       registry.getContractAddress("ExchangeRateProvider")
     );
     provider.setCallbackGasPrice(_gasPrice);
-
+    Settingsupdated("ALL");
     return true;
   }
 
@@ -301,6 +308,7 @@ contract ExchangeRates is Ownable {
     returns (bool)
   {
     ratesActive = !ratesActive;
+    Settingsupdated("ALL");
     return true;
   }
 
@@ -313,6 +321,7 @@ contract ExchangeRates is Ownable {
     returns (bool)
   {
     shouldClearRateIntervals = !shouldClearRateIntervals;
+    Settingsupdated("ALL");
     return true;
   }
 

@@ -4,6 +4,7 @@ const {
   setupContracts,
   testUninitializedSettings,
   testSetCurrencySettings,
+  testSettingsExists,
   testFetchRate,
   testSetRate,
   testToggleRatesActive,
@@ -212,6 +213,81 @@ describe('when self destructing', async () => {
   })
 })
 
+describe('when testing events', async () => {
+  contract('ExchangeRates/ExchangeRateProvider', accounts => {
+    const owner = accounts[0]
+    const callInterval = new BigNumber(60)
+    const callbackGasLimit = new BigNumber(20e9)
+    const queryString = 'https://domain.com/api/?base=ETH&to=USD'
+    const queryType = 'USD'
+    let exr
+
+    beforeEach('setup contracts', async () => {
+      const contracts = await setupContracts()
+      exr = contracts.exr
+    })
+
+    it('should trigger QuerySent if a query is sent with no min balance', async () => {
+      await testSetCurrencySettings(
+        exr,
+        queryType,
+        callInterval,
+        callbackGasLimit,
+        queryString,
+        { from: owner }
+      )
+      await testSettingsExists(exr, queryType)
+      const tx = await exr.fetchRate(queryType, { from: owner, value: 1e18 })
+      const log = tx.logs[0].event
+      assert.equal(log, 'QuerySent', 'event log even should match QuerySent')
+    })
+
+    it('should trigger QueryNoMinBalance if a query is sent with no min balance', async () => {
+      await testSetCurrencySettings(
+        exr,
+        queryType,
+        callInterval,
+        callbackGasLimit,
+        queryString,
+        { from: owner }
+      )
+      await testSettingsExists(exr, queryType)
+      const tx = await exr.fetchRate(queryType, { from: owner })
+      const log = tx.logs[0].event
+      assert.equal(
+        log,
+        'QueryNoMinBalance',
+        'event log even should match QueryNoMinBalance'
+      )
+    })
+    // TODO: find a better way to get logs while keeping async/await working...
+    // this will not work with tx due to internal tx nature of the tx...
+
+    // it('should trigger RateUpdated when a currency rate is updated', async () => {
+    //   await testSetCurrencySettings(
+    //     exr,
+    //     queryType,
+    //     callInterval,
+    //     callbackGasLimit,
+    //     queryString,
+    //     { from: owner }
+    //   )
+    //   await testSettingsExists(exr, queryType)
+    //   const queryId = web3.sha3(web3.toHex(Date.now()), { encoding: 'hex' })
+    //   const queryTypeBytes8 = await exr.toBytes8(queryType)
+    //   await exp.setQueryId(queryId, queryTypeBytes8)
+    //   const tx = await exp.simulate__callback(queryId, defaultRate)
+    //   await getReceipt(tx.receipt.logs[0].topics[0])
+    //
+    //   assert.equal(
+    //     tx.event,
+    //     'RateUpdated',
+    //     'event log even should match RateUpdate'
+    //   )
+    // })
+  })
+})
+
 describe('when setting rate settings, fetching, and clearing intervals', async () => {
   contract('ExchangeRates/ExchangeRatesProviderStub', accounts => {
     const owner = accounts[0]
@@ -408,37 +484,3 @@ describe('when setting rate settings then changing them later', async () => {
     })
   })
 })
-
-// describe('when testing invalid values', async () => {
-//   contract('ExchangeRates/ExchangeRateProvider', accounts => {
-//     const owner = accounts[0]
-//     const callInterval = new BigNumber(60)
-//     const callbackGasLimit = new BigNumber(20e9)
-//     const queryString = 'https://domain.com/api/?base=ETH&to=USD'
-//     const queryType = 'USD'
-//     const queryTypeBytes = '0x5553440000000000'
-//     let exr
-//     let exp
-//     let defaultRate
-//     let updatedCallInterval
-//     let updatedCallbackGasLimit
-//     let updatedQueryString
-//
-//     before('setup contracts', async () => {
-//       const contracts = await setupContracts()
-//       exr = contracts.exr
-//       exp = contracts.exp
-//       defaultRate = 33
-//     })
-//
-//     it('should NOT return 0 value from getRate', async () => {
-//       await testWillThrow(exr.getRate, [queryTypeBytes])
-//     })
-//   })
-// })
-
-/*
-  stuff that needs testing:
-  need to test for empty stuff everywhere
-  should NOT return 0
-*/
