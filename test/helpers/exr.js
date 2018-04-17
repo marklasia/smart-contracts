@@ -147,7 +147,6 @@ const testSetRate = async (exr, exp, rate, isAfterClearRateIntervals) => {
   const shouldCallAgainWithQuery = await exp.shouldCallAgainWithQuery()
   const shouldCallAgainIn = await exp.shouldCallAgainIn()
   const shouldCallAgainWithGas = await exp.shouldCallAgainWithGas()
-
   if (isAfterClearRateIntervals) {
     assert(
       shouldCallAgainIn.greaterThan(0),
@@ -539,6 +538,49 @@ const testUpdatedCurrencySettings = async (
   )
 }
 
+const testGetCurrencySettings = async (
+  exr,
+  queryTypeString,
+  callInterval,
+  callbackGasLimit,
+  queryString,
+  config
+) => {
+  await testSetCurrencySettings(
+    exr,
+    queryTypeString,
+    callInterval,
+    callbackGasLimit,
+    queryString,
+    config
+  )
+  const queryTypeBytes = await exr.toBytes8(queryTypeString)
+
+  const [
+    actualCallInterval,
+    actualCallbackGasLimit,
+    actualQueryStringBytes
+  ] = await exr.getCurrencySettings(queryTypeBytes)
+
+  const actualQueryString = await exr.toLongString(actualQueryStringBytes)
+
+  assert.equal(
+    callInterval.toString(),
+    actualCallInterval.toString(),
+    'callInteval should match returned actualCallInterval'
+  )
+  assert.equal(
+    callbackGasLimit.toString(),
+    actualCallbackGasLimit.toString(),
+    'callbackGasLimit should match returned actualCallbackGasLimit'
+  )
+  assert.equal(
+    queryString,
+    actualQueryString,
+    'queryString should match returned actualQueryString'
+  )
+}
+
 module.exports = {
   setupContracts,
   testUninitializedSettings,
@@ -558,5 +600,6 @@ module.exports = {
   testSetRateClearIntervals,
   testSetQueryId,
   testSetRateRatesActiveFalse,
-  testUpdatedCurrencySettings
+  testUpdatedCurrencySettings,
+  testGetCurrencySettings
 }
