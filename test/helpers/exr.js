@@ -1,8 +1,8 @@
 const assert = require('assert')
 const BigNumber = require('bignumber.js')
 const ExchangeRates = artifacts.require('ExchangeRates')
-const ExchangeRatesProvider = artifacts.require(
-  './stubs/ExchangeRatesProviderStub'
+const ExchangeRateProvider = artifacts.require(
+  './stubs/ExchangeRateProviderStub'
 )
 const Registry = artifacts.require('BrickblockContractRegistry')
 const { sendTransaction, getEtherBalance, getGasUsed } = require('./general')
@@ -12,9 +12,9 @@ const trimBytes = string => string.replace(/\0/g, '')
 const setupContracts = async () => {
   const reg = await Registry.new()
   const exr = await ExchangeRates.new(reg.address)
-  const exp = await ExchangeRatesProvider.new(reg.address)
+  const exp = await ExchangeRateProvider.new(reg.address)
   await reg.updateContractAddress('ExchangeRates', exr.address)
-  await reg.updateContractAddress('ExchangeRatesProvider', exp.address)
+  await reg.updateContractAddress('ExchangeRateProvider', exp.address)
 
   return {
     reg,

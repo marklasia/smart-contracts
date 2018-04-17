@@ -3,7 +3,7 @@ pragma solidity 0.4.18;
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
-// minimal ExchangeRatesProvider definition
+// minimal ExchangeRateProvider definition
 contract ExRatesProvider {
   function sendQuery(
     bytes32[5] _queryString,
