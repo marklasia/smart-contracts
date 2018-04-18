@@ -1,5 +1,6 @@
 const ContractRegistry = artifacts.require('BrickblockContractRegistry')
 const AccessToken = artifacts.require('BrickblockAccessToken')
+const ExchangeRates = artifacts.require('ExchangeRates')
 const FeeManager = artifacts.require('BrickblockFeeManager')
 const assert = require('assert')
 const { finalizedBBK } = require('./bbk')
@@ -10,7 +11,8 @@ const setupContracts = async (
   owner,
   bonusAddress,
   contributors,
-  tokenDistAmount
+  tokenDistAmount,
+  actRate
 ) => {
   const reg = await ContractRegistry.new()
   const act = await AccessToken.new(reg.address)
@@ -21,10 +23,13 @@ const setupContracts = async (
     contributors,
     tokenDistAmount
   )
+  const exr = await ExchangeRates.new(reg.address)
+  await exr.setActRate(actRate)
   const fmr = await FeeManager.new(reg.address)
 
   await reg.updateContractAddress('BrickblockToken', bbk.address)
   await reg.updateContractAddress('AccessToken', act.address)
+  await reg.updateContractAddress('ExchangeRates', exr.address)
   await reg.updateContractAddress('FeeManager', fmr.address)
 
   const balanceCheck = await bbk.balanceOf(contributors[0])
@@ -35,6 +40,7 @@ const setupContracts = async (
     reg,
     act,
     bbk,
+    exr,
     fmr
   }
 }
@@ -102,7 +108,15 @@ const testApproveAndLockMany = async (bbk, act, bbkHolders, amount) => {
   return true
 }
 
-const testPayFee = async (feePayer, bbkHolders, feeValue, act, fmr) => {
+const testPayFee = async (
+  act,
+  fmr,
+  feePayer,
+  bbkHolders,
+  feeValue,
+  actRate
+) => {
+  const weiToAct = feeValue.mul(actRate)
   const totalLockedBBK = await act.totalLockedBBK()
   const preActTotalSupply = await act.totalSupply()
   const preFeePayerEtherBalance = await getEtherBalance(feePayer)
@@ -137,7 +151,7 @@ const testPayFee = async (feePayer, bbkHolders, feeValue, act, fmr) => {
       actBalance,
       lockedBBK
     }
-    const expectedPerTokenRate = feeValue
+    const expectedPerTokenRate = weiToAct
       .mul(1e18)
       .div(totalLockedBBK)
       .floor()
@@ -158,7 +172,7 @@ const testPayFee = async (feePayer, bbkHolders, feeValue, act, fmr) => {
 
   assert.equal(
     postActTotalSupply.sub(preActTotalSupply).toString(),
-    feeValue.toString(),
+    weiToAct.toString(),
     'the ACT totalSupply should be incremented by the feeValue'
   )
   assert.equal(
@@ -170,26 +184,32 @@ const testPayFee = async (feePayer, bbkHolders, feeValue, act, fmr) => {
   return postContributorsActBalance
 }
 
-const testClaimFeeMany = async (claimers, act, fmr) => {
+const testClaimFeeMany = async (act, fmr, claimers, actRate) => {
   const preContributorBalances = {}
   for (const claimer of claimers) {
     const preActBalance = await act.balanceOf(claimer)
     const preEthBalance = await getEtherBalance(claimer)
+    const preActAsWei = preActBalance.div(actRate)
     preContributorBalances[claimer] = {
       preActBalance,
-      preEthBalance
+      preEthBalance,
+      preActAsWei
     }
   }
 
   for (const claimer of claimers) {
-    const { preActBalance, preEthBalance } = preContributorBalances[claimer]
+    const {
+      preActBalance,
+      preEthBalance,
+      preActAsWei
+    } = preContributorBalances[claimer]
     const txid = await fmr.claimFee(preActBalance, {
       from: claimer,
       gasPrice
     })
     const tx = await getReceipt(txid)
     const gasCost = gasPrice.mul(tx.gasUsed)
-    const expectedPostEthBalance = preEthBalance.sub(gasCost).add(preActBalance)
+    const expectedPostEthBalance = preEthBalance.sub(gasCost).add(preActAsWei)
     const postActBalance = await act.balanceOf(claimer)
     const postEthBalance = await getEtherBalance(claimer)
 
