@@ -24,7 +24,10 @@ const setupContracts = async (
     tokenDistAmount
   )
   const exr = await ExchangeRates.new(reg.address)
-  await exr.setActRate(actRate)
+  if (actRate.greaterThan(0)) {
+    await exr.setActRate(actRate)
+  }
+
   const fmr = await FeeManager.new(reg.address)
 
   await reg.updateContractAddress('BrickblockToken', bbk.address)
@@ -113,10 +116,10 @@ const testPayFee = async (
   fmr,
   feePayer,
   bbkHolders,
-  feeValue,
+  actAmount,
   actRate
 ) => {
-  const weiToAct = feeValue.mul(actRate)
+  const weiAsAct = actAmount.mul(actRate)
   const totalLockedBBK = await act.totalLockedBBK()
   const preActTotalSupply = await act.totalSupply()
   const preFeePayerEtherBalance = await getEtherBalance(feePayer)
@@ -132,7 +135,7 @@ const testPayFee = async (
 
   const txid = await fmr.payFee({
     from: feePayer,
-    value: feeValue,
+    value: actAmount,
     gasPrice
   })
 
@@ -141,7 +144,7 @@ const testPayFee = async (
   const { gasUsed } = tx
   const gasCost = gasPrice.mul(gasUsed)
   const expectedPostFeePayerEtherBalance = preFeePayerEtherBalance
-    .sub(feeValue)
+    .sub(actAmount)
     .sub(gasCost)
   const postContributorsActBalance = {}
   for (const bbkHolder of bbkHolders) {
@@ -151,7 +154,7 @@ const testPayFee = async (
       actBalance,
       lockedBBK
     }
-    const expectedPerTokenRate = weiToAct
+    const expectedPerTokenRate = weiAsAct
       .mul(1e18)
       .div(totalLockedBBK)
       .floor()
@@ -172,8 +175,8 @@ const testPayFee = async (
 
   assert.equal(
     postActTotalSupply.sub(preActTotalSupply).toString(),
-    weiToAct.toString(),
-    'the ACT totalSupply should be incremented by the feeValue'
+    weiAsAct.toString(),
+    'the ACT totalSupply should be incremented by the weiAsAct amount'
   )
   assert.equal(
     expectedPostFeePayerEtherBalance.toString(),
