@@ -23,6 +23,7 @@ const setupContracts = async (
     tokenDistAmount
   )
   const exr = await ExchangeRates.new(reg.address)
+
   if (actRate.greaterThan(0)) {
     await exr.setActRate(actRate)
   }
