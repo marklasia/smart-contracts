@@ -87,7 +87,7 @@ contract ExchangeRates is Ownable {
   event RateUpdated(string currency, uint256 rate);
   event QueryNoMinBalance();
   event QuerySent(string currency);
-  event Settingsupdated(string currency);
+  event SettingsUpdated(string currency);
 
   // used to only allow specific contract to call specific functions
   modifier onlyContract(string _contractName)
@@ -247,7 +247,7 @@ contract ExchangeRates is Ownable {
       _callInterval,
       _callbackGasLimit
     );
-    Settingsupdated(_currencyName);
+    SettingsUpdated(_currencyName);
     return true;
   }
 
@@ -262,7 +262,7 @@ contract ExchangeRates is Ownable {
   {
     Settings _settings = currencySettings[toBytes8(toUpperCase(_currencyName))];
     _settings.queryString = toBytes32Array(_queryString);
-    Settingsupdated(_currencyName);
+    SettingsUpdated(_currencyName);
     return true;
   }
 
@@ -277,7 +277,7 @@ contract ExchangeRates is Ownable {
   {
     Settings _settings = currencySettings[toBytes8(toUpperCase(_currencyName))];
     _settings.callInterval = _callInterval;
-    Settingsupdated(_currencyName);
+    SettingsUpdated(_currencyName);
     return true;
   }
 
@@ -292,7 +292,7 @@ contract ExchangeRates is Ownable {
   {
     Settings _settings = currencySettings[toBytes8(toUpperCase(_currencyName))];
     _settings.callbackGasLimit = _callbackGasLimit;
-    Settingsupdated(_currencyName);
+    SettingsUpdated(_currencyName);
     return true;
   }
 
@@ -307,7 +307,7 @@ contract ExchangeRates is Ownable {
       registry.getContractAddress("ExchangeRateProvider")
     );
     provider.setCallbackGasPrice(_gasPrice);
-    Settingsupdated("ALL");
+    SettingsUpdated("ALL");
     return true;
   }
 
@@ -319,7 +319,7 @@ contract ExchangeRates is Ownable {
     returns (bool)
   {
     ratesActive = !ratesActive;
-    Settingsupdated("ALL");
+    SettingsUpdated("ALL");
     return true;
   }
 
@@ -332,7 +332,7 @@ contract ExchangeRates is Ownable {
     returns (bool)
   {
     shouldClearRateIntervals = !shouldClearRateIntervals;
-    Settingsupdated("ALL");
+    SettingsUpdated("ALL");
     return true;
   }
 
@@ -386,12 +386,12 @@ contract ExchangeRates is Ownable {
   }
 
   // same as getRate but uses string for easy use by regular accounts
-  function getRateReadable(string _queryType)
+  function getRateReadable(string _queryTypeString)
     external
     view
     returns (uint256)
   {
-    uint256 _rate = rates[toBytes8(_queryType)];
+    uint256 _rate = rates[toBytes8(toUpperCase(_queryTypeString))];
     require(_rate > 0);
     return _rate;
   }
