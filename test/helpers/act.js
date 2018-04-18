@@ -132,10 +132,17 @@ const testPayFee = async (
   fmr,
   feePayer,
   bbkHolders,
+<<<<<<< HEAD
   actAmount,
   actRate
 ) => {
   const weiAsAct = actAmount.mul(actRate)
+=======
+  feeValue,
+  actRate
+) => {
+  const weiToAct = feeValue.mul(actRate)
+>>>>>>> tests updated for act
   const totalLockedBBK = await act.totalLockedBBK()
   const preActTotalSupply = await act.totalSupply()
   const preFeePayerEtherBalance = await getEtherBalance(feePayer)
@@ -170,7 +177,11 @@ const testPayFee = async (
       actBalance,
       lockedBBK
     }
+<<<<<<< HEAD
     const expectedPerTokenRate = weiAsAct
+=======
+    const expectedPerTokenRate = weiToAct
+>>>>>>> tests updated for act
       .mul(1e18)
       .div(totalLockedBBK)
       .floor()
@@ -192,8 +203,13 @@ const testPayFee = async (
 
   assert.equal(
     postActTotalSupply.sub(preActTotalSupply).toString(),
+<<<<<<< HEAD
     weiAsAct.toString(),
     'the ACT totalSupply should be incremented by the weiAsAct amount'
+=======
+    weiToAct.toString(),
+    'the ACT totalSupply should be incremented by the feeValue'
+>>>>>>> tests updated for act
   )
   assert.equal(
     expectedPostFeePayerEtherBalance.toString(),
