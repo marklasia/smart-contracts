@@ -36,7 +36,7 @@ contract ExR {
     view
     returns (uint256)
   {}
-    
+
   // temp used to get rate... will use getRate later when updated to use string
   // relates 0.4.22
   function getRateReadable(string _queryTypeString)
@@ -75,7 +75,7 @@ TODO:
     need to create unclaimedPayoutTotals like in cpoa √
 
 */
-contract PoaToken is PausableToken {
+contract PoaTokenConcept is PausableToken {
 
   // instance of registry to call other contracts
   Registry private registry;
@@ -179,7 +179,7 @@ contract PoaToken is PausableToken {
   // end stage related modifiers
 
   // token totalSupply must be more than fundingGoal!
-  function PoaToken
+  function PoaTokenConcept
   (
     string _name,
     string _symbol,
@@ -377,7 +377,7 @@ contract PoaToken is PausableToken {
     uint256 _payAmount;
     uint256 _buyAmount;
     // check if balance has met funding goal to move on to Pending
-    if (fundedAmount.add(msg.value) < fundingGoal) {
+    if (weiToFiatCents(fundedAmount.add(msg.value)) < fundingGoal) {
       // _payAmount is just value sent
       _payAmount = msg.value;
       // get token amount from wei... drops remainders (keeps wei dust in contract)
