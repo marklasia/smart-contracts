@@ -147,7 +147,6 @@ contract PoaTokenConcept is PausableToken {
     _;
   }
 
-  // start stage related modifiers
   modifier atStage(Stages _stage) {
     require(stage == _stage);
     _;
@@ -176,7 +175,6 @@ contract PoaTokenConcept is PausableToken {
     }
     _;
   }
-  // end stage related modifiers
 
   // token totalSupply must be more than fundingGoal!
   function PoaTokenConcept
