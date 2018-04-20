@@ -74,11 +74,11 @@ TODO:
   unclaimedPayouts
     need to create unclaimedPayoutTotals like in cpoa √
 
-  how is activation going to work?
+  how is activation going to work? √
     one step process....
-      custodian sends ipfs hash...
-        this is trusted because it is coming from bank
-      fee is deducted from total value
+      custodian sends ipfs hash... √
+        this is trusted because it is coming from bank √
+      fee is deducted from total value √
 
 */
 contract PoaTokenConcept is PausableToken {
