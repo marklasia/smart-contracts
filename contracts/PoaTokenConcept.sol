@@ -195,6 +195,7 @@ contract PoaTokenConcept is PausableToken {
     address _broker,
     address _custodian,
     address _registry,
+    // given as unix time (seconds since 01.01.1970)
     uint256 _startTime,
     // given as seconds
     uint256 _timeout,
@@ -215,7 +216,8 @@ contract PoaTokenConcept is PausableToken {
     require(_registry != address(0));
 
     // ensure all uints are valid
-    require(_timeout > block.timestamp);
+    require(_startTime > block.timestamp);
+    require(_timeout > 0);
     require(_fundingGoal > 0);
     require(_totalSupply > _fundingGoal);
 
