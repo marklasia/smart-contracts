@@ -50,7 +50,7 @@ contract ExR {
 /*
 TODO:
   funding:
-    make it work with ExchangeRates
+    make it work with ExchangeRates √
 
   admin functions:
     allow poaManager to:
@@ -74,6 +74,12 @@ TODO:
   unclaimedPayouts
     need to create unclaimedPayoutTotals like in cpoa √
 
+  how is activation going to work?
+    one step process....
+      custodian sends ipfs hash...
+        this is trusted because it is coming from bank
+      fee is deducted from total value
+
 */
 contract PoaTokenConcept is PausableToken {
 
@@ -83,6 +89,8 @@ contract PoaTokenConcept is PausableToken {
   string public name;
   // ERC20 symbol
   string public symbol;
+  // ipfs hash for proof of custody by custodian
+  string public proofOfCustody;
   // fiat currency symbol used to get rate
   string public fiatCurrency;
   // owner of contract, should be PoaManager
@@ -133,6 +141,7 @@ contract PoaTokenConcept is PausableToken {
   event ClaimEvent(uint256 payout);
   event TerminatedEvent();
   event WhitelistedEvent(address indexed account, bool isWhitelisted);
+  event ProofOfCustodayUpdated(string ipfsHash);
 
   modifier eitherCustodianOrOwner() {
     require(
@@ -181,11 +190,13 @@ contract PoaTokenConcept is PausableToken {
   (
     string _name,
     string _symbol,
+    // fiat symbol used in ExchangeRates
     string _fiatCurrency,
     address _broker,
     address _custodian,
     address _registry,
     uint256 _startTime,
+    // given as seconds
     uint256 _timeout,
     uint256 _totalSupply,
     // given as fiat cents
@@ -285,12 +296,6 @@ contract PoaTokenConcept is PausableToken {
     return fundingGoal.div(totalSupply);
   }
 
-  /*******************
-  * TKN      supply  *
-  * ---  =  -------  *
-  * ETH     funding  *
-  *******************/
-
   // util function to convert wei to tokens. can be used publicly to see
   // what the balance would be for a given Ξ amount.
   // will drop miniscule amounts of wei due to integer division
@@ -328,6 +333,17 @@ contract PoaTokenConcept is PausableToken {
     returns (uint256)
   {
     return feeRate.mul(_value).div(1000);
+  }
+
+  // pay fee to FeeManager
+  function payFee(uint256 _value)
+    private
+    returns (bool)
+  {
+    FeeManager feeManager = FeeManager(
+      registry.getContractAddress("FeeManager")
+    );
+    feeManager.payFee.value(_value)();
   }
 
   // end utility functions
@@ -429,31 +445,39 @@ contract PoaTokenConcept is PausableToken {
     return true;
   }
 
-  function activate()
+  function activate(string _ipfsHash)
     external
     checkTimeout
     onlyCustodian
-    payable
     atStage(Stages.Pending)
     returns (bool)
   {
+    // check that the most common hashing algo is used sha256
+    // and that the length is correct. In theory it could be different
+    // but use of this functionality is limited to only custodian
+    // so this validation should suffice
+    require(bytes(_ipfsHash).length == 46);
+    require(bytes(_ipfsHash)[0] == 0x51);
+    require(bytes(_ipfsHash)[1] == 0x6D);
     // calculate company fee charged for activation
     uint256 _fee = calculateFee(fundingGoal);
-    // value must exactly match fee
-    require(msg.value == _fee);
     // if activated and fee paid: put in Active stage
     enterStage(Stages.Active);
-    // owner (company) fee set in unclaimedPayoutTotals to be claimed by owner
-    unclaimedPayoutTotals[owner] = unclaimedPayoutTotals[owner].add(_fee);
-    // custodian value set to claimable. can now be claimed via claim function
-    // set all eth in contract other than fee as claimable.
-    // should only be buy()s. this ensures buy() dust is cleared
-    unclaimedPayoutTotals[custodian] = unclaimedPayoutTotals[custodian]
-      .add(this.balance.sub(_fee));
+    // fee sent to FeeManager where fee gets
+    // turned into ACT for lockedBBK holders
+    require(payFee(_fee));
+    proofOfCustody = _ipfsHash;
+    // balance of contract (fundingGoal) set to claimable by broker.
+    // can now be claimed by broker via claim function
+    // should only be buy()s - fee. this ensures buy() dust is cleared
+    unclaimedPayoutTotals[broker] = unclaimedPayoutTotals[broker]
+      .add(this.balance);
     // allow trading of tokens
     paused = false;
     // let world know that this token can now be traded.
     Unpause();
+    // event showing that proofOfCustody has been updated.
+    ProofOfCustodayUpdated(_ipfsHash);
     return true;
   }
 
@@ -582,7 +606,8 @@ contract PoaTokenConcept is PausableToken {
     // take remaining dust and send to owner rather than leave stuck in contract
     // should not be more than a few wei
     uint256 _delta = (_payoutAmount.mul(1e18) % totalSupply).div(1e18);
-    unclaimedPayoutTotals[owner] = unclaimedPayoutTotals[owner].add(_fee).add(_delta);
+    // pay fee along with any dust to FeeManager
+    payFee(_fee.add(_delta));
     // let the world know that a payout has happened for this token
     PayoutEvent(_payoutAmount);
     return true;
@@ -612,6 +637,18 @@ contract PoaTokenConcept is PausableToken {
     // transfer Ξ payable amount to sender
     msg.sender.transfer(_payoutAmount);
     return _payoutAmount;
+  }
+
+  // allow ipfs hash to be updated when audit etc occurs
+  function updateProofOfCustody(string _ipfsHash)
+    external
+    atEitherStage(Stages.Active, Stages.Terminated)
+    onlyCustodian
+    returns (bool)
+  {
+    proofOfCustody = _ipfsHash;
+    ProofOfCustodayUpdated(_ipfsHash);
+    return true;
   }
 
   // end payout related functions
@@ -657,6 +694,6 @@ contract PoaTokenConcept is PausableToken {
     public
     payable
   {
-    buy();
+    revert();
   }
 }

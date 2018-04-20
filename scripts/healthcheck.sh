@@ -25,13 +25,5 @@ printf "2️⃣  Running tests…"
 chronic yarn test
 printf " ✅\n"
 
-printf "3️⃣  Running mythril security scanner…"
-chronic yarn test:mythril
-printf " ✅\n"
-
-printf "4️⃣  Checking for vulnerabilities in dependencies…"
-yarn vulnerability-check
-printf " ✅\n"
-
-printf "5️⃣  Searching for open TODOs and FIXMEs in the code…"
+printf "3️⃣  Searching for open TODOs and FIXMEs in the code…"
 yarn todo
