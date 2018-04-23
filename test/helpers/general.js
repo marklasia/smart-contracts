@@ -10,6 +10,15 @@ const BrickblockAccount = artifacts.require('BrickblockAccount')
 
 const BigNumber = require('bignumber.js')
 
+const send = (method, params = []) =>
+  web3.currentProvider.send({ id: 0, jsonrpc: '2.0', method, params })
+
+// increases time through ganache evm command
+const timeTravel = async seconds => {
+  await send('evm_increaseTime', [seconds])
+  await send('evm_mine')
+}
+
 const setupRegistry = async () => {
   const reg = await BrickblockContractRegistry.new()
   const wht = await BrickblockWhitelist.new()
@@ -198,6 +207,7 @@ const getRandomBigInt = (min, max) => {
 
 const gasPrice = new BigNumber(30e9)
 const bigZero = new BigNumber(0)
+const addressZero = '0x' + '0'.repeat(40)
 
 module.exports = {
   setupRegistry,
@@ -216,5 +226,7 @@ module.exports = {
   isInRange,
   testIsInRange,
   getRandomInt,
-  getRandomBigInt
+  getRandomBigInt,
+  timeTravel,
+  addressZero
 }

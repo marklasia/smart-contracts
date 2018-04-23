@@ -217,7 +217,8 @@ contract PoaTokenConcept is PausableToken {
 
     // ensure all uints are valid
     require(_startTime > block.timestamp);
-    require(_timeout > 0);
+    // ensure that timeout is at least 1 day
+    require(_timeout >= 60 * 60 * 24);
     require(_fundingGoal > 0);
     require(_totalSupply > _fundingGoal);
 
@@ -280,24 +281,6 @@ contract PoaTokenConcept is PausableToken {
       );
   }
 
-  // returns current eth price per token
-  function weiPricePerToken()
-    public
-    view
-    returns (uint256)
-  {
-    return fiatCentsToWei(fundingGoal).div(totalSupply);
-  }
-
-  // returns fiat price per token
-  function fiatCentPricePerToken()
-    public
-    view
-    returns (uint256)
-  {
-    return fundingGoal.div(totalSupply);
-  }
-
   // util function to convert wei to tokens. can be used publicly to see
   // what the balance would be for a given Ξ amount.
   // will drop miniscule amounts of wei due to integer division
@@ -309,7 +292,7 @@ contract PoaTokenConcept is PausableToken {
     return _weiAmount
       .mul(1e18)
       .mul(totalSupply)
-      .div(fundingGoal)
+      .div(fiatCentsToWei(fundingGoal))
       .div(1e18);
   }
 
@@ -323,7 +306,7 @@ contract PoaTokenConcept is PausableToken {
   {
     return _tokenAmount
       .mul(1e18)
-      .mul(fundingGoal)
+      .mul(fiatCentsToWei(fundingGoal))
       .div(totalSupply)
       .div(1e18);
   }
