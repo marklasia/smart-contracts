@@ -15,7 +15,7 @@ const {
   defaultTotalSupply,
   defaultFundingGoal,
   defaultFiatRate,
-  defaultStartTime,
+  getDefaultStartTime,
   setupEcosystem,
   testSetCurrencyRate,
   setupPoaAndEcosystem,
@@ -24,9 +24,18 @@ const {
   testFiatCentsToWei,
   testWeiToTokens,
   testTokensToWei,
-  testCalculateFee
+  testCalculateFee,
+  testStartSale,
+  testBuyTokens,
+  determineNeededTimeTravel,
+  testBuyRemainingTokens,
+  testActivate
 } = require('../helpers/poac')
-const { testWillThrow, addressZero } = require('../helpers/general.js')
+const {
+  testWillThrow,
+  addressZero,
+  timeTravel
+} = require('../helpers/general.js')
 const BigNumber = require('bignumber.js')
 
 describe('when initializing PoaTokenConcept', () => {
@@ -55,7 +64,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -81,7 +90,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -107,7 +116,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -133,7 +142,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -159,7 +168,7 @@ describe('when initializing PoaTokenConcept', () => {
         addressZero,
         custodian,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -172,7 +181,7 @@ describe('when initializing PoaTokenConcept', () => {
         null,
         custodian,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -198,7 +207,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         addressZero,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -211,7 +220,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         null,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -237,7 +246,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         addressZero,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -250,7 +259,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         null,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -303,7 +312,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         // simulate 1 second less than a day
         new BigNumber(60)
           .mul(60)
@@ -333,7 +342,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultFundingGoal.sub(1),
         defaultFundingGoal
@@ -359,7 +368,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        defaultStartTime,
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         0
@@ -401,3 +410,108 @@ describe('when testing utility functions', () => {
     })
   })
 })
+
+describe('when in PreFunding (stage 0)', async () => {
+  contract('PoaTokenConcept', () => {
+    let defaultStartTime
+    let poac
+
+    before('setup contracts', async () => {
+      defaultStartTime = getDefaultStartTime()
+      const contracts = await setupPoaAndEcosystem(defaultStartTime)
+      poac = contracts.poac
+    })
+
+    it('should NOT unpause', async () => {
+      await testWillThrow(poac.unpause, [{ from: owner }])
+    })
+
+    it('should NOT move to funding before startTime', async () => {
+      await testWillThrow(testStartSale, [poac])
+    })
+
+    it('should move to Stages.Funding when after startTime', async () => {
+      await timeTravel(determineNeededTimeTravel(defaultStartTime))
+      await testStartSale(poac)
+    })
+  })
+})
+
+describe.only("when going through Poa's normal flow", async () => {
+  contract('PoaTokenConcept', () => {
+    let defaultStartTime
+    let fmr
+    let poac
+
+    before('setup contracts', async () => {
+      defaultStartTime = getDefaultStartTime()
+      const contracts = await setupPoaAndEcosystem(defaultStartTime)
+      poac = contracts.poac
+      fmr = contracts.fmr
+    })
+
+    it('should move from PreFunding to Funding after startTime', async () => {
+      await timeTravel(determineNeededTimeTravel(defaultStartTime))
+      await testStartSale(poac)
+    })
+
+    it('should allow buying', async () => {
+      await testBuyTokens(poac, {
+        from: whitelistedPoaBuyers[0],
+        value: 5e17,
+        gasPrice: 1e9
+      })
+    })
+
+    it('should buy all remaining tokens, moving to Pending', async () => {
+      await testBuyRemainingTokens(poac, {
+        from: whitelistedPoaBuyers[1],
+        gasPrice: 1e9
+      })
+    })
+
+    it('should activate with ipfs hash from custodian', async () => {
+      await testActivate(
+        poac,
+        fmr,
+        'QmSUfCtXgb59G9tczrz2WuHNAbecV55KRBGXBbZkou5RtE',
+        {
+          from: custodian
+        }
+      )
+    })
+  })
+})
+
+/*
+lifecycle methods:
+  unpause:
+    Active
+  startSale:
+    PreFunding
+  Buy:
+    Funding
+  setFailed:
+    Funding
+  activate:
+    Pending
+  terminate:
+    Terminated
+  reclaim:
+    Failed
+  payout:
+    Active
+    Terminated
+  claim:
+    Active
+  updateProofOfCustody:
+    Active
+    Terminated
+
+other:
+  currenctPayout
+  settleUnclaimedPerTokenPayouts
+  fallback
+  transfer
+  transferFrom
+*/

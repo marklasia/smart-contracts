@@ -10,13 +10,33 @@ const BrickblockAccount = artifacts.require('BrickblockAccount')
 
 const BigNumber = require('bignumber.js')
 
+// test to see if numbers are within range range = allowable difference
+const areInRange = (bigNum1, bigNum2, range) =>
+  (bigNum1.greaterThanOrEqualTo(bigNum2) &&
+    bigNum1.sub(range).lessThanOrEqualTo(bigNum2)) ||
+  (bigNum1.lessThanOrEqualTo(bigNum2) &&
+    bigNum1.add(range).greaterThanOrEqualTo(bigNum2))
+
 const send = (method, params = []) =>
   web3.currentProvider.send({ id: 0, jsonrpc: '2.0', method, params })
 
 // increases time through ganache evm command
 const timeTravel = async seconds => {
-  await send('evm_increaseTime', [seconds])
-  await send('evm_mine')
+  if (seconds > 0) {
+    await send('evm_increaseTime', [seconds])
+    await send('evm_mine')
+
+    const previousBlock = await web3.eth.getBlock(web3.eth.blockNumber - 1)
+    const currentBlock = await web3.eth.getBlock(web3.eth.blockNumber)
+    /* eslint-disable no-console */
+    console.log(`💫  Warped ${seconds} seconds on new block`)
+    console.log(`⏪  previous block timestamp: ${previousBlock.timestamp}`)
+    console.log(`✅  current block timestamp: ${currentBlock.timestamp}`)
+    /* eslint-enable no-console */
+  } else {
+    // eslint-disable-next-line
+    console.log('💫 Did not warp... 0 seconds was given as an argument')
+  }
 }
 
 const setupRegistry = async () => {
@@ -228,5 +248,6 @@ module.exports = {
   getRandomInt,
   getRandomBigInt,
   timeTravel,
-  addressZero
+  addressZero,
+  areInRange
 }

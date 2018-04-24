@@ -47,40 +47,6 @@ contract ExR {
 }
 
 
-/*
-TODO:
-  funding:
-    make it work with ExchangeRates √
-
-  admin functions:
-    allow poaManager to:
-    pause/unpause √ (needs to be implemented in PoaManager)
-    put in terminated status √
-
-  activation:
-    use ipfs hash for custodian activation
-    broker sends activation fee
-
-  deployment timing:
-    add stage PreFunding √
-    add startTime √
-    add function to start and move to Funding √
-      anyone can do it √
-      check if after startTime √
-
-  timeouts:
-    use timestamp instead of blocks √
-
-  unclaimedPayouts
-    need to create unclaimedPayoutTotals like in cpoa √
-
-  how is activation going to work? √
-    one step process....
-      custodian sends ipfs hash... √
-        this is trusted because it is coming from bank √
-      fee is deducted from total value √
-
-*/
 contract PoaTokenConcept is PausableToken {
 
   // instance of registry to call other contracts
@@ -117,8 +83,6 @@ contract PoaTokenConcept is PausableToken {
   uint256 public fundedAmount;
 
 
-  // self contained whitelist on contract, must be whitelisted to buy
-  mapping (address => bool) public whitelisted;
   // used to deduct already claimed payouts on a per token basis
   mapping(address => uint256) public claimedPerTokenPayouts;
   // fallback for when a transfer happens with payouts remaining
@@ -141,7 +105,7 @@ contract PoaTokenConcept is PausableToken {
   event ClaimEvent(uint256 payout);
   event TerminatedEvent();
   event WhitelistedEvent(address indexed account, bool isWhitelisted);
-  event ProofOfCustodayUpdated(string ipfsHash);
+  event ProofOfCustodyUpdated(string ipfsHash);
 
   modifier eitherCustodianOrOwner() {
     require(
@@ -167,10 +131,10 @@ contract PoaTokenConcept is PausableToken {
   }
 
   modifier isWhitelisted() {
-    Whitelist whitelist = Whitelist(
-      registry.getContractAddress("Whitelist")
+    require(
+      Whitelist(registry.getContractAddress("Whitelist"))
+        .whitelisted(msg.sender)
     );
-    require(whitelist.whitelisted(msg.sender));
     _;
   }
 
@@ -217,7 +181,7 @@ contract PoaTokenConcept is PausableToken {
 
     // ensure all uints are valid
     require(_startTime > block.timestamp);
-    // ensure that timeout is at least 1 day
+    // ensure that timeout is at least 24 hours
     require(_timeout >= 60 * 60 * 24);
     require(_fundingGoal > 0);
     require(_totalSupply > _fundingGoal);
@@ -328,7 +292,7 @@ contract PoaTokenConcept is PausableToken {
     FeeManager feeManager = FeeManager(
       registry.getContractAddress("FeeManager")
     );
-    feeManager.payFee.value(_value)();
+    require(feeManager.payFee.value(_value)());
   }
 
   // end utility functions
@@ -376,7 +340,7 @@ contract PoaTokenConcept is PausableToken {
     uint256 _payAmount;
     uint256 _buyAmount;
     // check if balance has met funding goal to move on to Pending
-    if (weiToFiatCents(fundedAmount.add(msg.value)) < fundingGoal) {
+    if (fundedAmount.add(weiToFiatCents(msg.value)) < fundingGoal.sub(1)) {
       // _payAmount is just value sent
       _payAmount = msg.value;
       // get token amount from wei... drops remainders (keeps wei dust in contract)
@@ -389,27 +353,21 @@ contract PoaTokenConcept is PausableToken {
       // let the world know that the token is in Pending Stage
       enterStage(Stages.Pending);
       // set refund amount (overpaid amount)
-      uint256 _refundAmount = fundedAmount.add(msg.value).sub(fundingGoal);
-      // get actual Ξ amount to buy
-      _payAmount = msg.value.sub(_refundAmount);
-      // get token amount from wei... drops remainders (keeps wei dust in contract)
-      _buyAmount = weiToTokens(_payAmount);
-      // assign remaining dust
-      uint256 _dust = balances[this].sub(_buyAmount);
-      // sub dust from contract
-      balances[this] = balances[this].sub(_dust);
-      // give dust to owner
-      balances[owner] = balances[owner].add(_dust);
-      Transfer(this, owner, _dust);
+      uint256 _refundAmount = fundedAmount
+        .add(weiToFiatCents(msg.value))
+        .sub(fundingGoal.sub(1));
       // SHOULD be ok even with reentrancy because of enterStage(Stages.Pending)
       msg.sender.transfer(_refundAmount);
+      // get actual Ξ amount to buy
+      _payAmount = msg.value.sub(_refundAmount);
+      _buyAmount = balances[this];
     }
     // deduct token buy amount balance from contract balance
     balances[this] = balances[this].sub(_buyAmount);
     // add token buy amount to sender's balance
     balances[msg.sender] = balances[msg.sender].add(_buyAmount);
     // increment the funded amount
-    fundedAmount = fundedAmount.add(_payAmount);
+    fundedAmount = fundedAmount.add(weiToFiatCents(_payAmount));
     // send out event giving info on amount bought as well as claimable dust
     Transfer(this, msg.sender, _buyAmount);
     BuyEvent(msg.sender, _buyAmount);
@@ -445,24 +403,24 @@ contract PoaTokenConcept is PausableToken {
     require(bytes(_ipfsHash)[0] == 0x51);
     require(bytes(_ipfsHash)[1] == 0x6D);
     // calculate company fee charged for activation
-    uint256 _fee = calculateFee(fundingGoal);
+    uint256 _fee = calculateFee(address(this).balance);
     // if activated and fee paid: put in Active stage
     enterStage(Stages.Active);
     // fee sent to FeeManager where fee gets
     // turned into ACT for lockedBBK holders
-    require(payFee(_fee));
+    payFee(_fee);
     proofOfCustody = _ipfsHash;
     // balance of contract (fundingGoal) set to claimable by broker.
     // can now be claimed by broker via claim function
     // should only be buy()s - fee. this ensures buy() dust is cleared
     unclaimedPayoutTotals[broker] = unclaimedPayoutTotals[broker]
-      .add(this.balance);
+      .add(address(this).balance);
     // allow trading of tokens
     paused = false;
     // let world know that this token can now be traded.
     Unpause();
     // event showing that proofOfCustody has been updated.
-    ProofOfCustodayUpdated(_ipfsHash);
+    ProofOfCustodyUpdated(_ipfsHash);
     return true;
   }
 
@@ -632,7 +590,7 @@ contract PoaTokenConcept is PausableToken {
     returns (bool)
   {
     proofOfCustody = _ipfsHash;
-    ProofOfCustodayUpdated(_ipfsHash);
+    ProofOfCustodyUpdated(_ipfsHash);
     return true;
   }
 
