@@ -7,7 +7,12 @@ const ExchangeRateProvider = artifacts.require('ExchangeRateProviderStub')
 const FeeManager = artifacts.require('BrickblockFeeManager')
 
 const assert = require('assert')
-const { getEtherBalance, getGasUsed, areInRange } = require('./general')
+const {
+  getEtherBalance,
+  getGasUsed,
+  areInRange,
+  gasPrice
+} = require('./general')
 const { finalizedBBK } = require('./bbk')
 const { testApproveAndLockMany } = require('./act')
 const { testSetCurrencySettings, testFetchRate, testSetRate } = require('./exr')
@@ -29,10 +34,10 @@ const defaultTimeout = new BigNumber(60 * 60 * 24)
 const defaultTotalSupply = new BigNumber('1e20')
 const defaultFundingGoal = new BigNumber(5e5)
 const defaultFiatRate = new BigNumber(33333)
-const getDefaultStartTime = () =>
+const getDefaultStartTime = async () =>
   new BigNumber(Date.now())
     .div(1000)
-    .add(5)
+    .add(60)
     .floor()
 
 const determineNeededTimeTravel = startTime => {
@@ -162,7 +167,7 @@ const testInitialization = async (exr, exp, reg) => {
     value: 1e18
   })
 
-  const defaultStartTime = getDefaultStartTime()
+  const defaultStartTime = await getDefaultStartTime()
 
   const poac = await PoaTokenConcept.new(
     defaultName,
@@ -291,11 +296,6 @@ const testWeiToFiatCents = async (poac, weiInput) => {
   const actualFiat = await poac.weiToFiatCents(weiInput)
 
   assert.equal(
-    actualFiat.toString(),
-    new BigNumber('3e4'),
-    'actualFiat should equal 30000 cents'
-  )
-  assert.equal(
     expectedFiat.toString(),
     actualFiat.toString(),
     'weiInput converted to actualFiat should match expectedFiat'
@@ -311,11 +311,6 @@ const testFiatCentsToWei = async (poac, fiatCentInput) => {
   const actualWei = await poac.fiatCentsToWei(fiatCentInput)
 
   assert.equal(
-    actualWei.toString(),
-    new BigNumber('1e18').toString(),
-    'actualWei should equal 1e18'
-  )
-  assert.equal(
     expectedWei.toString(),
     actualWei.toString(),
     'fiatCentInput converted to actualWei should match expectedWei'
@@ -330,11 +325,6 @@ const testWeiToTokens = async (poac, weiInput) => {
 
   const actualTokens = await poac.weiToTokens(weiInput)
 
-  assert.equal(
-    actualTokens.toString(),
-    new BigNumber('6e18').toString(),
-    'actualTokens should equal 6e18'
-  )
   assert.equal(
     expectedTokens.toString(),
     actualTokens.toString(),
@@ -450,7 +440,6 @@ const testBuyRemainingTokens = async (poac, config) => {
   const fiatBuyAmount = await poac.weiToFiatCents(ethBuyAmount)
 
   const preEthBalance = await getEtherBalance(buyer)
-  const preTokenBalance = await poac.balanceOf(buyer)
   const preFundedAmount = await poac.fundedAmount()
 
   const tx = await poac.buy(updatedConfig)
@@ -539,6 +528,154 @@ const testActivate = async (poac, fmr, ipfsHash, config) => {
   )
 }
 
+const testBrokerClaim = async poac => {
+  const preContractBalance = await getEtherBalance(poac.address)
+  const preBrokerBalance = await getEtherBalance(broker)
+
+  const tx = await poac.claim({ from: broker, gasPrice })
+
+  const postContractBalance = await getEtherBalance(poac.address)
+  const postBrokerBalance = await getEtherBalance(broker)
+  const gasUsed = await getGasUsed(tx)
+  const expectedPostBrokerBalance = preBrokerBalance
+    .add(preContractBalance)
+    .sub(new BigNumber(gasUsed).mul(gasPrice))
+
+  assert.equal(
+    postBrokerBalance.toString(),
+    expectedPostBrokerBalance.toString(),
+    'postBrokerBalance should match expectedPostBrokerBalance'
+  )
+  assert.equal(
+    postContractBalance.toString(),
+    new BigNumber(0).toString(),
+    'postContractBalance should be 0'
+  )
+}
+
+const testPayout = async (poac, fmr, config) => {
+  assert(config.from, 'from not included in config!')
+  assert(config.value, 'value not included in config!')
+
+  const payoutValue = new BigNumber(config.value)
+  const _fee = await poac.calculateFee(payoutValue)
+  const fee = _fee.add(
+    payoutValue
+      .sub(_fee)
+      .mul(1e18)
+      .mod(defaultTotalSupply)
+      .div(1e18)
+      .floor()
+  )
+
+  const preContractTotalTokenPayout = await poac.totalPerTokenPayout()
+  const preCustodianEtherBalance = await getEtherBalance(custodian)
+  const preContractEtherBalance = await getEtherBalance(poac.address)
+  const preFeeManagerEtherBalance = await getEtherBalance(fmr.address)
+
+  const tx = await poac.payout(config)
+  const gasUsed = await getGasUsed(tx)
+
+  const postContractTotalTokenPayout = await poac.totalPerTokenPayout()
+  const currentExpectedTotalTokenPayout = payoutValue
+    .minus(_fee)
+    .mul(1e18)
+    .div(defaultTotalSupply)
+    .floor()
+  const expectedContractTotalTokenPayout = preContractTotalTokenPayout.add(
+    currentExpectedTotalTokenPayout
+  )
+  const postCustodianEtherBalance = await getEtherBalance(custodian)
+  const expectedCustodianEtherBalance = preCustodianEtherBalance
+    .minus(gasPrice.mul(gasUsed))
+    .minus(payoutValue)
+  const postContractEtherBalance = await getEtherBalance(poac.address)
+  const expectedContractEtherBalance = payoutValue.minus(fee)
+  const postFeeManagerEtherBalance = await getEtherBalance(fmr.address)
+
+  assert.equal(
+    postContractTotalTokenPayout.toString(),
+    expectedContractTotalTokenPayout.toString(),
+    'totalPerTokenPayout should match the expected value'
+  )
+  assert.equal(
+    expectedCustodianEtherBalance.toString(),
+    postCustodianEtherBalance.toString(),
+    'expected custodian ether balance should match actual after payout'
+  )
+  assert.equal(
+    postContractEtherBalance.minus(preContractEtherBalance).toString(),
+    expectedContractEtherBalance.toString(),
+    'contact ether balance should be incremented by the payoutValue minus fees'
+  )
+  assert.equal(
+    postFeeManagerEtherBalance.sub(preFeeManagerEtherBalance).toString(),
+    fee.toString(),
+    'FeeManager ether balance should be incremented by fee'
+  )
+}
+
+const testClaimAllPayouts = async (poac, poaTokenHolders) => {
+  const stage = await poac.stage()
+  assert.equal(
+    stage.toString(),
+    new BigNumber(4).toString(),
+    'stage should be in 4, Active'
+  )
+
+  let totalClaimAmount = new BigNumber(0)
+
+  for (const tokenHolder of poaTokenHolders) {
+    const tokenHolderClaimAmount = await poac.currentPayout(tokenHolder, true)
+    const preTokenHolderEtherBalance = await getEtherBalance(tokenHolder)
+    const preContractEtherBalance = await getEtherBalance(poac.address)
+
+    if (tokenHolderClaimAmount.greaterThan(0)) {
+      const tx = await poac.claim({
+        from: tokenHolder,
+        gasPrice
+      })
+
+      const gasUsed = tx.receipt.gasUsed || new BigNumber(0)
+      const gasCost = gasPrice.mul(gasUsed)
+      const expectedTokenHolderEtherBalance = preTokenHolderEtherBalance
+        .minus(gasCost)
+        .add(tokenHolderClaimAmount)
+
+      const postTokenHolderEtherBalance = await getEtherBalance(tokenHolder)
+      const postContractEtherBalance = await getEtherBalance(poac.address)
+
+      assert.equal(
+        expectedTokenHolderEtherBalance.toString(),
+        postTokenHolderEtherBalance.toString(),
+        'poaTokenHolder ether balance should match expected balance after claiming'
+      )
+      assert.equal(
+        preContractEtherBalance.minus(postContractEtherBalance).toString(),
+        tokenHolderClaimAmount.toString(),
+        'contract ether balance should be decremented by the tokenHolderClaimAmount'
+      )
+      totalClaimAmount = totalClaimAmount.add(tokenHolderClaimAmount)
+    } else {
+      // eslint-disable-next-line no-console
+      console.log(
+        `⚠️ ${tokenHolder} has 0 claimable balances... this may happen due to current test setup, be sure that this is correct`
+      )
+    }
+  }
+
+  const finalContractEtherBalance = await getEtherBalance(poac.address)
+
+  assert(
+    totalClaimAmount.greaterThan(0),
+    'total claim amount should be more than 0'
+  )
+  assert(
+    areInRange(finalContractEtherBalance, new BigNumber(0), 1e2),
+    `contract should have very small ether balance after all payouts have been claimed but ${finalContractEtherBalance} wei remain`
+  )
+}
+
 module.exports = {
   accounts,
   owner,
@@ -570,5 +707,8 @@ module.exports = {
   testBuyTokens,
   determineNeededTimeTravel,
   testBuyRemainingTokens,
-  testActivate
+  testActivate,
+  testBrokerClaim,
+  testPayout,
+  testClaimAllPayouts
 }
