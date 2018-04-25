@@ -33,10 +33,10 @@ describe('when using utility functions', () => {
 
     it('actToWei should THROW when rate is actRate is 0', async () => {
       await testWillThrow(fmr.actToWei, [1e21])
-      await exr.setActRate(actRate)
     })
 
     it('should return the correct weiToAct value', async () => {
+      await exr.setActRate(actRate)
       const weiValue = new BigNumber(1e15)
       const expectedAct = weiValue.mul(actRate)
       const actualAct = await fmr.weiToAct(weiValue)
