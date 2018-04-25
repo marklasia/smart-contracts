@@ -174,6 +174,28 @@ const getGasUsed = async txHash => {
   return receipt.gasUsed
 }
 
+// tests the amount in Bignumber is in given range
+const isInRange = (amount, gte, lte) => {
+  return amount.gte(gte) && amount.lte(lte)
+}
+
+const testIsInRange = (amount, gte, lte, message) => {
+  const res = isInRange(amount, gte, lte)
+  message += ` ${gte} < ${amount} < ${lte} is expected`
+  assert.ok(res, message)
+}
+
+const getRandomInt = (min, max) => {
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+const getRandomBig = (min, max) => {
+  const digits = getRandomInt(min, max)
+  const res = BigNumber.random(digits).mul(digits)
+
+  return res
+}
+
 const gasPrice = new BigNumber(30e9)
 const bigZero = new BigNumber(0)
 
@@ -190,5 +212,9 @@ module.exports = {
   sendTransaction,
   testWillThrow,
   warpBlocks,
-  getGasUsed
+  getGasUsed,
+  isInRange,
+  testIsInRange,
+  getRandomInt,
+  getRandomBig
 }
