@@ -3,8 +3,17 @@ const AccessToken = artifacts.require('BrickblockAccessToken')
 const ExchangeRates = artifacts.require('ExchangeRates')
 const FeeManager = artifacts.require('BrickblockFeeManager')
 const assert = require('assert')
+const chalk = require('chalk')
 const { finalizedBBK } = require('./bbk')
-const { getEtherBalance, getReceipt, gasPrice, bigZero } = require('./general')
+const {
+  getEtherBalance,
+  getReceipt,
+  gasPrice,
+  bigZero,
+  testIsInRange,
+  getRandomBig
+} = require('./general')
+
 const BigNumber = require('bignumber.js')
 
 const setupContracts = async (
@@ -37,6 +46,9 @@ const setupContracts = async (
 
   const balanceCheck = await bbk.balanceOf(contributors[0])
   const bbkPaused = await bbk.paused()
+
+  exr.setActRate(actRate)
+
   assert(balanceCheck.greaterThan(0), 'the balance should be more than 0')
   assert(!bbkPaused, 'the contract should not be paused')
   return {
@@ -59,14 +71,17 @@ const testApproveAndLockBBK = async (bbk, act, bbkHolder, amount) => {
   const postBbkBalance = await bbk.balanceOf(bbkHolder)
   const postLockedBBK = await act.lockedBbkOf(bbkHolder)
 
-  assert.equal(
-    preBbkBalance.minus(postBbkBalance).toString(),
-    amount.toString(),
+  testIsInRange(
+    amount.minus(preBbkBalance.minus(postBbkBalance)).abs(),
+    0,
+    100,
     'bbkHolder BBK balance should be decremented by amount'
   )
-  assert.equal(
-    postLockedBBK.minus(preLockedBBK).toString(),
-    amount.toString(),
+
+  testIsInRange(
+    amount.minus(postLockedBBK.minus(preLockedBBK)).abs(),
+    0,
+    100,
     'bbkHolder lockedBBK should be incremented by amount'
   )
 
@@ -164,9 +179,10 @@ const testPayFee = async (
       console.warn(`⚠️  ${bbkHolder} has ACT balance of 0 during testPayFee`)
     }
 
-    assert.equal(
-      expectedActBalance.toString(),
-      actBalance.toString(),
+    testIsInRange(
+      actBalance.minus(expectedActBalance).abs(),
+      0,
+      100,
       'the actBalance should match the expected act balance'
     )
   }
@@ -221,11 +237,14 @@ const testClaimFeeMany = async (act, fmr, claimers, actRate) => {
       bigZero.toString(),
       'the entire ACT balance should be used'
     )
-    assert.equal(
-      expectedPostEthBalance.toString(),
-      postEthBalance.toString(),
+
+    testIsInRange(
+      postEthBalance.minus(expectedPostEthBalance).abs(),
+      0,
+      100,
       'the ETH balance for claimer should be incremented by previous ACT balance'
     )
+
     if (preActBalance.equals(0)) {
       // eslint-disable-next-line no-console
       console.warn(
@@ -237,15 +256,18 @@ const testClaimFeeMany = async (act, fmr, claimers, actRate) => {
   const postFeeManagerEthBalance = await getEtherBalance(fmr.address)
   const postActTotalSupply = await act.totalSupply()
 
-  assert.equal(
-    postFeeManagerEthBalance.toString(),
-    bigZero.toString(),
-    'the feeManager should have 0 ether left if all ACT burned'
+  testIsInRange(
+    postFeeManagerEthBalance,
+    bigZero,
+    100,
+    'the feeManager should have ~0 ether left if all ACT burned'
   )
-  assert.equal(
-    postActTotalSupply.toString(),
-    bigZero.toString(),
-    'the act contract totalSupply should be 0 if all ACT burned and all ETH claimed'
+
+  testIsInRange(
+    postActTotalSupply,
+    bigZero,
+    100,
+    'the act contract totalSupply should be ~0 if all ACT burned and all ETH claimed'
   )
 
   return postActTotalSupply
@@ -285,6 +307,22 @@ const testTransferActMany = async (act, senders, to, value) => {
   const amount = new BigNumber(value)
   for (const sender of senders) {
     await testTransferAct(act, sender, to, amount)
+  }
+}
+
+const testTransferActManyWithIndividualAmounts = async (
+  act,
+  senders,
+  to,
+  amounts
+) => {
+  let index = 0
+
+  for (const sender of senders) {
+    const amount = amounts[index]
+
+    await testTransferAct(act, sender, to, amount)
+    index++
   }
 }
 
@@ -358,6 +396,49 @@ const testActBalanceGreaterThanZero = async (act, actHolder) => {
   return actBalance
 }
 
+const testApproveAndLockManyWithIndividualAmounts = async (
+  bbk,
+  act,
+  bbkHolders,
+  amounts
+) => {
+  let index = 0
+
+  for (const bbkHolder of bbkHolders) {
+    const amount = amounts[index]
+    await testApproveAndLockBBK(bbk, act, bbkHolder, amount)
+    index++
+  }
+
+  return true
+}
+
+const generateRandomLockAmounts = async contributors => {
+  return await Promise.all(
+    contributors.map(async contributor => {
+      const contributerBalance = await getEtherBalance(contributor)
+
+      // eslint-disable-next-line
+      console.log(chalk.yellowBright(`For address ${contributor}:`))
+      // eslint-disable-next-line
+      console.log(
+        chalk.yellow('Contributor balance in Eth:'),
+        web3.fromWei(contributerBalance).toString()
+      )
+
+      let res = getRandomBig(10, contributerBalance.toString().length - 1)
+
+      if (res.gt(contributerBalance)) {
+        res = contributerBalance
+      }
+
+      // eslint-disable-next-line
+      console.log(chalk.yellow('Token Lock Amount:'), res.toString())
+      return res
+    })
+  )
+}
+
 module.exports = {
   setupContracts,
   testApproveAndLockBBK,
@@ -371,5 +452,8 @@ module.exports = {
   testApproveAct,
   testApproveActMany,
   testTransferFromAct,
-  testTransferFromActMany
+  testTransferFromActMany,
+  testApproveAndLockManyWithIndividualAmounts,
+  testTransferActManyWithIndividualAmounts,
+  generateRandomLockAmounts
 }
