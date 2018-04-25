@@ -34,7 +34,7 @@ const defaultTimeout = new BigNumber(60 * 60 * 24)
 const defaultTotalSupply = new BigNumber('1e20')
 const defaultFundingGoal = new BigNumber(5e5)
 const defaultFiatRate = new BigNumber(33333)
-const getDefaultStartTime = async () =>
+const getDefaultStartTime = () =>
   new BigNumber(Date.now())
     .div(1000)
     .add(60)
@@ -167,7 +167,7 @@ const testInitialization = async (exr, exp, reg) => {
     value: 1e18
   })
 
-  const defaultStartTime = await getDefaultStartTime()
+  const defaultStartTime = getDefaultStartTime()
 
   const poac = await PoaTokenConcept.new(
     defaultName,

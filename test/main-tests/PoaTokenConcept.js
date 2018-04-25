@@ -68,7 +68,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -94,7 +94,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -120,7 +120,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -146,7 +146,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -172,7 +172,7 @@ describe('when initializing PoaTokenConcept', () => {
         addressZero,
         custodian,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -185,7 +185,7 @@ describe('when initializing PoaTokenConcept', () => {
         null,
         custodian,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -211,7 +211,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         addressZero,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -224,7 +224,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         null,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -250,7 +250,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         addressZero,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -263,7 +263,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         null,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         defaultFundingGoal
@@ -316,7 +316,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         // simulate 1 second less than a day
         new BigNumber(60)
           .mul(60)
@@ -346,7 +346,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultFundingGoal.sub(1),
         defaultFundingGoal
@@ -372,7 +372,7 @@ describe('when initializing PoaTokenConcept', () => {
         broker,
         custodian,
         reg.address,
-        await getDefaultStartTime(),
+        getDefaultStartTime(),
         defaultTimeout,
         defaultTotalSupply,
         0
@@ -389,7 +389,7 @@ describe('when testing utility functions', () => {
     let poac
 
     before('setup contracts', async () => {
-      const defaultStartTime = await getDefaultStartTime()
+      const defaultStartTime = getDefaultStartTime()
       const contracts = await setupPoaAndEcosystem(defaultStartTime)
       poac = contracts.poac
     })
@@ -423,7 +423,7 @@ describe("when going through Poa's normal flow", async () => {
     let poac
 
     before('setup contracts', async () => {
-      defaultStartTime = await getDefaultStartTime()
+      defaultStartTime = getDefaultStartTime()
       const contracts = await setupPoaAndEcosystem(defaultStartTime)
       poac = contracts.poac
       fmr = contracts.fmr
@@ -499,7 +499,7 @@ describe('when in PreFunding (stage 0)', async () => {
         'blockTime > realTime: ',
         blockTime > realTime
       )
-      defaultStartTime = await getDefaultStartTime()
+      defaultStartTime = getDefaultStartTime()
       const contracts = await setupPoaAndEcosystem(defaultStartTime)
       poac = contracts.poac
     })
@@ -524,7 +524,7 @@ describe('when in Funding (stage 1)', () => {
     let poac
 
     before('setup contracts', async () => {
-      const defaultStartTime = await getDefaultStartTime()
+      const defaultStartTime = getDefaultStartTime()
       const contracts = await setupPoaAndEcosystem(defaultStartTime)
       poac = contracts.poac
 
