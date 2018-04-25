@@ -15,6 +15,7 @@ const {
   defaultFundingGoal,
   defaultFiatRate,
   getDefaultStartTime,
+  defaultIpfsHash,
   setupEcosystem,
   testSetCurrencyRate,
   setupPoaAndEcosystem,
@@ -31,12 +32,17 @@ const {
   testActivate,
   testBrokerClaim,
   testPayout,
+  testClaim,
   testClaimAllPayouts,
   testFirstReclaim,
   testReclaim,
   timeoutContract,
   testSetFailed,
-  testReclaimAll
+  testReclaimAll,
+  testPaused,
+  testPause,
+  testUnpause,
+  testFallback
 } = require('../helpers/poac')
 const {
   testWillThrow,
@@ -452,14 +458,9 @@ describe("when going through Poa's normal flow", async () => {
     })
 
     it('should activate with ipfs hash from custodian', async () => {
-      await testActivate(
-        poac,
-        fmr,
-        'QmSUfCtXgb59G9tczrz2WuHNAbecV55KRBGXBbZkou5RtE',
-        {
-          from: custodian
-        }
-      )
+      await testActivate(poac, fmr, defaultIpfsHash, {
+        from: custodian
+      })
     })
 
     it('should claim contract funding as broker', async () => {
@@ -565,14 +566,9 @@ describe('when in Pending (stage 2)', () => {
     })
 
     it('should move into Active when activated', async () => {
-      await testActivate(
-        poac,
-        fmr,
-        'QmSUfCtXgb59G9tczrz2WuHNAbecV55KRBGXBbZkou5RtE',
-        {
-          from: custodian
-        }
-      )
+      await testActivate(poac, fmr, defaultIpfsHash, {
+        from: custodian
+      })
     })
   })
 })
@@ -625,40 +621,7 @@ describe('when in Failed (stage 3)', () => {
   })
 })
 
-/*
-lifecycle methods:
-  unpause:
-    Active
-  startSale:
-    PreFunding
-  Buy:
-    Funding
-  setFailed:
-    Funding
-  activate:
-    Pending
-  terminate:
-    Terminated
-  reclaim:
-    Failed
-  payout:
-    Active
-    Terminated
-  claim:
-    Active
-  updateProofOfCustody:
-    Active
-    Terminated
-
-other:
-  currenctPayout
-  settleUnclaimedPerTokenPayouts
-  fallback
-  transfer
-  transferFrom
-*/
-
-describe('when in Active (stage 4)', () => {
+describe.only('when in Active (stage 4)', () => {
   contract('PoaTokenConcept', () => {
     let poac
     let fmr
@@ -674,25 +637,179 @@ describe('when in Active (stage 4)', () => {
       await testStartSale(poac)
 
       // move into Pending
+      await testBuyTokens(poac, {
+        from: whitelistedPoaBuyers[0],
+        value: 1e18,
+        gasPrice
+      })
       await testBuyRemainingTokens(poac, {
         from: whitelistedPoaBuyers[1],
         gasPrice
       })
 
       // move into Active
-      await testActivate(
-        poac,
-        fmr,
-        'QmSUfCtXgb59G9tczrz2WuHNAbecV55KRBGXBbZkou5RtE',
-        {
-          from: custodian
-        }
-      )
+      await testActivate(poac, fmr, defaultIpfsHash, {
+        from: custodian
+      })
+
+      // clean out broker balance for easier debugging
+      await testBrokerClaim(poac)
     })
 
-    it('should do things', async () => {
-      assert(true)
+    it('should be unpaused', async () => {
+      await testPaused(poac, false)
     })
+
+    it('should NOT unpause when already unpaused', async () => {
+      await testWillThrow(testUnpause, [poac, { from: owner }])
+    })
+
+    it('should NOT pause if NOT owner', async () => {
+      await testWillThrow(testPause, [poac, { from: whitelistedPoaBuyers[0] }])
+    })
+
+    it('should pause if owner', async () => {
+      await testPause(poac, { from: owner })
+    })
+
+    it('should NOT pause if already paused', async () => {
+      await testWillThrow(testPause, [poac, { from: owner }])
+    })
+
+    it('should NOT unpause if NOT owner', async () => {
+      await testWillThrow(testUnpause, [
+        poac,
+        { from: whitelistedPoaBuyers[0] }
+      ])
+    })
+
+    it('should unpause if owner', async () => {
+      await testUnpause(poac, { from: owner })
+    })
+
+    it('should NOT startSale, even if owner', async () => {
+      await testWillThrow(testStartSale, [poac, { from: owner }])
+    })
+
+    it('should NOT buy, even if whitelisted', async () => {
+      await testWillThrow(testBuyTokens, [
+        poac,
+        { from: whitelistedPoaBuyers[0], value: 3e17, gasPrice }
+      ])
+    })
+
+    it('should NOT setFailed, even if owner', async () => {
+      await testWillThrow(testSetFailed, [poac, { from: owner }])
+    })
+
+    it('should NOT activate, even if custodian', async () => {
+      await testWillThrow(testActivate, [
+        poac,
+        fmr,
+        defaultIpfsHash,
+        { from: custodian }
+      ])
+    })
+
+    it('should NOT reclaim, even if owning tokens', async () => {
+      await testWillThrow(testReclaim, [
+        poac,
+        { from: whitelistedPoaBuyers[0] }
+      ])
+    })
+
+    it('should NOT allow fallback to run', async () => {
+      await testFallback({
+        from: whitelistedPoaBuyers[0],
+        value: 3e17,
+        to: poac.address
+      })
+    })
+
+    // start core stage functionality
+
+    it('should NOT claim if no payouts', async () => {
+      await testWillThrow(testClaim, [poac, whitelistedPoaBuyers[0]])
+    })
+
+    it('should payout as custodian', async () => {
+      await testPayout(poac, fmr, { value: 2e18, from: custodian, gasPrice })
+    })
+
+    it('should NOT payout as custodian if payout is too low', async () => {
+
+    })
+
+    it('should NOT payout as NOT custodian', async () => {
+
+    })
+
+    it('should claim if payout has been made', async () => {
+      await testClaim(poac, whitelistedPoaBuyers[0])
+    })
+
+    it('should NOT update proofOfCustody if NOT custodian', async () => {
+
+    })
+
+    it('should NOT update proofOfCustody if NOT valid ipfsHash', async () => {
+
+    })
+
+    it('should transfer', async () => {
+
+    })
+
+    it('should approve', async () => {
+
+    })
+
+    it('should transferFrom', async () => {
+
+    })
+
+    it('should return the correct currentPayout', async () => {
+
+    })
+
+    // start core stage functionality
+
+    /*
+    tovarish
+    lifecycle methods:
+      unpause:
+        Active
+      startSale:
+        PreFunding
+      Buy:
+        Funding
+      setFailed:
+        Funding
+      activate:
+        Pending
+      terminate:
+        Terminated
+      reclaim:
+        Failed
+      payout:
+        Active
+        Terminated
+      claim:
+        Active
+      updateProofOfCustody:
+        Active
+        Terminated
+      transfer
+        Active
+      transferFrom
+        Active
+      approve
+        Active
+    other:
+      currenctPayout
+      settleUnclaimedPerTokenPayouts
+      fallback
+    */
   })
 })
 
@@ -718,14 +835,12 @@ describe('when in Terminated (stage 5)', () => {
       })
 
       // move into Active
-      await testActivate(
-        poac,
-        fmr,
-        'QmSUfCtXgb59G9tczrz2WuHNAbecV55KRBGXBbZkou5RtE',
-        {
-          from: custodian
-        }
-      )
+      await testActivate(poac, fmr, defaultIpfsHash, {
+        from: custodian
+      })
+
+      // clean out broker balance for easier debugging
+      await testBrokerClaim(poac)
 
       // TODO: create helper to terminate
     })

@@ -151,6 +151,17 @@ contract PoaTokenConcept is PausableToken {
     _;
   }
 
+  modifier validIpfs(string _ipfsHash) {
+    // check that the most common hashing algo is used sha256
+    // and that the length is correct. In theory it could be different
+    // but use of this functionality is limited to only custodian
+    // so this validation should suffice
+    require(bytes(_ipfsHash).length == 46);
+    require(bytes(_ipfsHash)[0] == 0x51);
+    require(bytes(_ipfsHash)[1] == 0x6D);
+    _;
+  }
+
   // token totalSupply must be more than fundingGoal!
   function PoaTokenConcept
   (
@@ -396,15 +407,9 @@ contract PoaTokenConcept is PausableToken {
     checkTimeout
     onlyCustodian
     atStage(Stages.Pending)
+    validIpfs(_ipfsHash)
     returns (bool)
   {
-    // check that the most common hashing algo is used sha256
-    // and that the length is correct. In theory it could be different
-    // but use of this functionality is limited to only custodian
-    // so this validation should suffice
-    require(bytes(_ipfsHash).length == 46);
-    require(bytes(_ipfsHash)[0] == 0x51);
-    require(bytes(_ipfsHash)[1] == 0x6D);
     // calculate company fee charged for activation
     uint256 _fee = calculateFee(address(this).balance);
     // if activated and fee paid: put in Active stage
@@ -555,7 +560,7 @@ contract PoaTokenConcept is PausableToken {
     // pay fee along with any dust to FeeManager
     payFee(_fee.add(_delta));
     // let the world know that a payout has happened for this token
-    PayoutEvent(_payoutAmount);
+    PayoutEvent(_payoutAmount.sub(_delta));
     return true;
   }
 
@@ -590,6 +595,7 @@ contract PoaTokenConcept is PausableToken {
     external
     atEitherStage(Stages.Active, Stages.Terminated)
     onlyCustodian
+    validIpfs(_ipfsHash)
     returns (bool)
   {
     proofOfCustody = _ipfsHash;

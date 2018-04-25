@@ -12,7 +12,9 @@ const {
   getGasUsed,
   areInRange,
   gasPrice,
-  timeTravel
+  timeTravel,
+  sendTransaction,
+  testWillThrow
 } = require('./general')
 const { finalizedBBK } = require('./bbk')
 const { testApproveAndLockMany } = require('./act')
@@ -35,7 +37,7 @@ const defaultTimeout = new BigNumber(60 * 60 * 24)
 const defaultTotalSupply = new BigNumber('1e20')
 const defaultFundingGoal = new BigNumber(5e5)
 const defaultFiatRate = new BigNumber(33333)
-
+const defaultIpfsHash = 'QmSUfCtXgb59G9tczrz2WuHNAbecV55KRBGXBbZkou5RtE'
 const getDefaultStartTime = async () => {
   const currentBlock = await web3.eth.getBlock(web3.eth.blockNumber)
   const blockTime = new BigNumber(currentBlock.timestamp)
@@ -561,6 +563,7 @@ const testBrokerClaim = async poac => {
 const testPayout = async (poac, fmr, config) => {
   assert(config.from, 'from not included in config!')
   assert(config.value, 'value not included in config!')
+  assert(config.gasPrice, 'gasPrice not included in config!')
 
   const payoutValue = new BigNumber(config.value)
   const _fee = await poac.calculateFee(payoutValue)
@@ -617,6 +620,44 @@ const testPayout = async (poac, fmr, config) => {
     postFeeManagerEtherBalance.sub(preFeeManagerEtherBalance).toString(),
     fee.toString(),
     'FeeManager ether balance should be incremented by fee'
+  )
+}
+
+const testClaim = async (poac, claimer) => {
+  const stage = await poac.stage()
+  const claimerClaimAmount = await poac.currentPayout(claimer, true)
+
+  const preClaimerEtherBalance = await getEtherBalance(claimer)
+  const preContractEtherBalance = await getEtherBalance(poac.address)
+
+  const tx = await poac.claim({
+    from: claimer,
+    gasPrice
+  })
+  const gasUsed = tx.receipt.gasUsed || new BigNumber(0)
+  const gasCost = gasPrice.mul(gasUsed)
+
+  const postClaimerEtherBalance = await getEtherBalance(claimer)
+  const postContractEtherBalance = await getEtherBalance(poac.address)
+
+  const expectedClaimerEtherBalance = preClaimerEtherBalance
+    .sub(gasCost)
+    .add(claimerClaimAmount)
+
+  assert.equal(
+    expectedClaimerEtherBalance.toString(),
+    postClaimerEtherBalance.toString(),
+    'poaTokenHolder ether balance should match expected balance after claiming'
+  )
+  assert.equal(
+    preContractEtherBalance.sub(postContractEtherBalance).toString(),
+    claimerClaimAmount.toString(),
+    'contract ether balance should be decremented by the claimerClaimAmount'
+  )
+  assert.equal(
+    stage.toString(),
+    new BigNumber(4).toString(),
+    'stage should be in 4, Active'
   )
 }
 
@@ -883,6 +924,25 @@ const testReclaimAll = async (poac, tokenHolders) => {
   )
 }
 
+const testPaused = async (poac, shouldBePaused) => {
+  const paused = await poac.paused()
+  assert(shouldBePaused ? paused : !paused, 'contract should be paused')
+}
+
+const testPause = async (poac, config) => {
+  await poac.pause(config)
+  await testPaused(poac, true)
+}
+
+const testUnpause = async (poac, config) => {
+  await poac.unpause(config)
+  await testPaused(poac, false)
+}
+
+const testFallback = async config => {
+  await testWillThrow(sendTransaction, [web3, config])
+}
+
 module.exports = {
   accounts,
   owner,
@@ -901,6 +961,7 @@ module.exports = {
   defaultFundingGoal,
   defaultFiatRate,
   getDefaultStartTime,
+  defaultIpfsHash,
   setupEcosystem,
   testSetCurrencyRate,
   setupPoaAndEcosystem,
@@ -917,10 +978,15 @@ module.exports = {
   testActivate,
   testBrokerClaim,
   testPayout,
+  testClaim,
   testClaimAllPayouts,
   testFirstReclaim,
   testReclaim,
   timeoutContract,
   testSetFailed,
-  testReclaimAll
+  testReclaimAll,
+  testPaused,
+  testPause,
+  testUnpause,
+  testFallback
 }
