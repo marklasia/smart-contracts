@@ -81,6 +81,8 @@ contract PoaTokenConcept is PausableToken {
   uint256 public totalPerTokenPayout;
   // used to keep tract of amount funded relative to fundingGoal
   uint256 public fundedAmount;
+  // used to keep consistent calculations when checking rates
+  uint256 public initialSupply;
 
 
   // used to deduct already claimed payouts on a per token basis
@@ -204,6 +206,7 @@ contract PoaTokenConcept is PausableToken {
 
     // these uints are supposed to be based off of sqm of building
     totalSupply = _totalSupply;
+    initialSupply = totalSupply;
     fundingGoal = _fundingGoal;
     balances[this] = _totalSupply;
 
@@ -255,7 +258,7 @@ contract PoaTokenConcept is PausableToken {
   {
     return _weiAmount
       .mul(1e18)
-      .mul(totalSupply)
+      .mul(initialSupply)
       .div(fiatCentsToWei(fundingGoal))
       .div(1e18);
   }
@@ -271,7 +274,7 @@ contract PoaTokenConcept is PausableToken {
     return _tokenAmount
       .mul(1e18)
       .mul(fiatCentsToWei(fundingGoal))
-      .div(totalSupply)
+      .div(initialSupply)
       .div(1e18);
   }
 
@@ -513,7 +516,7 @@ contract PoaTokenConcept is PausableToken {
     totalSupply = totalSupply.sub(_tokenBalance);
     Transfer(msg.sender, address(0), _tokenBalance);
     // decrement fundedAmount by eth amount converted from token amount being reclaimed
-    fundedAmount = fundedAmount.sub(tokensToWei(_tokenBalance));
+    fundedAmount = fundedAmount.sub(weiToFiatCents(tokensToWei(_tokenBalance)));
     // set reclaim total as token value
     uint256 _reclaimTotal = tokensToWei(_tokenBalance);
     // send Ξ back to sender
