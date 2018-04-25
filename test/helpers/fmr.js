@@ -35,6 +35,7 @@ const setupContracts = async (
   await reg.updateContractAddress('ExchangeRates', exr.address)
   await reg.updateContractAddress('FeeManager', fmr.address)
 
+  // check that at least one of the contributors got bbk
   const balanceCheck = await bbk.balanceOf(contributors[0])
   const bbkPaused = await bbk.paused()
   assert(balanceCheck.greaterThan(0), 'the balance should be more than 0')
