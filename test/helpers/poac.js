@@ -27,7 +27,8 @@ const broker = accounts[1]
 const custodian = accounts[2]
 const bbkBonusAddress = accounts[3]
 const bbkContributors = accounts.slice(4, 6)
-const whitelistedPoaBuyers = accounts.slice(7, 9)
+// overlap with bbkContributors... need more than 2 buyer accounts
+const whitelistedPoaBuyers = accounts.slice(4, 9)
 const bbkTokenDistAmount = new BigNumber(1e18)
 const actRate = new BigNumber(1e3)
 const defaultName = 'TestPoa'
@@ -623,7 +624,8 @@ const testPayout = async (poac, fmr, config) => {
   )
 }
 
-const testClaim = async (poac, claimer) => {
+const testClaim = async (poac, config, isTerminated) => {
+  const claimer = config.from
   const stage = await poac.stage()
   const claimerClaimAmount = await poac.currentPayout(claimer, true)
 
@@ -656,8 +658,8 @@ const testClaim = async (poac, claimer) => {
   )
   assert.equal(
     stage.toString(),
-    new BigNumber(4).toString(),
-    'stage should be in 4, Active'
+    isTerminated ? new BigNumber(5).toString() : new BigNumber(4).toString(),
+    `stage should be in ${isTerminated ? 5 : 4}, Active`
   )
 }
 
@@ -905,9 +907,11 @@ const testReclaim = async (poac, config) => {
 }
 
 const testReclaimAll = async (poac, tokenHolders) => {
-  await testFirstReclaim(poac, { from: tokenHolders[0] })
-  for (const tokenHolder of tokenHolders.slice(1)) {
-    await testReclaim(poac, { from: tokenHolder })
+  for (const tokenHolder of tokenHolders) {
+    const tokenBalance = await poac.balanceOf(tokenHolder)
+    if (tokenBalance.greaterThan(0)) {
+      await testReclaim(poac, { from: tokenHolder })
+    }
   }
 
   const finalContractTotalSupply = await poac.totalSupply()
@@ -941,6 +945,120 @@ const testUnpause = async (poac, config) => {
 
 const testFallback = async config => {
   await testWillThrow(sendTransaction, [web3, config])
+}
+
+const testUpdateProofOfCustody = async (poac, ipfsHash, config) => {
+  const preIpfsHash = await poac.proofOfCustody()
+
+  await poac.updateProofOfCustody(ipfsHash, config)
+
+  const postIpfsHash = await poac.proofOfCustody()
+
+  assert(preIpfsHash != postIpfsHash, 'should not be same ipfsHash')
+  assert.equal(postIpfsHash, ipfsHash, 'new ifpsHash should be set in contract')
+}
+
+const testTransfer = async (poac, to, value, args) => {
+  assert(args.from, 'args.from not set!')
+  const sender = args.from
+  const receiver = to
+  const transferAmount = value
+  const preSenderBalance = await poac.balanceOf(sender)
+  const preReceiverBalance = await poac.balanceOf(receiver)
+
+  await poac.transfer(receiver, transferAmount, args)
+
+  const postSenderBalance = await poac.balanceOf(sender)
+  const postReceiverBalance = await poac.balanceOf(receiver)
+
+  assert.equal(
+    preSenderBalance.minus(postSenderBalance).toString(),
+    transferAmount.toString(),
+    'sender token balance should be decremented by the transferAmount'
+  )
+  assert.equal(
+    postReceiverBalance.minus(preReceiverBalance).toString(),
+    transferAmount.toString(),
+    'receiver token balance should be incrementd by the transferAmount'
+  )
+}
+
+const testApprove = async (poac, spender, value, args) => {
+  assert(args.from, 'args.from not set!')
+  const approver = args.from
+  const preApproval = await poac.allowance(approver, spender)
+
+  await poac.approve(spender, value, args)
+
+  const postApproval = await poac.allowance(approver, spender)
+
+  assert.equal(
+    postApproval.minus(preApproval).toString(),
+    value.toString(),
+    'spender allowance for approver should be incremented by the value'
+  )
+}
+
+const testTransferFrom = async (
+  poac,
+  allowanceOwner,
+  receiver,
+  value,
+  config
+) => {
+  assert(!!config.from, 'config.from required!')
+  const allowanceSpender = config.from
+
+  const preOwnerTokenBalance = await poac.balanceOf(allowanceOwner)
+  const preReceiverBalance = await poac.balanceOf(receiver)
+  const preSpenderAllowance = await poac.allowance(
+    allowanceOwner,
+    allowanceSpender
+  )
+
+  await poac.transferFrom(allowanceOwner, receiver, value, config)
+
+  const postOwnerTokenBalance = await poac.balanceOf(allowanceOwner)
+  const postReceiverBalance = await poac.balanceOf(receiver)
+  const postSpenderAllowance = await poac.allowance(
+    allowanceOwner,
+    allowanceSpender
+  )
+
+  assert.equal(
+    preOwnerTokenBalance.minus(postOwnerTokenBalance).toString(),
+    value.toString(),
+    'the owner balance should be decremented by the transferFrom amount'
+  )
+  assert.equal(
+    postReceiverBalance.minus(preReceiverBalance).toString(),
+    value.toString(),
+    'the spender balance should be incremented by the transferFrom amount'
+  )
+  assert.equal(
+    preSpenderAllowance.minus(postSpenderAllowance).toString(),
+    value.toString(),
+    'the spender allowance should be decremented by the transferFrom amount'
+  )
+}
+
+const testTerminate = async (poac, config) => {
+  const preStage = await poac.stage()
+
+  await poac.terminate(config)
+
+  const postStage = await poac.stage()
+
+  assert.equal(
+    preStage.toString(),
+    new BigNumber(4).toString(),
+    'preStage should be 4, Active'
+  )
+  assert.equal(
+    postStage.toString(),
+    new BigNumber(5).toString(),
+    'postStage should be 5, Terminated'
+  )
 }
 
 module.exports = {
@@ -988,5 +1106,10 @@ module.exports = {
   testPaused,
   testPause,
   testUnpause,
-  testFallback
+  testFallback,
+  testUpdateProofOfCustody,
+  testTransfer,
+  testApprove,
+  testTransferFrom,
+  testTerminate
 }

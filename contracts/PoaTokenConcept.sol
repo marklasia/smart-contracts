@@ -159,6 +159,7 @@ contract PoaTokenConcept is PausableToken {
     require(bytes(_ipfsHash).length == 46);
     require(bytes(_ipfsHash)[0] == 0x51);
     require(bytes(_ipfsHash)[1] == 0x6D);
+    require(keccak256(_ipfsHash) != keccak256(proofOfCustody));
     _;
   }
 

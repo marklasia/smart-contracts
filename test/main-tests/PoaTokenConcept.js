@@ -5,8 +5,6 @@ const {
   custodian,
   bbkContributors,
   whitelistedPoaBuyers,
-  bbkTokenDistAmount,
-  actRate,
   defaultName,
   defaultSymbol,
   defaultFiatCurrency,
@@ -42,7 +40,12 @@ const {
   testPaused,
   testPause,
   testUnpause,
-  testFallback
+  testFallback,
+  testUpdateProofOfCustody,
+  testTransfer,
+  testApprove,
+  testTransferFrom,
+  testTerminate
 } = require('../helpers/poac')
 const {
   testWillThrow,
@@ -484,23 +487,130 @@ describe("when going through Poa's normal flow", async () => {
 describe('when in PreFunding (stage 0)', async () => {
   contract('PoaTokenConcept', () => {
     let poac
+    let fmr
 
     before('setup contracts', async () => {
       const contracts = await setupPoaAndEcosystem()
       poac = contracts.poac
+      fmr = contracts.fmr
     })
 
-    // BEGIN SHOULD THROW FUNCTIONS
-
-    it('should NOT unpause', async () => {
-      await testWillThrow(poac.unpause, [{ from: owner }])
+    it('should start paused', async () => {
+      await testPaused(poac, true)
     })
+
+    it('should NOT unpause, even if owner', async () => {
+      await testWillThrow(testUnpause, [poac, { from: owner }])
+    })
+
+    it('should NOT buy, even if whitelisted', async () => {
+      await testWillThrow(testBuyTokens, [
+        poac,
+        { from: whitelistedPoaBuyers[0], value: 3e17, gasPrice }
+      ])
+    })
+
+    it('should NOT setFailed', async () => {
+      await testWillThrow(testSetFailed, [poac, { from: owner }])
+    })
+
+    it('should NOT activate, even if custodian', async () => {
+      await testWillThrow(testActivate, [
+        poac,
+        fmr,
+        defaultIpfsHash,
+        { from: custodian }
+      ])
+    })
+
+    it('should NOT terminate, even if custodian', async () => {
+      await testWillThrow(testTerminate, [poac, { from: custodian }])
+    })
+
+    it('should NOT reclaim, even if owning tokens', async () => {
+      await testWillThrow(testReclaim, [
+        poac,
+        { from: whitelistedPoaBuyers[0] }
+      ])
+    })
+
+    it('should NOT payout, even if custodian', async () => {
+      await testWillThrow(testPayout, [
+        poac,
+        fmr,
+        { from: custodian, value: 1e18, gasPrice }
+      ])
+    })
+
+    it('should NOT claim since there are no payouts', async () => {
+      await testWillThrow(testClaim, [poac, { from: whitelistedPoaBuyers[0] }])
+    })
+
+    it('should NOT updateProofOfCustody, even if valid and from custodian', async () => {
+      await testWillThrow(testUpdateProofOfCustody, [
+        poac,
+        defaultIpfsHash,
+        { from: custodian }
+      ])
+    })
+
+    it('should NOT transfer', async () => {
+      await testWillThrow(testTransfer, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+    })
+
+    it('should NOT approve', async () => {
+      await testWillThrow(testApprove, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+    })
+
+    it('should NOT transferFrom', async () => {
+      // in theory would need approval put here for the sake of demonstrating
+      // that approval was attempted as well.
+      await testWillThrow(testApprove, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+      await testWillThrow(testTransferFrom, [
+        poac,
+        whitelistedPoaBuyers[0],
+        bbkContributors[0],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[1]
+        }
+      ])
+    })
+
+    it('should NOT allow fallback to run', async () => {
+      await testFallback({
+        from: whitelistedPoaBuyers[0],
+        value: 3e17,
+        to: poac.address
+      })
+    })
+
+    // start core stage functionality
 
     it('should NOT move to funding before startTime, EVEN if owner', async () => {
       await testWillThrow(testStartSale, [poac, { from: owner }])
     })
-
-    // END SHOULD THROW FUNCTIONS
 
     it('should allow ANYONE to move to Stages.Funding when after startTime', async () => {
       const neededTime = await determineNeededTimeTravel(
@@ -516,15 +626,127 @@ describe('when in PreFunding (stage 0)', async () => {
 describe('when in Funding (stage 1)', () => {
   contract('PoaTokenConcept', () => {
     let poac
+    let fmr
 
     before('setup contracts', async () => {
       const contracts = await setupPoaAndEcosystem()
       poac = contracts.poac
+      fmr = contracts.fmr
 
       const neededTime = await determineNeededTimeTravel(poac)
       await timeTravel(neededTime)
       await testStartSale(poac)
     })
+
+    it('should start paused', async () => {
+      await testPaused(poac, true)
+    })
+
+    it('should NOT unpause, even if owner', async () => {
+      await testWillThrow(testUnpause, [poac, { from: owner }])
+    })
+
+    it('should NOT startSale, even if owner', async () => {
+      await testWillThrow(testStartSale, [poac, { from: owner }])
+    })
+
+    it('should NOT setFailed', async () => {
+      await testWillThrow(testSetFailed, [poac, { from: owner }])
+    })
+
+    it('should NOT activate, even if custodian', async () => {
+      await testWillThrow(testActivate, [
+        poac,
+        fmr,
+        defaultIpfsHash,
+        { from: custodian }
+      ])
+    })
+
+    it('should NOT terminate, even if custodian', async () => {
+      await testWillThrow(testTerminate, [poac, { from: custodian }])
+    })
+
+    it('should NOT reclaim, even if owning tokens', async () => {
+      await testWillThrow(testReclaim, [
+        poac,
+        { from: whitelistedPoaBuyers[0] }
+      ])
+    })
+
+    it('should NOT payout, even if custodian', async () => {
+      await testWillThrow(testPayout, [
+        poac,
+        fmr,
+        { from: custodian, value: 1e18, gasPrice }
+      ])
+    })
+
+    it('should NOT claim since there are no payouts', async () => {
+      await testWillThrow(testClaim, [poac, { from: whitelistedPoaBuyers[0] }])
+    })
+
+    it('should NOT updateProofOfCustody, even if valid and from custodian', async () => {
+      await testWillThrow(testUpdateProofOfCustody, [
+        poac,
+        defaultIpfsHash,
+        { from: custodian }
+      ])
+    })
+
+    it('should NOT transfer', async () => {
+      await testWillThrow(testTransfer, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+    })
+
+    it('should NOT approve', async () => {
+      await testWillThrow(testApprove, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+    })
+
+    it('should NOT transferFrom', async () => {
+      // in theory would need approval put here for the sake of demonstrating
+      // that approval was attempted as well.
+      await testWillThrow(testApprove, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+      await testWillThrow(testTransferFrom, [
+        poac,
+        whitelistedPoaBuyers[0],
+        bbkContributors[0],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[1]
+        }
+      ])
+    })
+
+    it('should NOT allow fallback to run', async () => {
+      await testFallback({
+        from: whitelistedPoaBuyers[0],
+        value: 3e17,
+        to: poac.address
+      })
+    })
+
+    // start core stage functionality
 
     it('should allow buying', async () => {
       await testBuyTokens(poac, {
@@ -551,7 +773,7 @@ describe('when in Pending (stage 2)', () => {
     before('setup contracts', async () => {
       const contracts = await setupPoaAndEcosystem()
       poac = contracts.poac
-      fmr = contracts.poac
+      fmr = contracts.fmr
 
       // move into Funding
       const neededTime = await determineNeededTimeTravel(poac)
@@ -565,6 +787,114 @@ describe('when in Pending (stage 2)', () => {
       })
     })
 
+    it('should start paused', async () => {
+      await testPaused(poac, true)
+    })
+
+    it('should NOT unpause, even if owner', async () => {
+      await testWillThrow(testUnpause, [poac, { from: owner }])
+    })
+
+    it('should NOT startSale, even if owner', async () => {
+      await testWillThrow(testStartSale, [poac, { from: owner }])
+    })
+
+    it('should NOT buy, even if whitelisted', async () => {
+      await testWillThrow(testBuyTokens, [
+        poac,
+        { from: whitelistedPoaBuyers[0], value: 3e17, gasPrice }
+      ])
+    })
+
+    it('should NOT setFailed', async () => {
+      await testWillThrow(testSetFailed, [poac, { from: owner }])
+    })
+
+    it('should NOT terminate, even if custodian', async () => {
+      await testWillThrow(testTerminate, [poac, { from: custodian }])
+    })
+
+    it('should NOT reclaim, even if owning tokens', async () => {
+      await testWillThrow(testReclaim, [
+        poac,
+        { from: whitelistedPoaBuyers[0] }
+      ])
+    })
+
+    it('should NOT payout, even if custodian', async () => {
+      await testWillThrow(testPayout, [
+        poac,
+        fmr,
+        { from: custodian, value: 1e18, gasPrice }
+      ])
+    })
+
+    it('should NOT claim since there are no payouts', async () => {
+      await testWillThrow(testClaim, [poac, { from: whitelistedPoaBuyers[0] }])
+    })
+
+    it('should NOT updateProofOfCustody, even if valid and from custodian', async () => {
+      await testWillThrow(testUpdateProofOfCustody, [
+        poac,
+        defaultIpfsHash,
+        { from: custodian }
+      ])
+    })
+
+    it('should NOT transfer', async () => {
+      await testWillThrow(testTransfer, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+    })
+
+    it('should NOT approve', async () => {
+      await testWillThrow(testApprove, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+    })
+
+    it('should NOT transferFrom', async () => {
+      // in theory would need approval put here for the sake of demonstrating
+      // that approval was attempted as well.
+      await testWillThrow(testApprove, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+      await testWillThrow(testTransferFrom, [
+        poac,
+        whitelistedPoaBuyers[0],
+        bbkContributors[0],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[1]
+        }
+      ])
+    })
+
+    it('should NOT allow fallback to run', async () => {
+      await testFallback({
+        from: whitelistedPoaBuyers[0],
+        value: 3e17,
+        to: poac.address
+      })
+    })
+
+    // start core stage functionality
+
     it('should move into Active when activated', async () => {
       await testActivate(poac, fmr, defaultIpfsHash, {
         from: custodian
@@ -577,10 +907,12 @@ describe('when in Failed (stage 3)', () => {
   contract('PoaTokenConcept', () => {
     const tokenBuyAmount = new BigNumber(5e17)
     let poac
+    let fmr
 
-    beforeEach('setup contracts', async () => {
+    before('setup contracts', async () => {
       const contracts = await setupPoaAndEcosystem()
       poac = contracts.poac
+      fmr = contracts.fmr
 
       // move into Funding
       const neededTime = await determineNeededTimeTravel(poac)
@@ -599,20 +931,131 @@ describe('when in Failed (stage 3)', () => {
         gasPrice
       })
 
+      await testBuyTokens(poac, {
+        from: whitelistedPoaBuyers[2],
+        value: tokenBuyAmount,
+        gasPrice
+      })
+
       await timeoutContract(poac)
     })
+
+    it('should start paused', async () => {
+      await testPaused(poac, true)
+    })
+
+    it('should NOT unpause, even if owner', async () => {
+      await testWillThrow(testUnpause, [poac, { from: owner }])
+    })
+
+    it('should NOT startSale, even if owner', async () => {
+      await testWillThrow(testStartSale, [poac, { from: owner }])
+    })
+
+    it('should NOT buy, even if whitelisted', async () => {
+      await testWillThrow(testBuyTokens, [
+        poac,
+        { from: whitelistedPoaBuyers[0], value: 3e17, gasPrice }
+      ])
+    })
+
+    it('should NOT activate, even if custodian', async () => {
+      await testWillThrow(testActivate, [
+        poac,
+        fmr,
+        defaultIpfsHash,
+        { from: custodian }
+      ])
+    })
+
+    it('should NOT terminate, even if custodian', async () => {
+      await testWillThrow(testTerminate, [poac, { from: custodian }])
+    })
+
+    it('should NOT allow fallback to run', async () => {
+      await testFallback({
+        from: whitelistedPoaBuyers[0],
+        value: 3e17,
+        to: poac.address
+      })
+    })
+
+    it('should NOT payout, even if custodian', async () => {
+      await testWillThrow(testPayout, [
+        poac,
+        fmr,
+        { from: custodian, value: 1e18, gasPrice }
+      ])
+    })
+
+    it('should NOT claim since there are no payouts', async () => {
+      await testWillThrow(testClaim, [poac, { from: whitelistedPoaBuyers[0] }])
+    })
+
+    it('should NOT updateProofOfCustody, even if valid and from custodian', async () => {
+      await testWillThrow(testUpdateProofOfCustody, [
+        poac,
+        defaultIpfsHash,
+        { from: custodian }
+      ])
+    })
+
+    it('should NOT transfer', async () => {
+      await testWillThrow(testTransfer, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+    })
+
+    it('should NOT approve', async () => {
+      await testWillThrow(testApprove, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+    })
+
+    it('should NOT transferFrom', async () => {
+      // in theory would need approval put here for the sake of demonstrating
+      // that approval was attempted as well.
+      await testWillThrow(testApprove, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+      await testWillThrow(testTransferFrom, [
+        poac,
+        whitelistedPoaBuyers[0],
+        bbkContributors[0],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[1]
+        }
+      ])
+    })
+
+    // start core stage functionality
 
     it('should setFailed', async () => {
       await testSetFailed(poac)
     })
 
-    it('should hit checkTimeout when reclaiming after timeout', async () => {
-      await testFirstReclaim(poac, { from: whitelistedPoaBuyers[0] })
+    it('should NOT setFailed again, even if owner', async () => {
+      await testWillThrow(testSetFailed, [poac, { from: owner }])
     })
 
-    it('should allow subseequent reclaiming after timeout', async () => {
-      await testFirstReclaim(poac, { from: whitelistedPoaBuyers[0] })
-      await testReclaim(poac, { from: whitelistedPoaBuyers[1] })
+    it('should reclaim', async () => {
+      await testReclaim(poac, { from: whitelistedPoaBuyers[0] })
     })
 
     it('should reclaim all tokens', async () => {
@@ -621,8 +1064,9 @@ describe('when in Failed (stage 3)', () => {
   })
 })
 
-describe.only('when in Active (stage 4)', () => {
+describe('when in Active (stage 4)', () => {
   contract('PoaTokenConcept', () => {
+    const newIpfsHash = 'Qmd286K6pohQcTKYqnS1YhWrCiS4gz7Xi34sdwMe9USZ7u'
     let poac
     let fmr
 
@@ -642,6 +1086,7 @@ describe.only('when in Active (stage 4)', () => {
         value: 1e18,
         gasPrice
       })
+
       await testBuyRemainingTokens(poac, {
         from: whitelistedPoaBuyers[1],
         gasPrice
@@ -729,7 +1174,7 @@ describe.only('when in Active (stage 4)', () => {
     // start core stage functionality
 
     it('should NOT claim if no payouts', async () => {
-      await testWillThrow(testClaim, [poac, whitelistedPoaBuyers[0]])
+      await testWillThrow(testClaim, [poac, { from: whitelistedPoaBuyers[0] }])
     })
 
     it('should payout as custodian', async () => {
@@ -737,84 +1182,87 @@ describe.only('when in Active (stage 4)', () => {
     })
 
     it('should NOT payout as custodian if payout is too low', async () => {
-
+      await testWillThrow(testPayout, [
+        poac,
+        fmr,
+        { value: 100, from: custodian, gasPrice }
+      ])
     })
 
     it('should NOT payout as NOT custodian', async () => {
-
+      await testWillThrow(testPayout, [
+        poac,
+        fmr,
+        { value: 2e18, from: owner, gasPrice }
+      ])
     })
 
     it('should claim if payout has been made', async () => {
-      await testClaim(poac, whitelistedPoaBuyers[0])
+      await testClaim(poac, { from: whitelistedPoaBuyers[0] })
+    })
+
+    it('should update proofOfCustody if custodian', async () => {
+      await testUpdateProofOfCustody(poac, newIpfsHash, { from: custodian })
     })
 
     it('should NOT update proofOfCustody if NOT custodian', async () => {
-
+      await testWillThrow(testUpdateProofOfCustody, [
+        poac,
+        newIpfsHash,
+        { from: owner }
+      ])
     })
 
     it('should NOT update proofOfCustody if NOT valid ipfsHash', async () => {
+      // invalid length
+      await testWillThrow(testUpdateProofOfCustody, [
+        poac,
+        newIpfsHash.slice(0, newIpfsHash.length - 2),
+        { from: owner }
+      ])
 
+      // wrong hashing algo
+      await testWillThrow(testUpdateProofOfCustody, [
+        poac,
+        'Zr' + newIpfsHash.slice(2),
+        { from: owner }
+      ])
     })
 
     it('should transfer', async () => {
-
+      await testTransfer(poac, whitelistedPoaBuyers[1], 1e17, {
+        from: whitelistedPoaBuyers[0]
+      })
     })
 
     it('should approve', async () => {
-
+      await testApprove(poac, whitelistedPoaBuyers[1], 1e17, {
+        from: whitelistedPoaBuyers[0]
+      })
     })
 
     it('should transferFrom', async () => {
-
+      await testTransferFrom(
+        poac,
+        whitelistedPoaBuyers[0],
+        whitelistedPoaBuyers[2],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[1]
+        }
+      )
     })
 
-    it('should return the correct currentPayout', async () => {
-
+    // test for owner done through contract setup test for Terminated stage
+    it('should allow terminating if owner or custodian', async () => {
+      await testTerminate(poac, { from: custodian })
     })
-
-    // start core stage functionality
-
-    /*
-    tovarish
-    lifecycle methods:
-      unpause:
-        Active
-      startSale:
-        PreFunding
-      Buy:
-        Funding
-      setFailed:
-        Funding
-      activate:
-        Pending
-      terminate:
-        Terminated
-      reclaim:
-        Failed
-      payout:
-        Active
-        Terminated
-      claim:
-        Active
-      updateProofOfCustody:
-        Active
-        Terminated
-      transfer
-        Active
-      transferFrom
-        Active
-      approve
-        Active
-    other:
-      currenctPayout
-      settleUnclaimedPerTokenPayouts
-      fallback
-    */
   })
 })
 
 describe('when in Terminated (stage 5)', () => {
   contract('PoaTokenConcept', () => {
+    const newIpfsHash = 'Qmd286K6pohQcTKYqnS1YhWrCiS4gz7Xi34sdwMe9USZ7u'
     let poac
     let fmr
 
@@ -829,6 +1277,12 @@ describe('when in Terminated (stage 5)', () => {
       await testStartSale(poac)
 
       // move into Pending
+      await testBuyTokens(poac, {
+        from: whitelistedPoaBuyers[0],
+        value: 1e18,
+        gasPrice
+      })
+
       await testBuyRemainingTokens(poac, {
         from: whitelistedPoaBuyers[1],
         gasPrice
@@ -842,11 +1296,161 @@ describe('when in Terminated (stage 5)', () => {
       // clean out broker balance for easier debugging
       await testBrokerClaim(poac)
 
-      // TODO: create helper to terminate
+      // move into Terminated
+      //⚠️  also acts as a test terminating as owner rather than custodian
+      await testTerminate(poac, { from: owner })
     })
 
-    it('should do things', async () => {
-      assert(true)
+    it('should start paused', async () => {
+      await testPaused(poac, true)
+    })
+
+    it('should NOT unpause, even if owner', async () => {
+      await testWillThrow(testUnpause, [poac, { from: owner }])
+    })
+
+    it('should NOT startSale, even if owner', async () => {
+      await testWillThrow(testStartSale, [poac, { from: owner }])
+    })
+
+    it('should NOT buy, even if whitelisted', async () => {
+      await testWillThrow(testBuyTokens, [
+        poac,
+        { from: whitelistedPoaBuyers[0], value: 3e17, gasPrice }
+      ])
+    })
+
+    it('should NOT setFailed, even if owner', async () => {
+      await testWillThrow(testSetFailed, [poac, { from: owner }])
+    })
+
+    it('should NOT activate, even if custodian', async () => {
+      await testWillThrow(testActivate, [
+        poac,
+        fmr,
+        defaultIpfsHash,
+        { from: custodian }
+      ])
+    })
+
+    it('should NOT terminate, even if custodian', async () => {
+      await testWillThrow(testTerminate, [poac, { from: custodian }])
+    })
+
+    it('should NOT reclaim, even if owning tokens', async () => {
+      await testWillThrow(testReclaim, [
+        poac,
+        { from: whitelistedPoaBuyers[0] }
+      ])
+    })
+
+    it('should NOT allow fallback to run', async () => {
+      await testFallback({
+        from: whitelistedPoaBuyers[0],
+        value: 3e17,
+        to: poac.address
+      })
+    })
+
+    it('should NOT transfer', async () => {
+      await testWillThrow(testTransfer, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+    })
+
+    it('should NOT approve', async () => {
+      await testWillThrow(testApprove, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+    })
+
+    it('should NOT transferFrom', async () => {
+      // in theory would need approval put here for the sake of demonstrating
+      // that approval was attempted as well.
+      await testWillThrow(testApprove, [
+        poac,
+        whitelistedPoaBuyers[1],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[0]
+        }
+      ])
+      await testWillThrow(testTransferFrom, [
+        poac,
+        whitelistedPoaBuyers[0],
+        bbkContributors[0],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[1]
+        }
+      ])
+    })
+    // start core stage functionality
+
+    it('should NOT claim if no payouts', async () => {
+      await testWillThrow(testClaim, [poac, { from: whitelistedPoaBuyers[0] }])
+    })
+
+    it('should payout as custodian', async () => {
+      await testPayout(poac, fmr, { value: 2e18, from: custodian, gasPrice })
+    })
+
+    it('should NOT payout as custodian if payout is too low', async () => {
+      await testWillThrow(testPayout, [
+        poac,
+        fmr,
+        { value: 100, from: custodian, gasPrice }
+      ])
+    })
+
+    it('should NOT payout as NOT custodian', async () => {
+      await testWillThrow(testPayout, [
+        poac,
+        fmr,
+        { value: 2e18, from: owner, gasPrice }
+      ])
+    })
+
+    it('should claim if payout has been made', async () => {
+      await testClaim(poac, { from: whitelistedPoaBuyers[0] }, true)
+    })
+
+    it('should update proofOfCustody if custodian', async () => {
+      await testUpdateProofOfCustody(poac, newIpfsHash, { from: custodian })
+    })
+
+    it('should NOT update proofOfCustody if NOT custodian', async () => {
+      await testWillThrow(testUpdateProofOfCustody, [
+        poac,
+        newIpfsHash,
+        { from: owner }
+      ])
+    })
+
+    it('should NOT update proofOfCustody if NOT valid ipfsHash', async () => {
+      // invalid length
+      await testWillThrow(testUpdateProofOfCustody, [
+        poac,
+        newIpfsHash.slice(0, newIpfsHash.length - 2),
+        { from: owner }
+      ])
+
+      // wrong hashing algo
+      await testWillThrow(testUpdateProofOfCustody, [
+        poac,
+        'Zr' + newIpfsHash.slice(2),
+        { from: owner }
+      ])
     })
   })
 })
@@ -855,14 +1459,37 @@ describe('when handling unhappy paths', async () => {
   contract('PoaTokenConcept', () => {
     let poac
 
-    before('setup contracts', async () => {
+    beforeEach('setup contracts', async () => {
       const contracts = await setupPoaAndEcosystem()
       poac = contracts.poac
     })
 
-    it('should do things', async () => {
-      await poac.stage()
-      assert(true)
+    it('should hit checkTimeout when reclaiming after timeout', async () => {
+      const tokenBuyAmount = new BigNumber(1e18)
+      const neededTime = await determineNeededTimeTravel(poac)
+      await timeTravel(neededTime)
+      await testStartSale(poac)
+
+      // purchase tokens to reclaim when failed
+      await testBuyTokens(poac, {
+        from: whitelistedPoaBuyers[0],
+        value: tokenBuyAmount,
+        gasPrice
+      })
+      await testBuyTokens(poac, {
+        from: whitelistedPoaBuyers[1],
+        value: tokenBuyAmount,
+        gasPrice
+      })
+
+      await testBuyTokens(poac, {
+        from: whitelistedPoaBuyers[2],
+        value: tokenBuyAmount,
+        gasPrice
+      })
+
+      await timeoutContract(poac)
+      await testFirstReclaim(poac, { from: whitelistedPoaBuyers[0] })
     })
   })
 })
