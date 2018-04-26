@@ -140,8 +140,15 @@ contract PoaTokenConcept is PausableToken {
     _;
   }
 
+  /*
+    TODO: change this so that it works in pending as well!
+    probably need to change this in CustomPoaToken as well...
+  */
   modifier checkTimeout() {
-    if (stage == Stages.Funding && block.timestamp >= creationTime.add(timeout)) {
+    if (
+      (stage == Stages.Funding || stage == Stages.Pending) && 
+      block.timestamp >= creationTime.add(timeout)
+    ) {
       uint256 _unsoldBalance = balances[this];
       balances[this] = 0;
       totalSupply = totalSupply.sub(_unsoldBalance);
