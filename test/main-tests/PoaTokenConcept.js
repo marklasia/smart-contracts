@@ -1538,7 +1538,7 @@ describe('when handling unhappy paths', async () => {
   })
 })
 
-describe('when trying various scenarios involving payout, transfer, approve, and transferFrom', () => {
+describe.only('when trying various scenarios involving payout, transfer, approve, and transferFrom', () => {
   contract('PoaTokenConcept', () => {
     let poac
     let fmr
@@ -1560,7 +1560,10 @@ describe('when trying various scenarios involving payout, transfer, approve, and
       await testBuyTokensMulti(poac, defaultBuyAmount)
 
       await testBuyRemainingTokens(poac, {
-        from: whitelistedPoaBuyers[0],
+        from:
+          whitelistedPoaBuyers[
+            Math.floor(Math.random() * whitelistedPoaBuyers.length)
+          ],
         gasPrice
       })
 
