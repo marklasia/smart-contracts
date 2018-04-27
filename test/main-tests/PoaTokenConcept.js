@@ -8,7 +8,8 @@ const {
   defaultName,
   defaultSymbol,
   defaultFiatCurrency,
-  defaultTimeout,
+  defaultFundingTimeout,
+  defaultActivationTimeout,
   defaultTotalSupply,
   defaultFundingGoal,
   defaultFiatRate,
@@ -34,7 +35,8 @@ const {
   testClaimAllPayouts,
   testFirstReclaim,
   testReclaim,
-  timeoutContract,
+  fundingTimeoutContract,
+  activationTimeoutContract,
   testSetFailed,
   testReclaimAll,
   testPaused,
@@ -45,13 +47,17 @@ const {
   testTransfer,
   testApprove,
   testTransferFrom,
-  testTerminate
+  testTerminate,
+  testChangeCustodianAddress,
+  testBuyTokensMulti,
+  getAccountInformation
 } = require('../helpers/poac')
 const {
   testWillThrow,
   addressZero,
   timeTravel,
-  gasPrice
+  gasPrice,
+  areInRange
 } = require('../helpers/general.js')
 const BigNumber = require('bignumber.js')
 
@@ -82,7 +88,8 @@ describe('when initializing PoaTokenConcept', () => {
         custodian,
         reg.address,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
@@ -108,7 +115,8 @@ describe('when initializing PoaTokenConcept', () => {
         custodian,
         reg.address,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
@@ -134,7 +142,8 @@ describe('when initializing PoaTokenConcept', () => {
         custodian,
         reg.address,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
@@ -160,7 +169,8 @@ describe('when initializing PoaTokenConcept', () => {
         custodian,
         reg.address,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
@@ -186,7 +196,8 @@ describe('when initializing PoaTokenConcept', () => {
         custodian,
         reg.address,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
@@ -199,7 +210,8 @@ describe('when initializing PoaTokenConcept', () => {
         custodian,
         reg.address,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
@@ -225,7 +237,8 @@ describe('when initializing PoaTokenConcept', () => {
         addressZero,
         reg.address,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
@@ -238,7 +251,8 @@ describe('when initializing PoaTokenConcept', () => {
         null,
         reg.address,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
@@ -264,7 +278,8 @@ describe('when initializing PoaTokenConcept', () => {
         custodian,
         addressZero,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
@@ -277,7 +292,8 @@ describe('when initializing PoaTokenConcept', () => {
         custodian,
         null,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
@@ -304,13 +320,14 @@ describe('when initializing PoaTokenConcept', () => {
         reg.address,
         // simulate day before
         new BigNumber(Date.now()).div(1000).sub(60 * 60 * 24),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         defaultFundingGoal
       ])
     })
 
-    it('should NOT initialize with timeout less than 1 day', async () => {
+    it('should NOT initialize with fundingTimeout less than 1 day', async () => {
       await testSetCurrencyRate(
         exr,
         exp,
@@ -340,6 +357,37 @@ describe('when initializing PoaTokenConcept', () => {
       ])
     })
 
+    it('should NOT initialize with activationTimeout less than 7 days', async () => {
+      await testSetCurrencyRate(
+        exr,
+        exp,
+        defaultFiatCurrency,
+        defaultFiatRate,
+        {
+          from: owner,
+          value: 1e18
+        }
+      )
+
+      await testWillThrow(PoaTokenConcept.new, [
+        defaultName,
+        defaultSymbol,
+        defaultFiatCurrency,
+        broker,
+        custodian,
+        reg.address,
+        await getDefaultStartTime(),
+        // simulate 1 second less than a day
+        new BigNumber(60)
+          .mul(60)
+          .mul(24)
+          .mul(7)
+          .sub(1),
+        defaultTotalSupply,
+        defaultFundingGoal
+      ])
+    })
+
     it('should NOT initialize with totalSupply less than fundingGoal', async () => {
       await testSetCurrencyRate(
         exr,
@@ -360,7 +408,8 @@ describe('when initializing PoaTokenConcept', () => {
         custodian,
         reg.address,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultFundingGoal.sub(1),
         defaultFundingGoal
       ])
@@ -386,7 +435,8 @@ describe('when initializing PoaTokenConcept', () => {
         custodian,
         reg.address,
         await getDefaultStartTime(),
-        defaultTimeout,
+        defaultFundingTimeout,
+        defaultActivationTimeout,
         defaultTotalSupply,
         0
       ])
@@ -397,7 +447,7 @@ describe('when initializing PoaTokenConcept', () => {
 // TODO: very nervous about integer division here...
 // need to find out how much is being lost and at what point rates/values
 // will only return 0...
-describe('when testing utility functions', () => {
+describe('when testing stage independent functions', () => {
   contract('PoaTokenConcept', () => {
     let poac
 
@@ -422,8 +472,30 @@ describe('when testing utility functions', () => {
       await testTokensToWei(poac, new BigNumber('1e18'))
     })
 
-    it('should calculate the correct fee', async () => {
+    it('should calculate correct fee', async () => {
       await testCalculateFee(poac, new BigNumber('1e18'))
+    })
+
+    it('should NOT changeCustodianAddress when NOT custodian', async () => {
+      await testWillThrow(testChangeCustodianAddress, [
+        poac,
+        whitelistedPoaBuyers[1],
+        { from: whitelistedPoaBuyers[2] }
+      ])
+    })
+
+    it('should change changeCustodianAddress', async () => {
+      await testChangeCustodianAddress(poac, whitelistedPoaBuyers[2], {
+        from: custodian
+      })
+    })
+
+    it('should NOT allow payable fallback to run', async () => {
+      await testFallback({
+        from: whitelistedPoaBuyers[0],
+        value: 3e17,
+        to: poac.address
+      })
     })
   })
 })
@@ -598,14 +670,6 @@ describe('when in PreFunding (stage 0)', async () => {
       ])
     })
 
-    it('should NOT allow fallback to run', async () => {
-      await testFallback({
-        from: whitelistedPoaBuyers[0],
-        value: 3e17,
-        to: poac.address
-      })
-    })
-
     // start core stage functionality
 
     it('should NOT move to funding before startTime, EVEN if owner', async () => {
@@ -736,14 +800,6 @@ describe('when in Funding (stage 1)', () => {
           from: whitelistedPoaBuyers[1]
         }
       ])
-    })
-
-    it('should NOT allow fallback to run', async () => {
-      await testFallback({
-        from: whitelistedPoaBuyers[0],
-        value: 3e17,
-        to: poac.address
-      })
     })
 
     // start core stage functionality
@@ -885,14 +941,6 @@ describe('when in Pending (stage 2)', () => {
       ])
     })
 
-    it('should NOT allow fallback to run', async () => {
-      await testFallback({
-        from: whitelistedPoaBuyers[0],
-        value: 3e17,
-        to: poac.address
-      })
-    })
-
     // start core stage functionality
 
     it('should move into Active when activated', async () => {
@@ -937,7 +985,7 @@ describe('when in Failed (stage 3)', () => {
         gasPrice
       })
 
-      await timeoutContract(poac)
+      await fundingTimeoutContract(poac)
     })
 
     it('should start paused', async () => {
@@ -970,14 +1018,6 @@ describe('when in Failed (stage 3)', () => {
 
     it('should NOT terminate, even if custodian', async () => {
       await testWillThrow(testTerminate, [poac, { from: custodian }])
-    })
-
-    it('should NOT allow fallback to run', async () => {
-      await testFallback({
-        from: whitelistedPoaBuyers[0],
-        value: 3e17,
-        to: poac.address
-      })
     })
 
     it('should NOT payout, even if custodian', async () => {
@@ -1163,14 +1203,6 @@ describe('when in Active (stage 4)', () => {
       ])
     })
 
-    it('should NOT allow fallback to run', async () => {
-      await testFallback({
-        from: whitelistedPoaBuyers[0],
-        value: 3e17,
-        to: poac.address
-      })
-    })
-
     // start core stage functionality
 
     it('should NOT claim if no payouts', async () => {
@@ -1344,14 +1376,6 @@ describe('when in Terminated (stage 5)', () => {
       ])
     })
 
-    it('should NOT allow fallback to run', async () => {
-      await testFallback({
-        from: whitelistedPoaBuyers[0],
-        value: 3e17,
-        to: poac.address
-      })
-    })
-
     it('should NOT transfer', async () => {
       await testWillThrow(testTransfer, [
         poac,
@@ -1464,7 +1488,7 @@ describe('when handling unhappy paths', async () => {
       poac = contracts.poac
     })
 
-    it('should hit checkTimeout when reclaiming after timeout', async () => {
+    it('should hit checkTimeout when reclaiming after fundingTimeout', async () => {
       const tokenBuyAmount = new BigNumber(1e18)
       const neededTime = await determineNeededTimeTravel(poac)
       await timeTravel(neededTime)
@@ -1476,20 +1500,646 @@ describe('when handling unhappy paths', async () => {
         value: tokenBuyAmount,
         gasPrice
       })
-      await testBuyTokens(poac, {
-        from: whitelistedPoaBuyers[1],
-        value: tokenBuyAmount,
-        gasPrice
-      })
 
-      await testBuyTokens(poac, {
-        from: whitelistedPoaBuyers[2],
-        value: tokenBuyAmount,
-        gasPrice
-      })
-
-      await timeoutContract(poac)
+      await fundingTimeoutContract(poac)
       await testFirstReclaim(poac, { from: whitelistedPoaBuyers[0] })
+    })
+
+    it('should hit checkTimeout when reclaiming after activationTimeout', async () => {
+      const neededTime = await determineNeededTimeTravel(poac)
+      await timeTravel(neededTime)
+      await testStartSale(poac)
+
+      // move to Pending
+      await testBuyRemainingTokens(poac, {
+        from: whitelistedPoaBuyers[0],
+        gasPrice
+      })
+
+      await activationTimeoutContract(poac)
+
+      await testFirstReclaim(poac, { from: whitelistedPoaBuyers[0] }, true)
+    })
+
+    it('should setFailed by anyone when activationTimeout has occured', async () => {
+      const neededTime = await determineNeededTimeTravel(poac)
+      await timeTravel(neededTime)
+      await testStartSale(poac)
+
+      // move to Pending
+      await testBuyRemainingTokens(poac, {
+        from: whitelistedPoaBuyers[0],
+        gasPrice
+      })
+
+      await activationTimeoutContract(poac)
+      await testSetFailed(poac, true)
+    })
+  })
+})
+
+describe('when trying various scenarios involving payout, transfer, approve, and transferFrom', () => {
+  contract('PoaTokenConcept', () => {
+    let poac
+    let fmr
+    let feeRate
+    let initialSupply
+    const defaultPayoutAmount = new BigNumber(0.23437e16)
+    const defaultBuyAmount = new BigNumber(1.802384753e16)
+
+    beforeEach('setup contracts', async () => {
+      const contracts = await setupPoaAndEcosystem()
+      poac = contracts.poac
+      fmr = contracts.fmr
+
+      // move into Funding
+      const neededTime = await determineNeededTimeTravel(poac)
+      await timeTravel(neededTime)
+      await testStartSale(poac)
+
+      await testBuyTokensMulti(poac, defaultBuyAmount)
+
+      await testBuyRemainingTokens(poac, {
+        from: whitelistedPoaBuyers[0],
+        gasPrice
+      })
+
+      // move into Active
+      await testActivate(poac, fmr, defaultIpfsHash, {
+        from: custodian
+      })
+
+      // clean out broker balance for easier debugging
+      await testBrokerClaim(poac)
+
+      feeRate = await poac.feeRate()
+      initialSupply = await poac.initialSupply()
+    })
+
+    describe('payout -> trasfer 100% -> payout', () => {
+      it('should have correct currentPayout and claims all users', async () => {
+        const sender = whitelistedPoaBuyers[0]
+        const receiver = whitelistedPoaBuyers[1]
+        let senderAccount
+        let receiverAccount
+        let expectedSenderPayout = new BigNumber(0)
+        let expectedReceiverPayout = new BigNumber(0)
+        let expectedSenderUnclaimed = new BigNumber(0)
+        let expectedReceiverUnclaimed = new BigNumber(0)
+        let expectedPerTokenPayout = new BigNumber(0)
+        let fee
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+
+        fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+
+        // should just be perToken rate here
+        expectedSenderPayout = senderAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+        expectedReceiverPayout = receiverAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testTransfer(poac, receiver, senderAccount.tokenBalance, {
+          from: sender
+        })
+
+        // now need to account for unclaimedPayouts
+        expectedSenderUnclaimed = senderAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+        expectedReceiverUnclaimed = receiverAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        // another payout has occured we need to account for perToken as well
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+
+        fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+
+        expectedSenderPayout = senderAccount.tokenBalance
+          .mul(expectedPerTokenPayout)
+          .add(expectedSenderUnclaimed)
+        expectedReceiverPayout = receiverAccount.tokenBalance
+          .mul(expectedPerTokenPayout)
+          .add(expectedReceiverUnclaimed)
+
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testClaimAllPayouts(poac, whitelistedPoaBuyers)
+      })
+    })
+
+    describe('payout -> transfer 50% -> payout', () => {
+      it('should have correct currentPayout and claims all users', async () => {
+        const sender = whitelistedPoaBuyers[0]
+        const receiver = whitelistedPoaBuyers[1]
+        let senderAccount
+        let receiverAccount
+        let expectedSenderPayout = new BigNumber(0)
+        let expectedReceiverPayout = new BigNumber(0)
+        let expectedSenderUnclaimed = new BigNumber(0)
+        let expectedReceiverUnclaimed = new BigNumber(0)
+        let expectedPerTokenPayout = new BigNumber(0)
+        let fee
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+
+        fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+
+        // should just be perToken rate here
+        expectedSenderPayout = senderAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+        expectedReceiverPayout = receiverAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testTransfer(poac, receiver, senderAccount.tokenBalance.div(2), {
+          from: sender
+        })
+
+        // now need to account for unclaimedPayouts
+        expectedSenderUnclaimed = senderAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+        expectedReceiverUnclaimed = receiverAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        // another payout has occured we need to account for perToken as well
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+
+        fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+
+        expectedSenderPayout = senderAccount.tokenBalance
+          .mul(expectedPerTokenPayout)
+          .add(expectedSenderUnclaimed)
+        expectedReceiverPayout = receiverAccount.tokenBalance
+          .mul(expectedPerTokenPayout)
+          .add(expectedReceiverUnclaimed)
+
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testClaimAllPayouts(poac, whitelistedPoaBuyers)
+      })
+    })
+
+    describe('payout -> transferFrom 100% -> payout', () => {
+      it('should have correct currentPayout and claims all users', async () => {
+        const sender = whitelistedPoaBuyers[0]
+        const receiver = whitelistedPoaBuyers[1]
+        const spender = whitelistedPoaBuyers[2]
+        let senderAccount
+        let receiverAccount
+        let expectedSenderPayout = new BigNumber(0)
+        let expectedReceiverPayout = new BigNumber(0)
+        let expectedSenderUnclaimed = new BigNumber(0)
+        let expectedReceiverUnclaimed = new BigNumber(0)
+        let expectedPerTokenPayout = new BigNumber(0)
+        let fee
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+
+        fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+
+        // should just be perToken rate here
+        expectedSenderPayout = senderAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+        expectedReceiverPayout = receiverAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testApprove(poac, spender, senderAccount.tokenBalance, {
+          from: sender
+        })
+        await testTransferFrom(
+          poac,
+          sender,
+          receiver,
+          senderAccount.tokenBalance,
+          {
+            from: spender
+          }
+        )
+        // now need to account for unclaimedPayouts
+        expectedSenderUnclaimed = senderAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+        expectedReceiverUnclaimed = receiverAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        // another payout has occured we need to account for perToken as well
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+
+        fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+
+        expectedSenderPayout = senderAccount.tokenBalance
+          .mul(expectedPerTokenPayout)
+          .add(expectedSenderUnclaimed)
+        expectedReceiverPayout = receiverAccount.tokenBalance
+          .mul(expectedPerTokenPayout)
+          .add(expectedReceiverUnclaimed)
+
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testClaimAllPayouts(poac, whitelistedPoaBuyers)
+      })
+    })
+
+    describe('payout -> trasferFrom 50% -> payout', () => {
+      it('should have correct currentPayout and claims all users', async () => {
+        const sender = whitelistedPoaBuyers[0]
+        const receiver = whitelistedPoaBuyers[1]
+        const spender = whitelistedPoaBuyers[2]
+        let senderAccount
+        let receiverAccount
+        let expectedSenderPayout = new BigNumber(0)
+        let expectedReceiverPayout = new BigNumber(0)
+        let expectedSenderUnclaimed = new BigNumber(0)
+        let expectedReceiverUnclaimed = new BigNumber(0)
+        let expectedPerTokenPayout = new BigNumber(0)
+        let fee
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+
+        fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+
+        // should just be perToken rate here
+        expectedSenderPayout = senderAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+        expectedReceiverPayout = receiverAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testApprove(poac, spender, senderAccount.tokenBalance, {
+          from: sender
+        })
+        await testTransferFrom(
+          poac,
+          sender,
+          receiver,
+          senderAccount.tokenBalance.div(2),
+          {
+            from: spender
+          }
+        )
+
+        // now need to account for unclaimedPayouts
+        expectedSenderUnclaimed = senderAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+        expectedReceiverUnclaimed = receiverAccount.tokenBalance.mul(
+          expectedPerTokenPayout
+        )
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        // another payout has occured we need to account for perToken as well
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+
+        fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+
+        expectedSenderPayout = senderAccount.tokenBalance
+          .mul(expectedPerTokenPayout)
+          .add(expectedSenderUnclaimed)
+        expectedReceiverPayout = receiverAccount.tokenBalance
+          .mul(expectedPerTokenPayout)
+          .add(expectedReceiverUnclaimed)
+
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testClaimAllPayouts(poac, whitelistedPoaBuyers)
+      })
+    })
+
+    describe('transfer 100% -> payout', () => {
+      it('should have correct currentPayout and claims all users', async () => {
+        const sender = whitelistedPoaBuyers[0]
+        const receiver = whitelistedPoaBuyers[1]
+
+        let senderAccount = await getAccountInformation(poac, sender)
+        let receiverAccount = await getAccountInformation(poac, receiver)
+
+        await testTransfer(poac, receiver, senderAccount.tokenBalance, {
+          from: sender
+        })
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        const fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        const expectedPerTokenPayout = defaultPayoutAmount
+          .sub(fee)
+          .div(initialSupply)
+
+        const expectedSenderPayout = new BigNumber(0)
+        const expectedReceiverPayout = receiverAccount.tokenBalance
+          .add(senderAccount.tokenBalance)
+          .mul(expectedPerTokenPayout)
+
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testClaimAllPayouts(poac, whitelistedPoaBuyers)
+      })
+    })
+
+    describe('transfer 50% -> payout', () => {
+      it('should have correct currentPayout and claims all users', async () => {
+        const sender = whitelistedPoaBuyers[0]
+        const receiver = whitelistedPoaBuyers[1]
+
+        let senderAccount = await getAccountInformation(poac, sender)
+        let receiverAccount = await getAccountInformation(poac, receiver)
+
+        await testTransfer(poac, receiver, senderAccount.tokenBalance.div(2), {
+          from: sender
+        })
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        const fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        const expectedPerTokenPayout = defaultPayoutAmount
+          .sub(fee)
+          .div(initialSupply)
+
+        const expectedSenderPayout = senderAccount.tokenBalance
+          .div(2)
+          .mul(expectedPerTokenPayout)
+        const expectedReceiverPayout = receiverAccount.tokenBalance
+          .add(senderAccount.tokenBalance.div(2))
+          .mul(expectedPerTokenPayout)
+
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testClaimAllPayouts(poac, whitelistedPoaBuyers)
+      })
+    })
+
+    describe('transferFrom 100% -> payout', () => {
+      it('should have correct currentPayout and claims all users', async () => {
+        const sender = whitelistedPoaBuyers[0]
+        const receiver = whitelistedPoaBuyers[1]
+        const spender = whitelistedPoaBuyers[2]
+
+        let senderAccount = await getAccountInformation(poac, sender)
+        let receiverAccount = await getAccountInformation(poac, receiver)
+
+        await testApprove(poac, spender, senderAccount.tokenBalance, {
+          from: sender
+        })
+
+        await testTransferFrom(
+          poac,
+          sender,
+          receiver,
+          senderAccount.tokenBalance,
+          {
+            from: spender
+          }
+        )
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        const fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        const expectedPerTokenPayout = defaultPayoutAmount
+          .sub(fee)
+          .div(initialSupply)
+
+        const expectedSenderPayout = new BigNumber(0)
+        const expectedReceiverPayout = receiverAccount.tokenBalance
+          .add(senderAccount.tokenBalance)
+          .mul(expectedPerTokenPayout)
+
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testClaimAllPayouts(poac, whitelistedPoaBuyers)
+      })
+    })
+
+    describe('transferFrom 50% -> payout', () => {
+      it('should have correct currentPayout and claims all users', async () => {
+        const sender = whitelistedPoaBuyers[0]
+        const receiver = whitelistedPoaBuyers[1]
+        const spender = whitelistedPoaBuyers[2]
+
+        let senderAccount = await getAccountInformation(poac, sender)
+        let receiverAccount = await getAccountInformation(poac, receiver)
+
+        await testApprove(poac, spender, senderAccount.tokenBalance, {
+          from: sender
+        })
+
+        await testTransferFrom(
+          poac,
+          sender,
+          receiver,
+          senderAccount.tokenBalance.div(2),
+          {
+            from: spender
+          }
+        )
+
+        await testPayout(poac, fmr, {
+          from: custodian,
+          value: defaultPayoutAmount,
+          gasPrice
+        })
+
+        const fee = defaultPayoutAmount.mul(feeRate).div(1e3)
+        const expectedPerTokenPayout = defaultPayoutAmount
+          .sub(fee)
+          .div(initialSupply)
+
+        const expectedSenderPayout = senderAccount.tokenBalance
+          .div(2)
+          .mul(expectedPerTokenPayout)
+        const expectedReceiverPayout = receiverAccount.tokenBalance
+          .add(senderAccount.tokenBalance.div(2))
+          .mul(expectedPerTokenPayout)
+
+        senderAccount = await getAccountInformation(poac, sender)
+        receiverAccount = await getAccountInformation(poac, receiver)
+
+        assert(
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          'sender currentPayout should match expectedPayout'
+        )
+        assert(
+          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          'receiver currentPayout should match expectedPayout'
+        )
+
+        await testClaimAllPayouts(poac, whitelistedPoaBuyers)
+      })
     })
   })
 })

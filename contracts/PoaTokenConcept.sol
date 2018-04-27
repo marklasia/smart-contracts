@@ -73,8 +73,12 @@ contract PoaTokenConcept is PausableToken {
   uint256 public creationTime;
   // used to check when contract should move from PreFunding to Funding stage
   uint256 public startTime;
-  // amount of seconds until moving to Failed stage after creationTime
-  uint256 public timeout;
+  // amount of seconds until moving to Failed from
+  // Funding stage after creationTime
+  uint256 public fundingTimeout;
+  // amount of seconds until moving to Failed from
+  // Pending stage after creationTime + fundingTimeout
+  uint256 public activationTimeout;
   // amount needed before moving to pending calculated in fiat
   uint256 public fundingGoal;
   // the total per token payout rate: accumulates as payouts are received
@@ -140,14 +144,15 @@ contract PoaTokenConcept is PausableToken {
     _;
   }
 
-  /*
-    TODO: change this so that it works in pending as well!
-    probably need to change this in CustomPoaToken as well...
-  */
   modifier checkTimeout() {
+    uint256 fundingTimeoutDeadline = creationTime.add(fundingTimeout);
+    uint256 activationTimeoutDeadline = creationTime
+      .add(fundingTimeout)
+      .add(activationTimeout);
+
     if (
-      (stage == Stages.Funding || stage == Stages.Pending) && 
-      block.timestamp >= creationTime.add(timeout)
+      (stage == Stages.Funding && block.timestamp >= fundingTimeoutDeadline) ||
+      (stage == Stages.Pending && block.timestamp >= activationTimeoutDeadline)
     ) {
       uint256 _unsoldBalance = balances[this];
       balances[this] = 0;
@@ -183,7 +188,8 @@ contract PoaTokenConcept is PausableToken {
     // given as unix time (seconds since 01.01.1970)
     uint256 _startTime,
     // given as seconds
-    uint256 _timeout,
+    uint256 _fundingTimeout,
+    uint256 _activationTimeout,
     uint256 _totalSupply,
     // given as fiat cents
     uint256 _fundingGoal
@@ -202,11 +208,12 @@ contract PoaTokenConcept is PausableToken {
 
     // ensure all uints are valid
     require(_startTime > block.timestamp);
-    // ensure that timeout is at least 24 hours
-    require(_timeout >= 60 * 60 * 24);
+    // ensure that fundingTimeout is at least 24 hours
+    require(_fundingTimeout >= 60 * 60 * 24);
+    // ensure that activationTimeout is at least 7 days
+    require(_activationTimeout >= 60 * 60 * 24 * 7);
     require(_fundingGoal > 0);
     require(_totalSupply > _fundingGoal);
-
     // assign strings
     name = _name;
     symbol = _symbol;
@@ -221,7 +228,8 @@ contract PoaTokenConcept is PausableToken {
     // assign uints
     creationTime = block.timestamp;
     startTime = _startTime;
-    timeout = _timeout;
+    fundingTimeout = _fundingTimeout;
+    activationTimeout = _activationTimeout;
 
     // these uints are supposed to be based off of sqm of building
     totalSupply = _totalSupply;
@@ -397,16 +405,26 @@ contract PoaTokenConcept is PausableToken {
   }
 
   // used to manually set Stage to Failed when no users have bought any tokens
-  // if no buy()s occurred before timeoutBlock token would be stuck in Funding
+  // if no buy()s occurred before fundingTimeoutBlock token would be stuck in Funding
   function setFailed()
     external
-    atStage(Stages.Funding)
+    atEitherStage(Stages.Funding, Stages.Pending)
     checkTimeout
     returns (bool)
   {
-    if (stage == Stages.Funding) {
+    if (stage == Stages.Funding || stage == Stages.Pending) {
       revert();
     }
+    return true;
+  }
+
+  function changeCustodianAddress(address _newCustodian)
+    public
+    onlyCustodian
+    returns (bool)
+  {
+    require(_newCustodian != custodian);
+    custodian = _newCustodian;
     return true;
   }
 
@@ -454,6 +472,7 @@ contract PoaTokenConcept is PausableToken {
     paused = true;
     // let the world know this token is in Terminated Stage
     TerminatedEvent();
+    return true;
   }
 
   // end lifecycle functions
@@ -512,7 +531,7 @@ contract PoaTokenConcept is PausableToken {
     return true;
   }
 
-  // reclaim Ξ for sender if fundingGoal is not met within timeoutBlock
+  // reclaim Ξ for sender if fundingGoal is not met within fundingTimeoutBlock
   function reclaim()
     external
     checkTimeout

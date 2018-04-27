@@ -34,7 +34,8 @@ const actRate = new BigNumber(1e3)
 const defaultName = 'TestPoa'
 const defaultSymbol = 'TPA'
 const defaultFiatCurrency = 'EUR'
-const defaultTimeout = new BigNumber(60 * 60 * 24)
+const defaultFundingTimeout = new BigNumber(60 * 60 * 24)
+const defaultActivationTimeout = new BigNumber(60 * 60 * 24 * 7)
 const defaultTotalSupply = new BigNumber('1e20')
 const defaultFundingGoal = new BigNumber(5e5)
 const defaultFiatRate = new BigNumber(33333)
@@ -152,7 +153,8 @@ const setupPoaAndEcosystem = async () => {
     custodian,
     reg.address,
     await getDefaultStartTime(),
-    defaultTimeout,
+    defaultFundingTimeout,
+    defaultActivationTimeout,
     defaultTotalSupply,
     defaultFundingGoal
   )
@@ -185,7 +187,8 @@ const testInitialization = async (exr, exp, reg) => {
     custodian,
     reg.address,
     defaultStartTime,
-    defaultTimeout,
+    defaultFundingTimeout,
+    defaultActivationTimeout,
     defaultTotalSupply,
     defaultFundingGoal
   )
@@ -201,7 +204,7 @@ const testInitialization = async (exr, exp, reg) => {
   const feeRate = await poac.feeRate()
   const creationTime = await poac.creationTime()
   const startTime = await poac.startTime()
-  const timeout = await poac.timeout()
+  const fundingTimeout = await poac.fundingTimeout()
   const fundingGoal = await poac.fundingGoal()
   const totalPerTokenPayout = await poac.totalPerTokenPayout()
   const fundedAmount = await poac.fundedAmount()
@@ -258,9 +261,9 @@ const testInitialization = async (exr, exp, reg) => {
     'startTime should match startTime given in constructor'
   )
   assert.equal(
-    timeout.toString(),
-    defaultTimeout.toString(),
-    'timeout should match that given in constructor'
+    fundingTimeout.toString(),
+    defaultFundingTimeout.toString(),
+    'fundingTimeout should match that given in constructor'
   )
   assert.equal(
     fundingGoal.toString(),
@@ -432,6 +435,12 @@ const testBuyTokens = async (poac, config) => {
   )
 }
 
+const testBuyTokensMulti = async (poac, buyAmount) => {
+  for (const buyer of whitelistedPoaBuyers) {
+    await testBuyTokens(poac, { from: buyer, value: buyAmount, gasPrice })
+  }
+}
+
 const testBuyRemainingTokens = async (poac, config) => {
   assert(!!config.gasPrice, 'gasPrice must be given')
   const fundedAmountCents = await poac.fundedAmount()
@@ -448,6 +457,7 @@ const testBuyRemainingTokens = async (poac, config) => {
   const fiatBuyAmount = await poac.weiToFiatCents(ethBuyAmount)
 
   const preEthBalance = await getEtherBalance(buyer)
+  const preTokenBalance = await poac.balanceOf(buyer)
   const preFundedAmount = await poac.fundedAmount()
 
   const tx = await poac.buy(updatedConfig)
@@ -465,9 +475,10 @@ const testBuyRemainingTokens = async (poac, config) => {
     postEthBalance.toString(),
     'postEth balance should match expected value'
   )
+
   assert(
     // we lose A LOT of precision due to handling fiat...
-    areInRange(postTokenBalance, tokenBuyAmount, 1e14),
+    areInRange(postTokenBalance.sub(preTokenBalance), tokenBuyAmount, 1e15),
     'buyer token balance should be incremented by tokenBuyAmount'
   )
   assert.equal(
@@ -724,7 +735,7 @@ const testClaimAllPayouts = async (poac, poaTokenHolders) => {
   )
 }
 
-const testFirstReclaim = async (poac, config) => {
+const testFirstReclaim = async (poac, config, shouldBePending) => {
   const claimer = config.from
   const fundingGoal = await poac.fundingGoal()
   const initialSupply = await poac.initialSupply()
@@ -742,8 +753,10 @@ const testFirstReclaim = async (poac, config) => {
 
   assert.equal(
     preStage.toString(),
-    new BigNumber(1).toString(),
-    'the contract should be in stage 1 (funding) before reclaiming'
+    shouldBePending ? new BigNumber(2).toString() : new BigNumber(1).toString(),
+    `contract should be in stage ${
+      shouldBePending ? '1 (funding)' : ' 2 (pending)'
+    } before reclaiming`
   )
 
   const tx = await poac.reclaim({
@@ -809,12 +822,18 @@ const testFirstReclaim = async (poac, config) => {
   )
 }
 
-const timeoutContract = async poac => {
-  const timeout = await poac.timeout()
-  await timeTravel(timeout.toNumber())
+const fundingTimeoutContract = async poac => {
+  const fundingTimeout = await poac.fundingTimeout()
+  await timeTravel(fundingTimeout.toNumber())
 }
 
-const testSetFailed = async poac => {
+const activationTimeoutContract = async poac => {
+  const activationTimeout = await poac.activationTimeout()
+  const fundingTimeout = await poac.fundingTimeout()
+  await timeTravel(fundingTimeout.add(activationTimeout).toNumber())
+}
+
+const testSetFailed = async (poac, shouldBePending) => {
   const preStage = await poac.stage()
 
   await poac.setFailed()
@@ -823,8 +842,8 @@ const testSetFailed = async poac => {
 
   assert.equal(
     preStage.toString(),
-    new BigNumber(1),
-    'preStage should be 1, Funding'
+    shouldBePending ? new BigNumber(2).toString() : new BigNumber(1).toString(),
+    `preStage should be ${shouldBePending ? '2, Pending' : '1 Funding'}`
   )
 
   assert.equal(
@@ -1061,6 +1080,39 @@ const testTerminate = async (poac, config) => {
   )
 }
 
+const testChangeCustodianAddress = async (poac, newAddress, config) => {
+  await poac.changeCustodianAddress(newAddress, config)
+
+  const postAddress = await poac.custodian()
+
+  assert.equal(postAddress, newAddress, 'custodian should be set to newAddress')
+}
+
+const testCurrentPayout = async (poac, account, expectedPayout) => {
+  const currentPayout = await poac.currentPayout(account, true)
+
+  assert(
+    areInRange(currentPayout, expectedPayout, 1),
+    'currentPayout should match expectedPayout'
+  )
+}
+
+const getAccountInformation = async (poac, address) => {
+  const etherBalance = await getEtherBalance(address)
+  const tokenBalance = await poac.balanceOf(address)
+  const perTokenBalance = await poac.currentPayout(address, false)
+  const unclaimedBalance = await poac.unclaimedPayoutTotals(address)
+  const currentPayout = await poac.currentPayout(address, true)
+
+  return {
+    etherBalance,
+    tokenBalance,
+    perTokenBalance,
+    unclaimedBalance,
+    currentPayout
+  }
+}
+
 module.exports = {
   accounts,
   owner,
@@ -1074,7 +1126,7 @@ module.exports = {
   defaultName,
   defaultSymbol,
   defaultFiatCurrency,
-  defaultTimeout,
+  defaultFundingTimeout,
   defaultTotalSupply,
   defaultFundingGoal,
   defaultFiatRate,
@@ -1100,7 +1152,8 @@ module.exports = {
   testClaimAllPayouts,
   testFirstReclaim,
   testReclaim,
-  timeoutContract,
+  fundingTimeoutContract,
+  activationTimeoutContract,
   testSetFailed,
   testReclaimAll,
   testPaused,
@@ -1111,5 +1164,9 @@ module.exports = {
   testTransfer,
   testApprove,
   testTransferFrom,
-  testTerminate
+  testTerminate,
+  testChangeCustodianAddress,
+  testBuyTokensMulti,
+  testCurrentPayout,
+  getAccountInformation
 }
