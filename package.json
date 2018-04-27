@@ -85,6 +85,7 @@
     "babel-eslint": "^8.2.1",
     "bignumber.js": "^4.1.0",
     "chai": "^4.1.1",
+    "chalk": "^2.4.0",
     "concurrently": "^3.5.0",
     "cross-env": "^5.1.1",
     "dotenv": "^4.0.0",
@@ -109,7 +110,9 @@
     "truffle": "4.0.1",
     "truffle-contract": "^3.0.1",
     "web3": "^0.18.4",
-    "zeppelin-solidity": "1.5.0",
-    "chalk": "^2.4.0"
+    "zeppelin-solidity": "1.5.0"
+  },
+  "dependencies": {
+    "table": "^4.0.3"
   }
 }

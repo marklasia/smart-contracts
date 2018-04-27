@@ -191,7 +191,7 @@ const getRandomInt = (min, max) => {
 
 const getRandomBig = (min, max) => {
   const digits = getRandomInt(min, max)
-  const res = BigNumber.random(digits).mul(digits)
+  const res = BigNumber.random(digits).mul(Math.pow(10, digits))
 
   return res
 }

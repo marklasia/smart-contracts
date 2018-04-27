@@ -1,4 +1,5 @@
 const BigNumber = require('bignumber.js')
+const { table } = require('table')
 const {
   getEtherBalance,
   getRandomInt,
@@ -13,7 +14,8 @@ const {
   testPayFee,
   testClaimFeeMany,
   testTransferActManyWithIndividualAmounts,
-  generateRandomLockAmounts
+  generateRandomLockAmounts,
+  testRandomLockAndUnlock
 } = require('../helpers/act')
 
 describe('AccessToken Stress Tests', () => {
@@ -26,7 +28,14 @@ describe('AccessToken Stress Tests', () => {
       const recipient = accounts[8]
       const feePayer2 = accounts[9]
       const tokenDistAmount = new BigNumber(1e24)
-      const actRate = new BigNumber(100)
+      const actRate = new BigNumber(1000)
+      const counters = {
+        totalLocksUnlocks: 0,
+        totalFeePayed: new BigNumber(0),
+        contributorsPreBalance: [],
+        totalLockPayClaimRound: 0,
+        totalLockPayTransferClaimRound: 0
+      }
       let bbk
       let act
       let fmr
@@ -42,6 +51,34 @@ describe('AccessToken Stress Tests', () => {
         bbk = contracts.bbk
         act = contracts.act
         fmr = contracts.fmr
+
+        await Promise.all(
+          contributors.map(async contributor => {
+            const contBalance = {
+              address: contributor,
+              balance: web3
+                .fromWei(await getEtherBalance(contributor))
+                .toString()
+            }
+            counters.contributorsPreBalance.push(contBalance)
+          })
+        )
+      })
+
+      const lockUnlockBbkRound = 30
+      const lockUnlockTestTitle = `Testing lock&unlock random amount of BBK tokens for ${lockUnlockBbkRound} rounds with ${
+        contributors.length
+      } accounts`
+      it(lockUnlockTestTitle, async () => {
+        // eslint-disable-next-line
+        console.log(chalk.magenta(lockUnlockTestTitle))
+        await testRandomLockAndUnlock(bbk, act, contributors, {
+          round: lockUnlockBbkRound,
+          minDigit: 10,
+          logBalance: false,
+          logRoundInfo: true
+        })
+        counters.totalLocksUnlocks += lockUnlockBbkRound
       })
 
       it('lock BBK -> Pay Fees -> Claim fees', async () => {
@@ -56,53 +93,102 @@ describe('AccessToken Stress Tests', () => {
         while (feePayerHasMoney) {
           const feePayerBalance = await getEtherBalance(feePayer)
           const feePayerExp = feePayerBalance.e //exponent number
-          feeValue = getRandomBig(10, feePayerExp).mul(
-            Math.pow(10, getRandomInt(18, feePayerExp - 1))
-          )
-          feeValue = feeValue.sub(feeValue.mod(10)) // get rid of dusts
+          feeValue = getRandomBig(19, feePayerExp - 1).floor()
 
           // eslint-disable-next-line
           console.log(
-            chalk.green('fee value eth', web3.fromWei(feeValue).toString())
+            chalk.cyan(`fee value: ${web3.fromWei(feeValue).toString()} ETH`)
           )
 
-          if (feeValue.gt(feePayerBalance.sub(1e10))) {
-            feeValue = feePayerBalance.div(2)
+          if (feeValue.gt(feePayerBalance.sub(1e18))) {
+            // eslint-disable-next-line
+            console.log(
+              chalk.red('******** Fee payer is out of money!! ********')
+            )
             feePayerHasMoney = false
+            break
           }
 
+          counters.totalFeePayed = counters.totalFeePayed.plus(feeValue)
           // Lock random amount of BBK Tokens first
           await testApproveAndLockManyWithIndividualAmounts(
             bbk,
             act,
             contributors,
-            await generateRandomLockAmounts(contributors)
+            await generateRandomLockAmounts(contributors, {
+              minDigit: 18,
+              logBalance: true
+            })
           )
+          counters.totalLocksUnlocks++
 
           // eslint-disable-next-line
-          console.log(
-            chalk.yellow('testApproveAndLockManyWithIndividualAmounts')
-          )
+          console.log(chalk.yellow('Testing pay fee'))
 
           await testPayFee(act, fmr, feePayer, contributors, feeValue, actRate)
 
+          const randomLockUnlockCountAfterPayFee = getRandomInt(1, 5)
+          await testRandomLockAndUnlock(bbk, act, contributors, {
+            round: randomLockUnlockCountAfterPayFee,
+            logBalance: false,
+            logRoundInfo: true
+          })
+          counters.totalLocksUnlocks += randomLockUnlockCountAfterPayFee
+
           // eslint-disable-next-line
-          console.log(chalk.yellow('->testPayFee'))
+          console.log(chalk.yellow('Testing claiming fee'))
 
           //Contributors should funded after claiming fee
-          await testClaimFeeMany(act, fmr, contributors, actRate)
+          const tolerance = 1000 + 6 * Math.pow(2, i + 1) // increase the tolerance on every iteration
+          await testClaimFeeMany(act, fmr, contributors, actRate, {
+            actTotalSupplyZeroToleranceInWei: tolerance
+          })
 
+          const randomLockUnlockCountAfterClaimFee = getRandomInt(1, 5)
+
+          await testRandomLockAndUnlock(bbk, act, contributors, {
+            round: randomLockUnlockCountAfterClaimFee
+          })
+          counters.totalLocksUnlocks += randomLockUnlockCountAfterClaimFee
+          counters.totalFeePayed = counters.totalFeePayed.plus(feeValue)
           // eslint-disable-next-line
           console.log(chalk.green(`Passed ${i + 1} times`))
+          // eslint-disable-next-line
+          console.log(
+            chalk.cyan(
+              'Fee payer balance:',
+              web3.fromWei(await getEtherBalance(feePayer)).toString(),
+              'ETH'
+            )
+          )
+          // eslint-disable-next-line
+          console.log(
+            chalk.cyan(
+              'ACT total supply after distribution:',
+              (await act.totalSupply()).toString(),
+              'WEI'
+            ),
+            chalk.yellow('tolerance:', tolerance)
+          )
+          // eslint-disable-next-line
+          console.log(
+            chalk.cyan(
+              'FMR ether balance after distribution:',
+              (await getEtherBalance(fmr.address)).toString(),
+              'WEI'
+            )
+          )
           i++
         }
-      })
+
+        counters.totalLockPayClaimRound = i
+      }).timeout(1000 * 60 * 15)
 
       it('lock BBK -> Pay Fees -> transfer ACT -> Claim Fee -> Unlock BBK', async () => {
         // eslint-disable-next-line
         console.log(
           chalk.magenta(
-            `Testing ock BBK -> Pay Fees -> transfer ACT -> Claim Fee -> Unlock BBK 10 rounds`
+            `Testing lock BBK -> Pay Fees -> transfer ACT -> Claim Fee -> Unlock BBK 10 rounds`
           )
         )
         const feeValue = new BigNumber(1e10)
@@ -114,6 +200,7 @@ describe('AccessToken Stress Tests', () => {
             contributors,
             await generateRandomLockAmounts(contributors)
           )
+          counters.totalLocksUnlocks++
 
           await testPayFee(act, fmr, feePayer2, contributors, feeValue, actRate)
 
@@ -128,8 +215,10 @@ describe('AccessToken Stress Tests', () => {
             recipient,
             actBalances
           )
-
-          await testClaimFeeMany(act, fmr, [recipient], actRate)
+          const tolerance = (await act.totalSupply()).toNumber() + 1000
+          await testClaimFeeMany(act, fmr, [recipient], actRate, {
+            actTotalSupplyZeroToleranceInWei: tolerance
+          })
 
           await Promise.all(
             contributors.map(async contributor => {
@@ -139,9 +228,84 @@ describe('AccessToken Stress Tests', () => {
             })
           )
 
+          counters.totalLockPayTransferClaimRound = i + 1
+          counters.totalFeePayed = counters.totalFeePayed.plus(feeValue)
+
           // eslint-disable-next-line
           console.log(chalk.green(`Passed ${i + 1} times`))
         }
+      })
+
+      afterEach(async () => {
+        const data = [
+          ['Total Lock & Unlock amount', counters.totalLocksUnlocks, '', '']
+        ]
+
+        // insert Contributors initial balances
+        data.push(['Contributors initial balances', '', '', ''])
+        counters.contributorsPreBalance.map(contItem => {
+          data.push([
+            'contributor address',
+            contItem.address,
+            'balance',
+            contItem.balance
+          ]) + ' ETH'
+        })
+
+        // Contributors insert active balances
+        data.push(['Contributors active balances', '', '', ''])
+        await Promise.all(
+          contributors.map(async contAddress => {
+            data.push([
+              'contributor address',
+              contAddress,
+              'balance',
+              web3.fromWei(await getEtherBalance(contAddress)).toString() +
+                ' ETH'
+            ])
+          })
+        )
+        data.push([
+          'Total Lock -> Pay -> Claim Rounds',
+          counters.totalLockPayClaimRound,
+          '',
+          ''
+        ])
+
+        data.push([
+          'Total Lock -> Pay -> Transfer -> Claim Rounds',
+          counters.totalLockPayTransferClaimRound,
+          '',
+          ''
+        ])
+
+        data.push([
+          'Total Fee Payed',
+          web3.fromWei(counters.totalFeePayed).toString(),
+          '',
+          ''
+        ])
+
+        data.push([
+          'ACT Recipient address',
+          recipient,
+          'balance',
+          web3.fromWei(await getEtherBalance(recipient)).toString() + ' ETH'
+        ])
+
+        const actTotalsupply = (await act.totalSupply()).toString()
+        data.push([
+          'Access Token total supply left over',
+          actTotalsupply,
+          'WEI',
+          ''
+        ])
+
+        const fmrBalance = (await getEtherBalance(fmr.address)).toString()
+        data.push(['Fee Manager Balance', fmrBalance, 'WEI', ''])
+
+        // eslint-disable-next-line
+        console.log(table(data))
       })
     })
   })
