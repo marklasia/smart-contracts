@@ -203,7 +203,13 @@ const testPayFee = async (
   return postContributorsActBalance
 }
 
-const testClaimFeeMany = async (act, fmr, claimers, actRate) => {
+const testClaimFeeMany = async (
+  act,
+  fmr,
+  claimers,
+  actRate,
+  { actTotalSupplyZeroToleranceInWei = 100 } = {}
+) => {
   const preContributorBalances = {}
   for (const claimer of claimers) {
     const preActBalance = await act.balanceOf(claimer)
@@ -259,14 +265,14 @@ const testClaimFeeMany = async (act, fmr, claimers, actRate) => {
   testIsInRange(
     postFeeManagerEthBalance,
     bigZero,
-    100,
+    300,
     'the feeManager should have ~0 ether left if all ACT burned'
   )
 
   testIsInRange(
     postActTotalSupply,
     bigZero,
-    100,
+    actTotalSupplyZeroToleranceInWei,
     'the act contract totalSupply should be ~0 if all ACT burned and all ETH claimed'
   )
 
@@ -413,30 +419,69 @@ const testApproveAndLockManyWithIndividualAmounts = async (
   return true
 }
 
-const generateRandomLockAmounts = async contributors => {
+const generateRandomLockAmounts = async (
+  contributors,
+  { minDigit = 10, logBalance = false } = {}
+) => {
   return await Promise.all(
     contributors.map(async contributor => {
       const contributerBalance = await getEtherBalance(contributor)
 
-      // eslint-disable-next-line
-      console.log(chalk.yellowBright(`For address ${contributor}:`))
-      // eslint-disable-next-line
-      console.log(
-        chalk.yellow('Contributor balance in Eth:'),
-        web3.fromWei(contributerBalance).toString()
-      )
-
-      let res = getRandomBig(10, contributerBalance.toString().length - 1)
+      let res = getRandomBig(minDigit, contributerBalance.toString().length - 1)
 
       if (res.gt(contributerBalance)) {
         res = contributerBalance
       }
 
-      // eslint-disable-next-line
-      console.log(chalk.yellow('Token Lock Amount:'), res.toString())
+      if (logBalance) {
+        // eslint-disable-next-line
+        console.log(chalk.yellowBright(`For address ${contributor}:`))
+        // eslint-disable-next-line
+        console.log(
+          chalk.yellow('Contributor balance:'),
+          web3.fromWei(contributerBalance).toString(),
+          'ETH'
+        )
+        // eslint-disable-next-line
+        console.log(chalk.yellow('Token Lock Amount:'), res.toString(), 'BBK')
+      }
+
       return res
     })
   )
+}
+
+const testRandomLockAndUnlock = async (
+  bbk,
+  act,
+  contributors,
+  { round = 10, minDigit = 15, logBalance = false, logRoundInfo = true } = {}
+) => {
+  for (let i = 0; i < round; i++) {
+    // Lock random amount of BBK Tokens first
+    await testApproveAndLockManyWithIndividualAmounts(
+      bbk,
+      act,
+      contributors,
+      await generateRandomLockAmounts(contributors, {
+        minDigit,
+        logBalance
+      })
+    )
+
+    await Promise.all(
+      contributors.map(async contributor => {
+        const lockedBbkAmount = await act.lockedBbkOf(contributor)
+
+        await testUnlockBBK(bbk, act, contributor, lockedBbkAmount)
+      })
+    )
+
+    if (logRoundInfo) {
+      // eslint-disable-next-line
+      console.log(chalk.green(`BBK Token Lock&Unlock passed ${i + 1} times.`))
+    }
+  }
 }
 
 module.exports = {
@@ -455,5 +500,6 @@ module.exports = {
   testTransferFromActMany,
   testApproveAndLockManyWithIndividualAmounts,
   testTransferActManyWithIndividualAmounts,
-  generateRandomLockAmounts
+  generateRandomLockAmounts,
+  testRandomLockAndUnlock
 }
