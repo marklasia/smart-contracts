@@ -208,7 +208,7 @@ const testClaimFeeMany = async (
   fmr,
   claimers,
   actRate,
-  { actTotalSupplyZeroToleranceInWei = 100 } = {}
+  { actTotalSupplyToleranceAfterBurn = 100 } = {}
 ) => {
   const preContributorBalances = {}
   for (const claimer of claimers) {
@@ -272,7 +272,7 @@ const testClaimFeeMany = async (
   testIsInRange(
     postActTotalSupply,
     bigZero,
-    actTotalSupplyZeroToleranceInWei,
+    actTotalSupplyToleranceAfterBurn,
     'the act contract totalSupply should be ~0 if all ACT burned and all ETH claimed'
   )
 
@@ -421,16 +421,16 @@ const testApproveAndLockManyWithIndividualAmounts = async (
 
 const generateRandomLockAmounts = async (
   contributors,
-  { minDigit = 10, logBalance = false } = {}
+  { minDigit = new BigNumber(1e10), logBalance = false } = {}
 ) => {
   return await Promise.all(
     contributors.map(async contributor => {
-      const contributerBalance = await getEtherBalance(contributor)
+      const contributorBalance = await getEtherBalance(contributor)
 
-      let res = getRandomBig(minDigit, contributerBalance.toString().length - 1)
+      let res = getRandomBig(minDigit, contributorBalance)
 
-      if (res.gt(contributerBalance)) {
-        res = contributerBalance
+      if (res.gt(contributorBalance)) {
+        res = contributorBalance
       }
 
       if (logBalance) {
@@ -439,7 +439,7 @@ const generateRandomLockAmounts = async (
         // eslint-disable-next-line
         console.log(
           chalk.yellow('Contributor balance:'),
-          web3.fromWei(contributerBalance).toString(),
+          web3.fromWei(contributorBalance).toString(),
           'ETH'
         )
         // eslint-disable-next-line
@@ -455,7 +455,12 @@ const testRandomLockAndUnlock = async (
   bbk,
   act,
   contributors,
-  { round = 10, minDigit = 15, logBalance = false, logRoundInfo = true } = {}
+  {
+    round = 10,
+    minDigit = new BigNumber(1e15),
+    logBalance = false,
+    logRoundInfo = true
+  } = {}
 ) => {
   for (let i = 0; i < round; i++) {
     // Lock random amount of BBK Tokens first
@@ -472,8 +477,12 @@ const testRandomLockAndUnlock = async (
     await Promise.all(
       contributors.map(async contributor => {
         const lockedBbkAmount = await act.lockedBbkOf(contributor)
+        const amount = getRandomBig(
+          lockedBbkAmount.div(2).floor(),
+          lockedBbkAmount
+        )
 
-        await testUnlockBBK(bbk, act, contributor, lockedBbkAmount)
+        await testUnlockBBK(bbk, act, contributor, amount)
       })
     )
 

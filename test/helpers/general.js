@@ -190,8 +190,10 @@ const getRandomInt = (min, max) => {
 }
 
 const getRandomBig = (min, max) => {
-  const digits = getRandomInt(min, max)
-  const res = BigNumber.random(digits).mul(Math.pow(10, digits))
+  const res = BigNumber.random()
+    .mul(max.sub(min).plus(1))
+    .floor()
+    .plus(min)
 
   return res
 }

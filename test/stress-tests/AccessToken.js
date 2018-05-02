@@ -2,8 +2,9 @@ const BigNumber = require('bignumber.js')
 const { table } = require('table')
 const {
   getEtherBalance,
-  getRandomInt,
-  getRandomBig
+  getRandomBig,
+  bigZero,
+  getRandomInt
 } = require('../helpers/general')
 const chalk = require('chalk')
 
@@ -74,8 +75,8 @@ describe('AccessToken Stress Tests', () => {
         console.log(chalk.magenta(lockUnlockTestTitle))
         await testRandomLockAndUnlock(bbk, act, contributors, {
           round: lockUnlockBbkRound,
-          minDigit: 10,
-          logBalance: false,
+          minDigit: new BigNumber(1e10),
+          logBalance: true,
           logRoundInfo: true
         })
         counters.totalLocksUnlocks += lockUnlockBbkRound
@@ -92,8 +93,8 @@ describe('AccessToken Stress Tests', () => {
         // Loop until there is no money left in peeFayer account
         while (feePayerHasMoney) {
           const feePayerBalance = await getEtherBalance(feePayer)
-          const feePayerExp = feePayerBalance.e //exponent number
-          feeValue = getRandomBig(19, feePayerExp - 1).floor()
+          const feeValueMax = feePayerBalance.div(2).floor()
+          feeValue = getRandomBig(bigZero, feeValueMax)
 
           // eslint-disable-next-line
           console.log(
@@ -116,7 +117,7 @@ describe('AccessToken Stress Tests', () => {
             act,
             contributors,
             await generateRandomLockAmounts(contributors, {
-              minDigit: 18,
+              minDigit: new BigNumber(1e17),
               logBalance: true
             })
           )
@@ -139,9 +140,9 @@ describe('AccessToken Stress Tests', () => {
           console.log(chalk.yellow('Testing claiming fee'))
 
           //Contributors should funded after claiming fee
-          const tolerance = 1000 + 6 * Math.pow(2, i + 1) // increase the tolerance on every iteration
+          const tolerance = 1500 * (i + 1) // increase the tolerance exponentially on every iteration
           await testClaimFeeMany(act, fmr, contributors, actRate, {
-            actTotalSupplyZeroToleranceInWei: tolerance
+            actTotalSupplyToleranceAfterBurn: tolerance
           })
 
           const randomLockUnlockCountAfterClaimFee = getRandomInt(1, 5)
@@ -150,6 +151,7 @@ describe('AccessToken Stress Tests', () => {
             round: randomLockUnlockCountAfterClaimFee
           })
           counters.totalLocksUnlocks += randomLockUnlockCountAfterClaimFee
+
           counters.totalFeePayed = counters.totalFeePayed.plus(feeValue)
           // eslint-disable-next-line
           console.log(chalk.green(`Passed ${i + 1} times`))
@@ -163,11 +165,8 @@ describe('AccessToken Stress Tests', () => {
           )
           // eslint-disable-next-line
           console.log(
-            chalk.cyan(
-              'ACT total supply after distribution:',
-              (await act.totalSupply()).toString(),
-              'WEI'
-            ),
+            chalk.cyan('ACT total supply after distribution:'),
+            chalk.red((await act.totalSupply()).toString(), 'WEI'),
             chalk.yellow('tolerance:', tolerance)
           )
           // eslint-disable-next-line
@@ -198,27 +197,38 @@ describe('AccessToken Stress Tests', () => {
             bbk,
             act,
             contributors,
-            await generateRandomLockAmounts(contributors)
+            await generateRandomLockAmounts(contributors, {
+              minDigit: new BigNumber(1e17),
+              logBalance: true
+            })
           )
           counters.totalLocksUnlocks++
 
           await testPayFee(act, fmr, feePayer2, contributors, feeValue, actRate)
 
-          const actBalances = await Promise.all(
+          const actRandomAmounts = await Promise.all(
             contributors.map(async contributor => {
-              return await act.balanceOf(contributor)
+              const balance = await act.balanceOf(contributor)
+
+              return getRandomBig(balance.div(2).floor(), balance)
             })
           )
           await testTransferActManyWithIndividualAmounts(
             act,
             contributors,
             recipient,
-            actBalances
+            actRandomAmounts
           )
           const tolerance = (await act.totalSupply()).toNumber() + 1000
-          await testClaimFeeMany(act, fmr, [recipient], actRate, {
-            actTotalSupplyZeroToleranceInWei: tolerance
-          })
+          await testClaimFeeMany(
+            act,
+            fmr,
+            [...contributors, recipient],
+            actRate,
+            {
+              actTotalSupplyToleranceAfterBurn: tolerance
+            }
+          )
 
           await Promise.all(
             contributors.map(async contributor => {
