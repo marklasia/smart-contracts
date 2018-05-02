@@ -10,7 +10,6 @@ const {
   defaultFiatCurrency,
   defaultFundingTimeout,
   defaultActivationTimeout,
-  defaultTotalSupply,
   defaultFundingGoal,
   defaultFiatRate,
   getDefaultStartTime,
@@ -90,7 +89,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
     })
@@ -117,7 +115,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
     })
@@ -144,7 +141,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
     })
@@ -171,7 +167,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
     })
@@ -198,7 +193,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
 
@@ -212,7 +206,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
     })
@@ -239,7 +232,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
 
@@ -253,7 +245,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
     })
@@ -280,7 +271,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
 
@@ -294,7 +284,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
     })
@@ -322,7 +311,6 @@ describe('when initializing PoaTokenConcept', () => {
         new BigNumber(Date.now()).div(1000).sub(60 * 60 * 24),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         defaultFundingGoal
       ])
     })
@@ -352,7 +340,6 @@ describe('when initializing PoaTokenConcept', () => {
           .mul(60)
           .mul(24)
           .sub(1),
-        defaultTotalSupply,
         defaultFundingGoal
       ])
     })
@@ -383,34 +370,6 @@ describe('when initializing PoaTokenConcept', () => {
           .mul(24)
           .mul(7)
           .sub(1),
-        defaultTotalSupply,
-        defaultFundingGoal
-      ])
-    })
-
-    it('should NOT initialize with totalSupply less than fundingGoal', async () => {
-      await testSetCurrencyRate(
-        exr,
-        exp,
-        defaultFiatCurrency,
-        defaultFiatRate,
-        {
-          from: owner,
-          value: 1e18
-        }
-      )
-
-      await testWillThrow(PoaTokenConcept.new, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        reg.address,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal.sub(1),
         defaultFundingGoal
       ])
     })
@@ -437,7 +396,6 @@ describe('when initializing PoaTokenConcept', () => {
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultTotalSupply,
         0
       ])
     })
@@ -447,7 +405,7 @@ describe('when initializing PoaTokenConcept', () => {
 // TODO: very nervous about integer division here...
 // need to find out how much is being lost and at what point rates/values
 // will only return 0...
-describe('when testing stage independent functions', () => {
+describe.only('when testing stage independent functions', () => {
   contract('PoaTokenConcept', () => {
     let poac
 
@@ -1538,7 +1496,7 @@ describe('when handling unhappy paths', async () => {
   })
 })
 
-describe.only('when trying various scenarios involving payout, transfer, approve, and transferFrom', () => {
+describe('when trying various scenarios involving payout, transfer, approve, and transferFrom', () => {
   contract('PoaTokenConcept', () => {
     let poac
     let fmr

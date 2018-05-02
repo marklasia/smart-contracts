@@ -224,11 +224,14 @@ contract PoaTokenConcept is PausableToken {
     custodian = _custodian;
     registry = Registry(_registry);
 
-    // assign uints
+    // assign times
     creationTime = block.timestamp;
     startTime = _startTime;
     fundingTimeout = _fundingTimeout;
     activationTimeout = _activationTimeout;
+
+    // set funding goal in cents
+    fundingGoalCents = _fundingGoalCents;
 
     // start paused
     paused = true;
