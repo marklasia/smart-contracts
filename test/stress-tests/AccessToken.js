@@ -75,7 +75,7 @@ describe('AccessToken Stress Tests', () => {
         console.log(chalk.magenta(lockUnlockTestTitle))
         await testRandomLockAndUnlock(bbk, act, contributors, {
           round: lockUnlockBbkRound,
-          minDigit: new BigNumber(1e10),
+          min: new BigNumber(1e10),
           logBalance: true,
           logRoundInfo: true
         })
@@ -117,7 +117,7 @@ describe('AccessToken Stress Tests', () => {
             act,
             contributors,
             await generateRandomLockAmounts(contributors, {
-              minDigit: new BigNumber(1e17),
+              min: new BigNumber(1e17),
               logBalance: true
             })
           )
@@ -151,7 +151,6 @@ describe('AccessToken Stress Tests', () => {
             round: randomLockUnlockCountAfterClaimFee
           })
           counters.totalLocksUnlocks += randomLockUnlockCountAfterClaimFee
-
           counters.totalFeePayed = counters.totalFeePayed.plus(feeValue)
           // eslint-disable-next-line
           console.log(chalk.green(`Passed ${i + 1} times`))
@@ -198,7 +197,7 @@ describe('AccessToken Stress Tests', () => {
             act,
             contributors,
             await generateRandomLockAmounts(contributors, {
-              minDigit: new BigNumber(1e17),
+              min: new BigNumber(1e17),
               logBalance: true
             })
           )

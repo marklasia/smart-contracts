@@ -421,13 +421,13 @@ const testApproveAndLockManyWithIndividualAmounts = async (
 
 const generateRandomLockAmounts = async (
   contributors,
-  { minDigit = new BigNumber(1e10), logBalance = false } = {}
+  { min = new BigNumber(1e10), logBalance = false } = {}
 ) => {
   return await Promise.all(
     contributors.map(async contributor => {
       const contributorBalance = await getEtherBalance(contributor)
 
-      let res = getRandomBig(minDigit, contributorBalance)
+      let res = getRandomBig(min, contributorBalance)
 
       if (res.gt(contributorBalance)) {
         res = contributorBalance
@@ -457,7 +457,7 @@ const testRandomLockAndUnlock = async (
   contributors,
   {
     round = 10,
-    minDigit = new BigNumber(1e15),
+    min = new BigNumber(1e15),
     logBalance = false,
     logRoundInfo = true
   } = {}
@@ -469,7 +469,7 @@ const testRandomLockAndUnlock = async (
       act,
       contributors,
       await generateRandomLockAmounts(contributors, {
-        minDigit,
+        min,
         logBalance
       })
     )
