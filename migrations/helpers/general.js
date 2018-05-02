@@ -32,6 +32,25 @@ const addContractsToRegistry = async ({
   })
 }
 
+const setFiatRate = async (exr, exp, queryType, rate, config) => {
+  await exr.setCurrencySettings(
+    queryType,
+    'https://domain.com?currency=ETH',
+    30,
+    1.5e5,
+    {
+      from: config.from
+    }
+  )
+  await exr.getCurrencySettingsReadable(queryType)
+  await exr.fetchRate(queryType, config)
+  const pendingQueryId = await exp.pendingTestQueryId()
+  await exp.simulate__callback(pendingQueryId, '50000', {
+    from: config.from
+  })
+}
+
 module.exports = {
-  addContractsToRegistry
+  addContractsToRegistry,
+  setFiatRate
 }

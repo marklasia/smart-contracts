@@ -328,8 +328,10 @@ const testFiatCentsToWei = async (poac, fiatCentInput) => {
 
 const testWeiToTokens = async (poac, weiInput) => {
   const expectedTokens = weiInput
-    .mul(defaultTotalSupply)
-    .div(defaultFundingGoal.mul(1e18).div(defaultFiatRate))
+    .mul(defaultFiatRate)
+    .div(1e18)
+    .mul(1e20)
+    .div(defaultFundingGoal)
     .floor()
 
   const actualTokens = await poac.weiToTokens(weiInput)
@@ -338,21 +340,6 @@ const testWeiToTokens = async (poac, weiInput) => {
     expectedTokens.toString(),
     actualTokens.toString(),
     'weiInput converted to actualTokens should match expectedTokens'
-  )
-}
-
-const testTokensToWei = async (poac, tokensInput) => {
-  const expectedWei = tokensInput
-    .mul(defaultFundingGoal.mul(1e18).div(defaultFiatRate))
-    .div(defaultTotalSupply)
-    .floor()
-
-  const actualWei = await poac.tokensToWei(tokensInput)
-
-  assert.equal(
-    expectedWei.toString(),
-    actualWei.toString(),
-    'tokensInput converted to actualWei should match expectedWei'
   )
 }
 
@@ -399,12 +386,12 @@ const testStartSale = async (poac, config) => {
 const testBuyTokens = async (poac, config) => {
   assert(!!config.gasPrice, 'gasPrice must be given')
   const buyer = config.from
-  const ethBuyAmount = new BigNumber(config.value)
-  const fiatBuyAmount = await poac.weiToFiatCents(ethBuyAmount)
+  const weiBuyAmount = new BigNumber(config.value)
 
   const preEthBalance = await getEtherBalance(buyer)
   const preTokenBalance = await poac.balanceOf(buyer)
   const preFundedAmount = await poac.fundedAmountWei()
+  const preUserWeiInvested = await poac.userWeiInvested(buyer)
 
   const tx = await poac.buy(config)
   const gasUsed = await getGasUsed(tx)
@@ -412,9 +399,10 @@ const testBuyTokens = async (poac, config) => {
   const postEthBalance = await getEtherBalance(buyer)
   const postTokenBalance = await poac.balanceOf(buyer)
   const postFundedAmount = await poac.fundedAmountWei()
+  const postUserWeiInvested = await poac.userWeiInvested(buyer)
 
-  const expectedPostEthBalance = preEthBalance.sub(ethBuyAmount).sub(gasCost)
-  const tokenBuyAmount = await poac.weiToTokens(ethBuyAmount)
+  const expectedPostEthBalance = preEthBalance.sub(weiBuyAmount).sub(gasCost)
+  const tokenBuyAmount = await poac.weiToTokens(weiBuyAmount)
 
   assert.equal(
     expectedPostEthBalance.toString(),
@@ -428,8 +416,13 @@ const testBuyTokens = async (poac, config) => {
   )
   assert.equal(
     postFundedAmount.sub(preFundedAmount).toString(),
-    fiatBuyAmount.toString(),
-    'fiat fundedAmountWei should be incremented by fiatBuyAmount'
+    weiBuyAmount.toString(),
+    'fiat fundedAmountWei should be incremented by eth wei amount'
+  )
+  assert.equal(
+    postUserWeiInvested.sub(preUserWeiInvested).toString(),
+    weiBuyAmount.toString(),
+    'userWeiInvested should be incremented for the buying user'
   )
 }
 
@@ -438,35 +431,42 @@ const testBuyTokensMulti = async (poac, buyAmount) => {
     await testBuyTokens(poac, { from: buyer, value: buyAmount, gasPrice })
   }
 }
+/*
+  how do we know how much more is remaining?
+    check fundingGoalCents
+    convert to wei
 
+    compare to fundedAmountWei
+
+
+*/
 const testBuyRemainingTokens = async (poac, config) => {
   assert(!!config.gasPrice, 'gasPrice must be given')
-  const fundedAmountWeiCents = await poac.fundedAmountWei()
-  const fundingGoalCentsCents = await poac.fundingGoalCents()
-  const remainingBuyableCents = fundingGoalCentsCents.sub(fundedAmountWeiCents)
-  const remainingBuyableEth = await poac.fiatCentsToWei(remainingBuyableCents)
-  const updatedConfig = config
+  assert(!!config.from, 'from must be given')
+  const fundedAmountWei = await poac.fundedAmountWei()
+  const fundingGoalCents = await poac.fundingGoalCents()
+  const fundingGoalWei = await poac.fiatCentsToWei(fundingGoalCents)
+  const remainingBuyableEth = fundingGoalWei.sub(fundedAmountWei)
+
   config.value = remainingBuyableEth
-
-  const preStage = await poac.stage()
-
   const buyer = config.from
-  const ethBuyAmount = new BigNumber(config.value)
-  const fiatBuyAmount = await poac.weiToFiatCents(ethBuyAmount)
+  const weiBuyAmount = new BigNumber(config.value)
+  const preStage = await poac.stage()
 
   const preEthBalance = await getEtherBalance(buyer)
   const preTokenBalance = await poac.balanceOf(buyer)
-  const preFundedAmount = await poac.fundedAmountWei()
-
-  const tx = await poac.buy(updatedConfig)
+  const preFundedWei = await poac.fundedAmountWei()
+  const tx = await poac.buy(config)
   const gasUsed = await getGasUsed(tx)
   const gasCost = new BigNumber(gasUsed).mul(config.gasPrice)
+
   const postEthBalance = await getEtherBalance(buyer)
   const postTokenBalance = await poac.balanceOf(buyer)
-  const postFundedAmount = await poac.fundedAmountWei()
+  const postFundedWei = await poac.fundedAmountWei()
 
-  const expectedPostEthBalance = preEthBalance.sub(ethBuyAmount).sub(gasCost)
-  const tokenBuyAmount = await poac.weiToTokens(ethBuyAmount)
+  const expectedPostEthBalance = preEthBalance.sub(weiBuyAmount).sub(gasCost)
+  const tokenBuyAmount = await poac.weiToTokens(weiBuyAmount)
+  const postFundedFiatCents = await poac.weiToFiatCents(postFundedWei)
 
   assert.equal(
     expectedPostEthBalance.toString(),
@@ -480,9 +480,13 @@ const testBuyRemainingTokens = async (poac, config) => {
     'buyer token balance should be incremented by tokenBuyAmount'
   )
   assert.equal(
-    postFundedAmount.sub(preFundedAmount).toString(),
-    fiatBuyAmount.toString(),
+    postFundedWei.sub(preFundedWei).toString(),
+    weiBuyAmount.toString(),
     'fiat fundedAmountWei should be incremented by fiatBuyAmount'
+  )
+  assert(
+    areInRange(fundingGoalCents, postFundedFiatCents, 1e1),
+    'fundingGoal should be met'
   )
 
   const postStage = await poac.stage()
@@ -1137,7 +1141,6 @@ module.exports = {
   testWeiToFiatCents,
   testFiatCentsToWei,
   testWeiToTokens,
-  testTokensToWei,
   testCalculateFee,
   testStartSale,
   testBuyTokens,

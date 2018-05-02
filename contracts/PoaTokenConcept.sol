@@ -279,9 +279,8 @@ contract PoaTokenConcept is PausableToken {
     view
     returns (uint256)
   {
-    return _weiAmount
-      .mul(weiToFiatCents(_weiAmount))
-      .div(fundingGoalCents);
+    // 1e20 = to wei units (1e18) to percentage units (1e2)
+    return weiToFiatCents(_weiAmount).mul(1e20).div(fundingGoalCents);
   }
 
   // public utility function to allow checking of required fee for a given amount
@@ -362,33 +361,36 @@ contract PoaTokenConcept is PausableToken {
 
   function buyContinue()
     private
+    returns (bool)
   {
     // _payAmount is just value sent
     uint256 _payAmount = msg.value;
     // get token amount from wei... drops remainders (keeps wei dust in contract)
     uint256 _buyAmount = weiToTokens(_payAmount);
     // check that buyer will indeed receive something after integer division
-    // this check cannot be done in other case because it could prevent
-    // contract from moving to next stage
     require(_buyAmount > 0);
     // create new tokens for user
     mint(msg.sender, _buyAmount);
     // save this for later in case needing to reclaim
-    userWeiInvested[msg.sender] = _buyAmount;
+    userWeiInvested[msg.sender] = _payAmount;
     // increment the funded amount
     fundedAmountWei = fundedAmountWei.add(_payAmount);
     BuyEvent(msg.sender, _buyAmount);
+
+    return true;
   }
 
-  function buyEnd()
+  function buyEnd(bool _shouldRefund)
     private
+    returns (bool)
   {
     // let the world know that the token is in Pending Stage
     enterStage(Stages.Pending);
-    // set refund amount (overpaid amount)
-    uint256 _refundAmount = fiatCentsToWei(
-      weiToFiatCents(fundedAmountWei.add(msg.value)).sub(fundingGoalCents)
-    );
+    uint256 _refundAmount = _shouldRefund ?
+      fiatCentsToWei(
+        weiToFiatCents(fundedAmountWei.add(msg.value)).sub(fundingGoalCents)
+      ) :
+      0;
     // transfer refund amount back to user
     msg.sender.transfer(_refundAmount);
     // actual Ξ amount to buy after refund
@@ -402,6 +404,8 @@ contract PoaTokenConcept is PausableToken {
     // increment the funded amount
     fundedAmountWei = fundedAmountWei.add(_payAmount);
     BuyEvent(msg.sender, _buyAmount);
+
+    return true;
   }
 
   function buy()
@@ -416,17 +420,24 @@ contract PoaTokenConcept is PausableToken {
     // earning money on a buy
     if (weiToFiatCents(fundedAmountWei) > fundingGoalCents) {
       enterStage(Stages.Pending);
+      if (msg.value > 0) {
+        msg.sender.transfer(msg.value);
+      }
       return false;
     }
 
+    uint256 _currentFundedCents = weiToFiatCents(fundedAmountWei.add(msg.value));
     // check if balance has met funding goal to move on to Pending
-    if (weiToFiatCents(fundedAmountWei.add(msg.value)) < fundingGoalCents) {
-      buyContinue();
+    if (_currentFundedCents < fundingGoalCents) {
+      // give a range due to fun fun integer division
+      if (fundingGoalCents.sub(_currentFundedCents) > 1) {
+        return buyContinue();
+      } else {
+        return buyEnd(false);
+      }
     } else {
-      buyEnd();
+      return buyEnd(true);
     }
-
-    return true;
   }
 
   // used to manually set Stage to Failed when no users have bought any tokens

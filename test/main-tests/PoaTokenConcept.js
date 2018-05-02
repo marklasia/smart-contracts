@@ -21,7 +21,6 @@ const {
   testWeiToFiatCents,
   testFiatCentsToWei,
   testWeiToTokens,
-  testTokensToWei,
   testCalculateFee,
   testStartSale,
   testBuyTokens,
@@ -402,10 +401,7 @@ describe('when initializing PoaTokenConcept', () => {
   })
 })
 
-// TODO: very nervous about integer division here...
-// need to find out how much is being lost and at what point rates/values
-// will only return 0...
-describe.only('when testing stage independent functions', () => {
+describe('when testing stage independent functions', () => {
   contract('PoaTokenConcept', () => {
     let poac
 
@@ -424,10 +420,6 @@ describe.only('when testing stage independent functions', () => {
 
     it('should use weiToTokens to calculate correct value', async () => {
       await testWeiToTokens(poac, new BigNumber('1e18'))
-    })
-
-    it('should use tokensToWei to calculate correct value', async () => {
-      await testTokensToWei(poac, new BigNumber('1e18'))
     })
 
     it('should calculate correct fee', async () => {
@@ -458,7 +450,7 @@ describe.only('when testing stage independent functions', () => {
   })
 })
 
-describe("when going through Poa's normal flow", async () => {
+describe.only("when going through Poa's normal flow", async () => {
   contract('PoaTokenConcept', () => {
     let fmr
     let poac
