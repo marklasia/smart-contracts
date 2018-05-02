@@ -80,19 +80,19 @@ contract PoaTokenConcept is PausableToken {
   // Pending stage after creationTime + fundingTimeout
   uint256 public activationTimeout;
   // amount needed before moving to pending calculated in fiat
-  uint256 public fundingGoal;
+  uint256 public fundingGoalCents;
   // the total per token payout rate: accumulates as payouts are received
   uint256 public totalPerTokenPayout;
-  // used to keep tract of amount funded relative to fundingGoal
-  uint256 public fundedAmount;
-  // used to keep consistent calculations when checking rates
-  uint256 public initialSupply;
-
+  // used to keep track of of actual fundedAmount in eth
+  uint256 public fundedAmountWei;
 
   // used to deduct already claimed payouts on a per token basis
   mapping(address => uint256) public claimedPerTokenPayouts;
   // fallback for when a transfer happens with payouts remaining
   mapping(address => uint256) public unclaimedPayoutTotals;
+  // needs to be used due to tokens not directly correlating to fundingGoal due
+  // due to fluctuating fiat rates
+  mapping(address => uint256) public userWeiInvested;
 
   enum Stages {
     PreFunding,
@@ -112,6 +112,7 @@ contract PoaTokenConcept is PausableToken {
   event TerminatedEvent();
   event WhitelistedEvent(address indexed account, bool isWhitelisted);
   event ProofOfCustodyUpdated(string ipfsHash);
+  event Mint(address indexed to, uint256 amount);
 
   modifier eitherCustodianOrOwner() {
     require(
@@ -175,7 +176,7 @@ contract PoaTokenConcept is PausableToken {
     _;
   }
 
-  // token totalSupply must be more than fundingGoal!
+  // token totalSupply must be more than fundingGoalCents!
   function PoaTokenConcept
   (
     string _name,
@@ -190,9 +191,8 @@ contract PoaTokenConcept is PausableToken {
     // given as seconds
     uint256 _fundingTimeout,
     uint256 _activationTimeout,
-    uint256 _totalSupply,
     // given as fiat cents
-    uint256 _fundingGoal
+    uint256 _fundingGoalCents
   )
     public
   {
@@ -212,8 +212,7 @@ contract PoaTokenConcept is PausableToken {
     require(_fundingTimeout >= 60 * 60 * 24);
     // ensure that activationTimeout is at least 7 days
     require(_activationTimeout >= 60 * 60 * 24 * 7);
-    require(_fundingGoal > 0);
-    require(_totalSupply > _fundingGoal);
+    require(_fundingGoalCents > 0);
     // assign strings
     name = _name;
     symbol = _symbol;
@@ -230,12 +229,6 @@ contract PoaTokenConcept is PausableToken {
     startTime = _startTime;
     fundingTimeout = _fundingTimeout;
     activationTimeout = _activationTimeout;
-
-    // these uints are supposed to be based off of sqm of building
-    totalSupply = _totalSupply;
-    initialSupply = totalSupply;
-    fundingGoal = _fundingGoal;
-    balances[this] = _totalSupply;
 
     // start paused
     paused = true;
@@ -284,25 +277,8 @@ contract PoaTokenConcept is PausableToken {
     returns (uint256)
   {
     return _weiAmount
-      .mul(1e18)
-      .mul(initialSupply)
-      .div(fiatCentsToWei(fundingGoal))
-      .div(1e18);
-  }
-
-  // util function to convert tokens to wei. can be used publicly to see how
-  // much Ξ would be received for token reclaim amount
-  // will typically lose 1 wei unit of Ξ due to integer division
-  function tokensToWei(uint256 _tokenAmount)
-    public
-    view
-    returns (uint256)
-  {
-    return _tokenAmount
-      .mul(1e18)
-      .mul(fiatCentsToWei(fundingGoal))
-      .div(initialSupply)
-      .div(1e18);
+      .mul(weiToFiatCents(_weiAmount))
+      .div(fundingGoalCents);
   }
 
   // public utility function to allow checking of required fee for a given amount
@@ -323,6 +299,14 @@ contract PoaTokenConcept is PausableToken {
       registry.getContractAddress("FeeManager")
     );
     require(feeManager.payFee.value(_value)());
+  }
+
+  function fundedAmountCents()
+    public
+    view
+    returns (uint256)
+  {
+    return weiToFiatCents(fundedAmountWei);
   }
 
   // end utility functions
@@ -359,6 +343,64 @@ contract PoaTokenConcept is PausableToken {
     return true;
   }
 
+  function mint(
+    address _to,
+    uint256 _amount
+  )
+    private
+    returns (bool)
+  {
+    totalSupply = totalSupply.add(_amount);
+    balances[_to] = balances[_to].add(_amount);
+    Mint(_to, _amount);
+    Transfer(address(0), _to, _amount);
+    return true;
+  }
+
+  function buyContinue()
+    private
+  {
+    // _payAmount is just value sent
+    uint256 _payAmount = msg.value;
+    // get token amount from wei... drops remainders (keeps wei dust in contract)
+    uint256 _buyAmount = weiToTokens(_payAmount);
+    // check that buyer will indeed receive something after integer division
+    // this check cannot be done in other case because it could prevent
+    // contract from moving to next stage
+    require(_buyAmount > 0);
+    // create new tokens for user
+    mint(msg.sender, _buyAmount);
+    // save this for later in case needing to reclaim
+    userWeiInvested[msg.sender] = _buyAmount;
+    // increment the funded amount
+    fundedAmountWei = fundedAmountWei.add(_payAmount);
+    BuyEvent(msg.sender, _buyAmount);
+  }
+
+  function buyEnd()
+    private
+  {
+    // let the world know that the token is in Pending Stage
+    enterStage(Stages.Pending);
+    // set refund amount (overpaid amount)
+    uint256 _refundAmount = fiatCentsToWei(
+      weiToFiatCents(fundedAmountWei.add(msg.value)).sub(fundingGoalCents)
+    );
+    // transfer refund amount back to user
+    msg.sender.transfer(_refundAmount);
+    // actual Ξ amount to buy after refund
+    uint256 _payAmount = msg.value.sub(_refundAmount);
+    // token buy amount with refund taken into account
+    uint256 _buyAmount = weiToTokens(_payAmount);
+    // create new tokens for user
+    mint(msg.sender, _buyAmount);
+    // save this for later in case needing to reclaim
+    userWeiInvested[msg.sender] = _buyAmount;
+    // increment the funded amount
+    fundedAmountWei = fundedAmountWei.add(_payAmount);
+    BuyEvent(msg.sender, _buyAmount);
+  }
+
   function buy()
     public
     payable
@@ -367,40 +409,20 @@ contract PoaTokenConcept is PausableToken {
     isWhitelisted
     returns (bool)
   {
-    uint256 _payAmount;
-    uint256 _buyAmount;
-    // check if balance has met funding goal to move on to Pending
-    if (fundedAmount.add(weiToFiatCents(msg.value)) < fundingGoal.sub(1)) {
-      // _payAmount is just value sent
-      _payAmount = msg.value;
-      // get token amount from wei... drops remainders (keeps wei dust in contract)
-      _buyAmount = weiToTokens(_payAmount);
-      // check that buyer will indeed receive something after integer division
-      // this check cannot be done in other case because it could prevent
-      // contract from moving to next stage
-      require(_buyAmount > 0);
-    } else {
-      // let the world know that the token is in Pending Stage
+    // prevent case where buying after reaching fundingGoal results in buyer
+    // earning money on a buy
+    if (weiToFiatCents(fundedAmountWei) > fundingGoalCents) {
       enterStage(Stages.Pending);
-      // set refund amount (overpaid amount)
-      uint256 _refundAmount = fundedAmount
-        .add(weiToFiatCents(msg.value))
-        .sub(fundingGoal.sub(1));
-      // SHOULD be ok even with reentrancy because of enterStage(Stages.Pending)
-      msg.sender.transfer(_refundAmount);
-      // get actual Ξ amount to buy
-      _payAmount = msg.value.sub(_refundAmount);
-      _buyAmount = balances[this];
+      return false;
     }
-    // deduct token buy amount balance from contract balance
-    balances[this] = balances[this].sub(_buyAmount);
-    // add token buy amount to sender's balance
-    balances[msg.sender] = balances[msg.sender].add(_buyAmount);
-    // increment the funded amount
-    fundedAmount = fundedAmount.add(weiToFiatCents(_payAmount));
-    // send out event giving info on amount bought as well as claimable dust
-    Transfer(this, msg.sender, _buyAmount);
-    BuyEvent(msg.sender, _buyAmount);
+
+    // check if balance has met funding goal to move on to Pending
+    if (weiToFiatCents(fundedAmountWei.add(msg.value)) < fundingGoalCents) {
+      buyContinue();
+    } else {
+      buyEnd();
+    }
+
     return true;
   }
 
@@ -444,7 +466,7 @@ contract PoaTokenConcept is PausableToken {
     // turned into ACT for lockedBBK holders
     payFee(_fee);
     proofOfCustody = _ipfsHash;
-    // balance of contract (fundingGoal) set to claimable by broker.
+    // balance of contract (fundingGoalCents) set to claimable by broker.
     // can now be claimed by broker via claim function
     // should only be buy()s - fee. this ensures buy() dust is cleared
     unclaimedPayoutTotals[broker] = unclaimedPayoutTotals[broker]
@@ -531,28 +553,20 @@ contract PoaTokenConcept is PausableToken {
     return true;
   }
 
-  // reclaim Ξ for sender if fundingGoal is not met within fundingTimeoutBlock
+  // reclaim Ξ for sender if fundingGoalCents is not met within fundingTimeoutBlock
   function reclaim()
     external
     checkTimeout
     atStage(Stages.Failed)
     returns (bool)
   {
-    // get token balance of user
+    uint256 _refundAmount = userWeiInvested[msg.sender];
+    require(_refundAmount > 0);
     uint256 _tokenBalance = balances[msg.sender];
-    // ensure that token balance is over 0
-    require(_tokenBalance > 0);
-    // set token balance to 0 so re reclaims are not possible
     balances[msg.sender] = 0;
-    // decrement totalSupply by token amount being reclaimed
     totalSupply = totalSupply.sub(_tokenBalance);
     Transfer(msg.sender, address(0), _tokenBalance);
-    // decrement fundedAmount by eth amount converted from token amount being reclaimed
-    fundedAmount = fundedAmount.sub(weiToFiatCents(tokensToWei(_tokenBalance)));
-    // set reclaim total as token value
-    uint256 _reclaimTotal = tokensToWei(_tokenBalance);
-    // send Ξ back to sender
-    msg.sender.transfer(_reclaimTotal);
+    msg.sender.transfer(_refundAmount);
     return true;
   }
 
