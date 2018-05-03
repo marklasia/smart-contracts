@@ -1429,7 +1429,7 @@ describe('when in Terminated (stage 5)', () => {
   })
 })
 
-describe.only('when handling unhappy paths', async () => {
+describe('when handling unhappy paths', async () => {
   contract('PoaTokenConcept', () => {
     let poac
 
@@ -1493,7 +1493,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
     let poac
     let fmr
     let feeRate
-    let initialSupply
+    let totalSupply
     const defaultPayoutAmount = new BigNumber(0.23437e16)
     const defaultBuyAmount = new BigNumber(1.802384753e16)
 
@@ -1526,7 +1526,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
       await testBrokerClaim(poac)
 
       feeRate = await poac.feeRate()
-      initialSupply = await poac.initialSupply()
+      totalSupply = await poac.totalSupply()
     })
 
     describe('payout -> trasfer 100% -> payout', () => {
@@ -1552,7 +1552,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         receiverAccount = await getAccountInformation(poac, receiver)
 
         fee = defaultPayoutAmount.mul(feeRate).div(1e3)
-        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(totalSupply)
 
         // should just be perToken rate here
         expectedSenderPayout = senderAccount.tokenBalance.mul(
@@ -1563,11 +1563,15 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         )
 
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
           'sender currentPayout should match expectedPayout'
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
           'receiver currentPayout should match expectedPayout'
         )
 
@@ -1594,7 +1598,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         receiverAccount = await getAccountInformation(poac, receiver)
 
         fee = defaultPayoutAmount.mul(feeRate).div(1e3)
-        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(totalSupply)
 
         expectedSenderPayout = senderAccount.tokenBalance
           .mul(expectedPerTokenPayout)
@@ -1604,11 +1608,15 @@ describe('when trying various scenarios involving payout, transfer, approve, and
           .add(expectedReceiverUnclaimed)
 
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
           'sender currentPayout should match expectedPayout'
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
           'receiver currentPayout should match expectedPayout'
         )
 
@@ -1639,7 +1647,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         receiverAccount = await getAccountInformation(poac, receiver)
 
         fee = defaultPayoutAmount.mul(feeRate).div(1e3)
-        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(totalSupply)
 
         // should just be perToken rate here
         expectedSenderPayout = senderAccount.tokenBalance.mul(
@@ -1650,11 +1658,15 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         )
 
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
           'sender currentPayout should match expectedPayout'
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
           'receiver currentPayout should match expectedPayout'
         )
 
@@ -1681,7 +1693,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         receiverAccount = await getAccountInformation(poac, receiver)
 
         fee = defaultPayoutAmount.mul(feeRate).div(1e3)
-        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(totalSupply)
 
         expectedSenderPayout = senderAccount.tokenBalance
           .mul(expectedPerTokenPayout)
@@ -1691,11 +1703,15 @@ describe('when trying various scenarios involving payout, transfer, approve, and
           .add(expectedReceiverUnclaimed)
 
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
           'sender currentPayout should match expectedPayout'
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
           'receiver currentPayout should match expectedPayout'
         )
 
@@ -1727,7 +1743,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         receiverAccount = await getAccountInformation(poac, receiver)
 
         fee = defaultPayoutAmount.mul(feeRate).div(1e3)
-        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(totalSupply)
 
         // should just be perToken rate here
         expectedSenderPayout = senderAccount.tokenBalance.mul(
@@ -1738,12 +1754,18 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         )
 
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
-          'sender currentPayout should match expectedPayout'
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
+          `sender currentPayout ${senderAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
-          'receiver currentPayout should match expectedPayout'
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testApprove(poac, spender, senderAccount.tokenBalance, {
@@ -1777,7 +1799,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         receiverAccount = await getAccountInformation(poac, receiver)
 
         fee = defaultPayoutAmount.mul(feeRate).div(1e3)
-        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(totalSupply)
 
         expectedSenderPayout = senderAccount.tokenBalance
           .mul(expectedPerTokenPayout)
@@ -1787,12 +1809,18 @@ describe('when trying various scenarios involving payout, transfer, approve, and
           .add(expectedReceiverUnclaimed)
 
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
-          'sender currentPayout should match expectedPayout'
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
+          `sender currentPayout ${senderAccount.currentPayout.toString()}
+            should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
-          'receiver currentPayout should match expectedPayout'
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+            should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testClaimAllPayouts(poac, whitelistedPoaBuyers)
@@ -1823,7 +1851,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         receiverAccount = await getAccountInformation(poac, receiver)
 
         fee = defaultPayoutAmount.mul(feeRate).div(1e3)
-        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(totalSupply)
 
         // should just be perToken rate here
         expectedSenderPayout = senderAccount.tokenBalance.mul(
@@ -1834,12 +1862,18 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         )
 
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
-          'sender currentPayout should match expectedPayout'
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
+          `sender currentPayout ${senderAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
-          'receiver currentPayout should match expectedPayout'
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testApprove(poac, spender, senderAccount.tokenBalance, {
@@ -1874,7 +1908,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         receiverAccount = await getAccountInformation(poac, receiver)
 
         fee = defaultPayoutAmount.mul(feeRate).div(1e3)
-        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(initialSupply)
+        expectedPerTokenPayout = defaultPayoutAmount.sub(fee).div(totalSupply)
 
         expectedSenderPayout = senderAccount.tokenBalance
           .mul(expectedPerTokenPayout)
@@ -1884,12 +1918,18 @@ describe('when trying various scenarios involving payout, transfer, approve, and
           .add(expectedReceiverUnclaimed)
 
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
-          'sender currentPayout should match expectedPayout'
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
+          `sender currentPayout ${senderAccount.currentPayout.toString()}
+            should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
-          'receiver currentPayout should match expectedPayout'
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+            should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testClaimAllPayouts(poac, whitelistedPoaBuyers)
@@ -1917,7 +1957,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         const fee = defaultPayoutAmount.mul(feeRate).div(1e3)
         const expectedPerTokenPayout = defaultPayoutAmount
           .sub(fee)
-          .div(initialSupply)
+          .div(totalSupply)
 
         const expectedSenderPayout = new BigNumber(0)
         const expectedReceiverPayout = receiverAccount.tokenBalance
@@ -1927,12 +1967,18 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         senderAccount = await getAccountInformation(poac, sender)
         receiverAccount = await getAccountInformation(poac, receiver)
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
-          'sender currentPayout should match expectedPayout'
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
+          `sender currentPayout ${senderAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
-          'receiver currentPayout should match expectedPayout'
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testClaimAllPayouts(poac, whitelistedPoaBuyers)
@@ -1960,7 +2006,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         const fee = defaultPayoutAmount.mul(feeRate).div(1e3)
         const expectedPerTokenPayout = defaultPayoutAmount
           .sub(fee)
-          .div(initialSupply)
+          .div(totalSupply)
 
         const expectedSenderPayout = senderAccount.tokenBalance
           .div(2)
@@ -1972,12 +2018,18 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         senderAccount = await getAccountInformation(poac, sender)
         receiverAccount = await getAccountInformation(poac, receiver)
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
-          'sender currentPayout should match expectedPayout'
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
+          `sender currentPayout ${senderAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
-          'receiver currentPayout should match expectedPayout'
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testClaimAllPayouts(poac, whitelistedPoaBuyers)
@@ -2016,7 +2068,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         const fee = defaultPayoutAmount.mul(feeRate).div(1e3)
         const expectedPerTokenPayout = defaultPayoutAmount
           .sub(fee)
-          .div(initialSupply)
+          .div(totalSupply)
 
         const expectedSenderPayout = new BigNumber(0)
         const expectedReceiverPayout = receiverAccount.tokenBalance
@@ -2026,12 +2078,18 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         senderAccount = await getAccountInformation(poac, sender)
         receiverAccount = await getAccountInformation(poac, receiver)
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
-          'sender currentPayout should match expectedPayout'
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
+          `sender currentPayout ${senderAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
-          'receiver currentPayout should match expectedPayout'
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testClaimAllPayouts(poac, whitelistedPoaBuyers)
@@ -2070,7 +2128,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         const fee = defaultPayoutAmount.mul(feeRate).div(1e3)
         const expectedPerTokenPayout = defaultPayoutAmount
           .sub(fee)
-          .div(initialSupply)
+          .div(totalSupply)
 
         const expectedSenderPayout = senderAccount.tokenBalance
           .div(2)
@@ -2083,12 +2141,18 @@ describe('when trying various scenarios involving payout, transfer, approve, and
         receiverAccount = await getAccountInformation(poac, receiver)
 
         assert(
-          areInRange(senderAccount.currentPayout, expectedSenderPayout, 2),
-          'sender currentPayout should match expectedPayout'
+          areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
+          `sender currentPayout ${senderAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
-          areInRange(receiverAccount.currentPayout, expectedReceiverPayout, 2),
-          'receiver currentPayout should match expectedPayout'
+          areInRange(
+            receiverAccount.currentPayout,
+            expectedReceiverPayout,
+            1e2
+          ),
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testClaimAllPayouts(poac, whitelistedPoaBuyers)
