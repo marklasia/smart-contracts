@@ -113,6 +113,7 @@ contract PoaTokenConcept is PausableToken {
   event WhitelistedEvent(address indexed account, bool isWhitelisted);
   event ProofOfCustodyUpdated(string ipfsHash);
   event Mint(address indexed to, uint256 amount);
+  event ReclaimEvent(address indexed reclaimer, uint256 amount);
 
   modifier eitherCustodianOrOwner() {
     require(
@@ -155,10 +156,6 @@ contract PoaTokenConcept is PausableToken {
       (stage == Stages.Funding && block.timestamp >= fundingTimeoutDeadline) ||
       (stage == Stages.Pending && block.timestamp >= activationTimeoutDeadline)
     ) {
-      uint256 _unsoldBalance = balances[this];
-      balances[this] = 0;
-      totalSupply = totalSupply.sub(_unsoldBalance);
-      Transfer(this, address(0), balances[this]);
       enterStage(Stages.Failed);
     }
     _;
@@ -575,10 +572,12 @@ contract PoaTokenConcept is PausableToken {
     returns (bool)
   {
     uint256 _refundAmount = userWeiInvested[msg.sender];
+    userWeiInvested[msg.sender] = 0;
     require(_refundAmount > 0);
     uint256 _tokenBalance = balances[msg.sender];
     balances[msg.sender] = 0;
     totalSupply = totalSupply.sub(_tokenBalance);
+    fundedAmountWei = fundedAmountWei.sub(_refundAmount);
     Transfer(msg.sender, address(0), _tokenBalance);
     msg.sender.transfer(_refundAmount);
     return true;

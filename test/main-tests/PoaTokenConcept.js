@@ -450,7 +450,7 @@ describe('when testing stage independent functions', () => {
   })
 })
 
-describe.only("when going through Poa's normal flow", async () => {
+describe("when going through Poa's normal flow", async () => {
   contract('PoaTokenConcept', () => {
     let fmr
     let poac
@@ -1429,7 +1429,7 @@ describe('when in Terminated (stage 5)', () => {
   })
 })
 
-describe('when handling unhappy paths', async () => {
+describe.only('when handling unhappy paths', async () => {
   contract('PoaTokenConcept', () => {
     let poac
 
