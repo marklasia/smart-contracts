@@ -2169,13 +2169,14 @@ describe('when buying tokens with a fluctuating fiatRate', () => {
     let poac
     let exr
     let exp
-    let rate = new BigNumber(5e4)
+    let rate
 
     beforeEach('setup contracts', async () => {
       const contracts = await setupPoaAndEcosystem()
       poac = contracts.poac
       exr = contracts.exr
       exp = contracts.exp
+      rate = new BigNumber(5e4)
 
       // move into Funding
       const neededTime = await determineNeededTimeTravel(poac)
@@ -2249,7 +2250,6 @@ describe('when buying tokens with a fluctuating fiatRate', () => {
     it('should NOT move to pending if rate goes low enough before a buy', async () => {
       const fundingGoalFiatCents = await poac.fundingGoalCents()
       const preNeededWei = await poac.fiatCentsToWei(fundingGoalFiatCents)
-
       // suddenly eth drops to half of value vs EUR
       rate = rate.div(2).floor()
       await testResetCurrencyRate(exr, exp, 'EUR', rate)
@@ -2290,20 +2290,24 @@ describe('when buying tokens with a fluctuating fiatRate', () => {
       await testResetCurrencyRate(exr, exp, 'EUR', rate)
 
       const interimStage = await poac.stage()
-      const preEtherBalance = await getEtherBalance(whitelistedPoaBuyers[1])
+      const preSecondEthBalance = await getEtherBalance(whitelistedPoaBuyers[1])
 
       // try to buy after rate doubling (fundingGoal should be met)
       const tx = await poac.buy({
         from: whitelistedPoaBuyers[1],
-        value: preNeededWei.div(2),
+        value: preNeededWei.div(2).floor(),
         gasPrice
       })
       const { gasUsed } = tx.receipt
       const gasCost = gasPrice.mul(gasUsed)
 
       const postStage = await poac.stage()
-      const postEtherBalance = await getEtherBalance(whitelistedPoaBuyers[1])
-      const postTokenBalance = await poac.balanceOf(whitelistedPoaBuyers[1])
+      const postSecondEthBalance = await getEtherBalance(
+        whitelistedPoaBuyers[1]
+      )
+      const postSecondTokenBalance = await poac.balanceOf(
+        whitelistedPoaBuyers[1]
+      )
 
       assert.equal(
         interimStage.toString(),
@@ -2311,19 +2315,19 @@ describe('when buying tokens with a fluctuating fiatRate', () => {
         'stage should still be 1, Funding'
       )
       assert.equal(
-        preEtherBalance.sub(postEtherBalance).toString(),
-        gasCost.toString(),
-        'only gasCost should be deducted, the rest should be sent back'
-      )
-      assert.equal(
         postStage.toString(),
         new BigNumber(2).toString(),
         'stage should now be 2, Pending'
       )
       assert.equal(
-        postTokenBalance.toString(),
+        postSecondTokenBalance.toString(),
         new BigNumber(0).toString(),
         'buyer should get no tokens'
+      )
+      assert.equal(
+        preSecondEthBalance.sub(postSecondEthBalance).toString(),
+        gasCost.toString(),
+        'only gasCost should be deducted, the rest should be sent back'
       )
     })
   })
