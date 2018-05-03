@@ -18,7 +18,12 @@ const {
 } = require('./general')
 const { finalizedBBK } = require('./bbk')
 const { testApproveAndLockMany } = require('./act')
-const { testSetCurrencySettings, testFetchRate, testSetRate } = require('./exr')
+const {
+  testSetCurrencySettings,
+  testFetchRate,
+  testSetRate,
+  testSetQueryId
+} = require('./exr')
 const BigNumber = require('bignumber.js')
 
 const accounts = web3.eth.accounts
@@ -423,6 +428,8 @@ const testBuyTokens = async (poac, config) => {
     weiBuyAmount.toString(),
     'userWeiInvested should be incremented for the buying user'
   )
+
+  return postTokenBalance
 }
 
 const testBuyTokensMulti = async (poac, buyAmount) => {
@@ -430,15 +437,7 @@ const testBuyTokensMulti = async (poac, buyAmount) => {
     await testBuyTokens(poac, { from: buyer, value: buyAmount, gasPrice })
   }
 }
-/*
-  how do we know how much more is remaining?
-    check fundingGoalCents
-    convert to wei
 
-    compare to fundedAmountWei
-
-
-*/
 const testBuyRemainingTokens = async (poac, config) => {
   assert(!!config.gasPrice, 'gasPrice must be given')
   assert(!!config.from, 'from must be given')
@@ -1029,6 +1028,11 @@ const getAccountInformation = async (poac, address) => {
   }
 }
 
+const testResetCurrencyRate = async (exr, exp, currencyType, rate) => {
+  await testSetQueryId(exr, exp, currencyType)
+  await testSetRate(exr, exp, rate, false)
+}
+
 module.exports = {
   accounts,
   owner,
@@ -1082,5 +1086,6 @@ module.exports = {
   testChangeCustodianAddress,
   testBuyTokensMulti,
   testCurrentPayout,
-  getAccountInformation
+  getAccountInformation,
+  testResetCurrencyRate
 }

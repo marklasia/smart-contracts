@@ -423,16 +423,23 @@ contract PoaTokenConcept is PausableToken {
       return false;
     }
 
+    // get current funded amount + sent value in cents
+    // with most current rate available
     uint256 _currentFundedCents = weiToFiatCents(fundedAmountWei.add(msg.value));
     // check if balance has met funding goal to move on to Pending
     if (_currentFundedCents < fundingGoalCents) {
       // give a range due to fun fun integer division
       if (fundingGoalCents.sub(_currentFundedCents) > 1) {
+        //continue sale if more than 1 cent from goal in fiat
         return buyContinue();
       } else {
+        // finish sale if within 1 cent of goal in fiat
+        // no refunds for overpayment should be given
         return buyEnd(false);
       }
     } else {
+      // finish sale, we are now over the funding goal
+      // a refund for overpaid amount should be given
       return buyEnd(true);
     }
   }
