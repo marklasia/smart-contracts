@@ -189,7 +189,7 @@ const getRandomInt = (min, max) => {
   return Math.floor(Math.random() * (max - min + 1)) + min
 }
 
-const getRandomBig = (min, max) => {
+const getRandomBigInt = (min, max) => {
   return BigNumber.random()
     .mul(max.sub(min).plus(1))
     .floor()
@@ -216,5 +216,5 @@ module.exports = {
   isInRange,
   testIsInRange,
   getRandomInt,
-  getRandomBig
+  getRandomBigInt
 }

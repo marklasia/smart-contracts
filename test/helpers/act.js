@@ -11,7 +11,7 @@ const {
   gasPrice,
   bigZero,
   testIsInRange,
-  getRandomBig
+  getRandomBigInt
 } = require('./general')
 
 const BigNumber = require('bignumber.js')
@@ -428,7 +428,7 @@ const generateRandomLockAmounts = async (
     contributors.map(async contributor => {
       const contributorBalance = await getEtherBalance(contributor)
 
-      let res = getRandomBig(min, contributorBalance)
+      let res = getRandomBigInt(min, contributorBalance)
 
       if (res.gt(contributorBalance)) {
         res = contributorBalance
@@ -478,7 +478,7 @@ const testRandomLockAndUnlock = async (
     await Promise.all(
       contributors.map(async contributor => {
         const lockedBbkAmount = await act.lockedBbkOf(contributor)
-        const amount = getRandomBig(
+        const amount = getRandomBigInt(
           lockedBbkAmount.div(2).floor(),
           lockedBbkAmount
         )
