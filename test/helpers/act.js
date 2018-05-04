@@ -15,6 +15,7 @@ const {
 } = require('./general')
 
 const BigNumber = require('bignumber.js')
+const defaultRange = { min: 0, max: 100 }
 
 const setupContracts = async (
   owner,
@@ -73,15 +74,15 @@ const testApproveAndLockBBK = async (bbk, act, bbkHolder, amount) => {
 
   testIsInRange(
     amount.minus(preBbkBalance.minus(postBbkBalance)).abs(),
-    0,
-    100,
+    defaultRange.min,
+    defaultRange.max,
     'bbkHolder BBK balance should be decremented by amount'
   )
 
   testIsInRange(
     amount.minus(postLockedBBK.minus(preLockedBBK)).abs(),
-    0,
-    100,
+    defaultRange.min,
+    defaultRange.max,
     'bbkHolder lockedBBK should be incremented by amount'
   )
 
@@ -181,8 +182,8 @@ const testPayFee = async (
 
     testIsInRange(
       actBalance.minus(expectedActBalance).abs(),
-      0,
-      100,
+      defaultRange.min,
+      defaultRange.max,
       'the actBalance should match the expected act balance'
     )
   }
@@ -246,8 +247,8 @@ const testClaimFeeMany = async (
 
     testIsInRange(
       postEthBalance.minus(expectedPostEthBalance).abs(),
-      0,
-      100,
+      defaultRange.min,
+      defaultRange.max,
       'the ETH balance for claimer should be incremented by previous ACT balance'
     )
 
@@ -264,14 +265,14 @@ const testClaimFeeMany = async (
 
   testIsInRange(
     postFeeManagerEthBalance,
-    0,
+    defaultRange.min,
     300,
     'the feeManager should have ~0 ether left if all ACT burned'
   )
 
   testIsInRange(
     postActTotalSupply,
-    0,
+    defaultRange.min,
     actTotalSupplyToleranceAfterBurn,
     'the act contract totalSupply should be ~0 if all ACT burned and all ETH claimed'
   )
