@@ -551,7 +551,7 @@ describe('when in PreFunding (stage 0)', async () => {
       await testWillThrow(testTerminate, [poac, { from: custodian }])
     })
 
-    it('should NOT reclaim, even if owning tokens', async () => {
+    it('should NOT reclaim', async () => {
       await testWillThrow(testReclaim, [
         poac,
         { from: whitelistedPoaBuyers[0] }

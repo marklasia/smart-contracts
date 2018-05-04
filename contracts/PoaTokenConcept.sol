@@ -111,9 +111,10 @@ contract PoaTokenConcept is PausableToken {
   event ClaimEvent(uint256 payout);
   event TerminatedEvent();
   event WhitelistedEvent(address indexed account, bool isWhitelisted);
-  event ProofOfCustodyUpdated(string ipfsHash);
-  event Mint(address indexed to, uint256 amount);
+  event ProofOfCustodyUpdatedEvent(string ipfsHash);
+  event MintEvent(address indexed to, uint256 amount);
   event ReclaimEvent(address indexed reclaimer, uint256 amount);
+  event CustodianChanged(address newAddress);
 
   modifier eitherCustodianOrOwner() {
     require(
@@ -287,6 +288,7 @@ contract PoaTokenConcept is PausableToken {
     view
     returns (uint256)
   {
+    // divide by 1000 because permille
     return feeRate.mul(_value).div(1000);
   }
 
@@ -352,7 +354,7 @@ contract PoaTokenConcept is PausableToken {
   {
     totalSupply = totalSupply.add(_amount);
     balances[_to] = balances[_to].add(_amount);
-    Mint(_to, _amount);
+    MintEvent(_to, _amount);
     Transfer(address(0), _to, _amount);
     return true;
   }
@@ -468,6 +470,7 @@ contract PoaTokenConcept is PausableToken {
   {
     require(_newCustodian != custodian);
     custodian = _newCustodian;
+    CustodianChanged(_newCustodian);
     return true;
   }
 
@@ -488,7 +491,7 @@ contract PoaTokenConcept is PausableToken {
     payFee(_fee);
     proofOfCustody = _ipfsHash;
     // event showing that proofOfCustody has been updated.
-    ProofOfCustodyUpdated(_ipfsHash);
+    ProofOfCustodyUpdatedEvent(_ipfsHash);
     // balance of contract (fundingGoalInCents) set to claimable by broker.
     // can now be claimed by broker via claim function
     // should only be buy()s - fee. this ensures buy() dust is cleared
@@ -619,8 +622,8 @@ contract PoaTokenConcept is PausableToken {
         .div(totalSupply)
       );
 
-    // take remaining dust and send to owner rather than leave stuck in contract
-    // should not be more than a few wei
+    // take remaining dust and send to feeManager rather than leave stuck in
+    // contract. should not be more than a few wei
     uint256 _delta = (_payoutAmount.mul(1e18) % totalSupply).div(1e18);
     // pay fee along with any dust to FeeManager
     payFee(_fee.add(_delta));
@@ -664,7 +667,7 @@ contract PoaTokenConcept is PausableToken {
     returns (bool)
   {
     proofOfCustody = _ipfsHash;
-    ProofOfCustodyUpdated(_ipfsHash);
+    ProofOfCustodyUpdatedEvent(_ipfsHash);
     return true;
   }
 
