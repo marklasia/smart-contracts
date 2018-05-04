@@ -456,13 +456,13 @@ const testRandomLockAndUnlock = async (
   act,
   contributors,
   {
-    round = 10,
+    rounds = 10,
     min = new BigNumber(1e15),
     logBalance = false,
     logRoundInfo = true
   } = {}
 ) => {
-  for (let i = 0; i < round; i++) {
+  for (let i = 0; i < rounds; i++) {
     // Lock random amount of BBK Tokens first
     await testApproveAndLockManyWithIndividualAmounts(
       bbk,

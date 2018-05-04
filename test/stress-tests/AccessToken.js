@@ -74,7 +74,7 @@ describe('AccessToken Stress Tests', () => {
         // eslint-disable-next-line
         console.log(chalk.magenta(lockUnlockTestTitle))
         await testRandomLockAndUnlock(bbk, act, contributors, {
-          round: lockUnlockBbkRound,
+          rounds: lockUnlockBbkRound,
           min: new BigNumber(1e10),
           logBalance: true,
           logRoundInfo: true
@@ -130,7 +130,7 @@ describe('AccessToken Stress Tests', () => {
 
           const randomLockUnlockCountAfterPayFee = getRandomInt(1, 5)
           await testRandomLockAndUnlock(bbk, act, contributors, {
-            round: randomLockUnlockCountAfterPayFee,
+            rounds: randomLockUnlockCountAfterPayFee,
             logBalance: false,
             logRoundInfo: true
           })
@@ -148,7 +148,7 @@ describe('AccessToken Stress Tests', () => {
           const randomLockUnlockCountAfterClaimFee = getRandomInt(1, 5)
 
           await testRandomLockAndUnlock(bbk, act, contributors, {
-            round: randomLockUnlockCountAfterClaimFee
+            rounds: randomLockUnlockCountAfterClaimFee
           })
           counters.totalLocksUnlocks += randomLockUnlockCountAfterClaimFee
           counters.totalFeePayed = counters.totalFeePayed.plus(feeValue)
@@ -189,8 +189,9 @@ describe('AccessToken Stress Tests', () => {
             `Testing lock BBK -> Pay Fees -> transfer ACT -> Claim Fee -> Unlock BBK 10 rounds`
           )
         )
-        const feeValue = new BigNumber(1e10)
-        for (let i = 0; i <= 10; i++) {
+        const previousActTotalSupply = await act.totalSupply()
+        const feeValue = new BigNumber(1e18)
+        for (let i = 0; i < 10; i++) {
           // Lock random amount of BBK Tokens first
           await testApproveAndLockManyWithIndividualAmounts(
             bbk,
@@ -218,7 +219,7 @@ describe('AccessToken Stress Tests', () => {
             recipient,
             actRandomAmounts
           )
-          const tolerance = (await act.totalSupply()).toNumber() + 1000
+          const tolerance = previousActTotalSupply.plus(1000 * (i + 1))
           await testClaimFeeMany(
             act,
             fmr,
