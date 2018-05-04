@@ -80,17 +80,17 @@ contract PoaTokenConcept is PausableToken {
   // Pending stage after creationTime + fundingTimeout
   uint256 public activationTimeout;
   // amount needed before moving to pending calculated in fiat
-  uint256 public fundingGoalCents;
+  uint256 public fundingGoalInCents;
   // the total per token payout rate: accumulates as payouts are received
   uint256 public totalPerTokenPayout;
   // used to keep track of of actual fundedAmount in eth
-  uint256 public fundedAmountWei;
+  uint256 public fundedAmountInWei;
 
   // used to deduct already claimed payouts on a per token basis
   mapping(address => uint256) public claimedPerTokenPayouts;
   // fallback for when a transfer happens with payouts remaining
   mapping(address => uint256) public unclaimedPayoutTotals;
-  // needs to be used due to tokens not directly correlating to fundingGoal due
+  // needs to be used due to tokens not directly correlating to fundingGoal
   // due to fluctuating fiat rates
   mapping(address => uint256) public userWeiInvested;
 
@@ -173,7 +173,7 @@ contract PoaTokenConcept is PausableToken {
     _;
   }
 
-  // token totalSupply must be more than fundingGoalCents!
+  // token totalSupply must be more than fundingGoalInCents!
   function PoaTokenConcept
   (
     string _name,
@@ -189,7 +189,7 @@ contract PoaTokenConcept is PausableToken {
     uint256 _fundingTimeout,
     uint256 _activationTimeout,
     // given as fiat cents
-    uint256 _fundingGoalCents
+    uint256 _fundingGoalInCents
   )
     public
   {
@@ -209,7 +209,8 @@ contract PoaTokenConcept is PausableToken {
     require(_fundingTimeout >= 60 * 60 * 24);
     // ensure that activationTimeout is at least 7 days
     require(_activationTimeout >= 60 * 60 * 24 * 7);
-    require(_fundingGoalCents > 0);
+    require(_fundingGoalInCents > 0);
+
     // assign strings
     name = _name;
     symbol = _symbol;
@@ -228,7 +229,7 @@ contract PoaTokenConcept is PausableToken {
     activationTimeout = _activationTimeout;
 
     // set funding goal in cents
-    fundingGoalCents = _fundingGoalCents;
+    fundingGoalInCents = _fundingGoalInCents;
 
     // start paused
     paused = true;
@@ -277,7 +278,7 @@ contract PoaTokenConcept is PausableToken {
     returns (uint256)
   {
     // 1e20 = to wei units (1e18) to percentage units (1e2)
-    return weiToFiatCents(_weiAmount).mul(1e20).div(fundingGoalCents);
+    return weiToFiatCents(_weiAmount).mul(1e20).div(fundingGoalInCents);
   }
 
   // public utility function to allow checking of required fee for a given amount
@@ -305,7 +306,7 @@ contract PoaTokenConcept is PausableToken {
     view
     returns (uint256)
   {
-    return weiToFiatCents(fundedAmountWei);
+    return weiToFiatCents(fundedAmountInWei);
   }
 
   // end utility functions
@@ -356,7 +357,46 @@ contract PoaTokenConcept is PausableToken {
     return true;
   }
 
-  function buyContinue()
+  function buy()
+    public
+    payable
+    checkTimeout
+    atStage(Stages.Funding)
+    isWhitelisted
+    returns (bool)
+  {
+    // prevent case where buying after reaching fundingGoal results in buyer
+    // earning money on a buy
+    if (weiToFiatCents(fundedAmountInWei) > fundingGoalInCents) {
+      enterStage(Stages.Pending);
+      if (msg.value > 0) {
+        msg.sender.transfer(msg.value);
+      }
+      return false;
+    }
+
+    // get current funded amount + sent value in cents
+    // with most current rate available
+    uint256 _currentFundedCents = weiToFiatCents(fundedAmountInWei.add(msg.value));
+    // check if balance has met funding goal to move on to Pending
+    if (_currentFundedCents < fundingGoalInCents) {
+      // give a range due to fun fun integer division
+      if (fundingGoalInCents.sub(_currentFundedCents) > 1) {
+        // continue sale if more than 1 cent from goal in fiat
+        return buyAndContinueFunding();
+      } else {
+        // finish sale if within 1 cent of goal in fiat
+        // no refunds for overpayment should be given
+        return buyAndEndFunding(false);
+      }
+    } else {
+      // finish sale, we are now over the funding goal
+      // a refund for overpaid amount should be given
+      return buyAndEndFunding(true);
+    }
+  }
+
+  function buyAndContinueFunding()
     private
     returns (bool)
   {
@@ -371,13 +411,13 @@ contract PoaTokenConcept is PausableToken {
     // save this for later in case needing to reclaim
     userWeiInvested[msg.sender] = _payAmount;
     // increment the funded amount
-    fundedAmountWei = fundedAmountWei.add(_payAmount);
+    fundedAmountInWei = fundedAmountInWei.add(_payAmount);
     BuyEvent(msg.sender, _buyAmount);
 
     return true;
   }
 
-  function buyEnd(bool _shouldRefund)
+  function buyAndEndFunding(bool _shouldRefund)
     private
     returns (bool)
   {
@@ -385,7 +425,7 @@ contract PoaTokenConcept is PausableToken {
     enterStage(Stages.Pending);
     uint256 _refundAmount = _shouldRefund ?
       fiatCentsToWei(
-        weiToFiatCents(fundedAmountWei.add(msg.value)).sub(fundingGoalCents)
+        weiToFiatCents(fundedAmountInWei.add(msg.value)).sub(fundingGoalInCents)
       ) :
       0;
     // transfer refund amount back to user
@@ -399,53 +439,16 @@ contract PoaTokenConcept is PausableToken {
     // save this for later in case needing to reclaim
     userWeiInvested[msg.sender] = _payAmount;
     // increment the funded amount
-    fundedAmountWei = fundedAmountWei.add(_payAmount);
+    fundedAmountInWei = fundedAmountInWei.add(_payAmount);
     BuyEvent(msg.sender, _buyAmount);
 
     return true;
   }
 
-  function buy()
-    public
-    payable
-    checkTimeout
-    atStage(Stages.Funding)
-    isWhitelisted
-    returns (bool)
-  {
-    // prevent case where buying after reaching fundingGoal results in buyer
-    // earning money on a buy
-    if (weiToFiatCents(fundedAmountWei) > fundingGoalCents) {
-      enterStage(Stages.Pending);
-      if (msg.value > 0) {
-        msg.sender.transfer(msg.value);
-      }
-      return false;
-    }
-
-    // get current funded amount + sent value in cents
-    // with most current rate available
-    uint256 _currentFundedCents = weiToFiatCents(fundedAmountWei.add(msg.value));
-    // check if balance has met funding goal to move on to Pending
-    if (_currentFundedCents < fundingGoalCents) {
-      // give a range due to fun fun integer division
-      if (fundingGoalCents.sub(_currentFundedCents) > 1) {
-        //continue sale if more than 1 cent from goal in fiat
-        return buyContinue();
-      } else {
-        // finish sale if within 1 cent of goal in fiat
-        // no refunds for overpayment should be given
-        return buyEnd(false);
-      }
-    } else {
-      // finish sale, we are now over the funding goal
-      // a refund for overpaid amount should be given
-      return buyEnd(true);
-    }
-  }
-
   // used to manually set Stage to Failed when no users have bought any tokens
   // if no buy()s occurred before fundingTimeoutBlock token would be stuck in Funding
+  // can also be used when activate is not called by custodian within activationTimeout
+  // lastly can also be used when no one else has called reclaim.
   function setFailed()
     external
     atEitherStage(Stages.Funding, Stages.Pending)
@@ -484,7 +487,9 @@ contract PoaTokenConcept is PausableToken {
     // turned into ACT for lockedBBK holders
     payFee(_fee);
     proofOfCustody = _ipfsHash;
-    // balance of contract (fundingGoalCents) set to claimable by broker.
+    // event showing that proofOfCustody has been updated.
+    ProofOfCustodyUpdated(_ipfsHash);
+    // balance of contract (fundingGoalInCents) set to claimable by broker.
     // can now be claimed by broker via claim function
     // should only be buy()s - fee. this ensures buy() dust is cleared
     unclaimedPayoutTotals[broker] = unclaimedPayoutTotals[broker]
@@ -493,8 +498,7 @@ contract PoaTokenConcept is PausableToken {
     paused = false;
     // let world know that this token can now be traded.
     Unpause();
-    // event showing that proofOfCustody has been updated.
-    ProofOfCustodyUpdated(_ipfsHash);
+
     return true;
   }
 
@@ -571,7 +575,7 @@ contract PoaTokenConcept is PausableToken {
     return true;
   }
 
-  // reclaim Ξ for sender if fundingGoalCents is not met within fundingTimeoutBlock
+  // reclaim Ξ for sender if fundingGoalInCents is not met within fundingTimeoutBlock
   function reclaim()
     external
     checkTimeout
@@ -584,7 +588,7 @@ contract PoaTokenConcept is PausableToken {
     uint256 _tokenBalance = balances[msg.sender];
     balances[msg.sender] = 0;
     totalSupply = totalSupply.sub(_tokenBalance);
-    fundedAmountWei = fundedAmountWei.sub(_refundAmount);
+    fundedAmountInWei = fundedAmountInWei.sub(_refundAmount);
     Transfer(msg.sender, address(0), _tokenBalance);
     msg.sender.transfer(_refundAmount);
     return true;

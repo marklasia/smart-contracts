@@ -2248,7 +2248,7 @@ describe('when buying tokens with a fluctuating fiatRate', () => {
     })
 
     it('should NOT move to pending if rate goes low enough before a buy', async () => {
-      const fundingGoalFiatCents = await poac.fundingGoalCents()
+      const fundingGoalFiatCents = await poac.fundingGoalInCents()
       const preNeededWei = await poac.fiatCentsToWei(fundingGoalFiatCents)
       // suddenly eth drops to half of value vs EUR
       rate = rate.div(2).floor()
@@ -2275,7 +2275,7 @@ describe('when buying tokens with a fluctuating fiatRate', () => {
     })
 
     it('should NOT buy tokens when rate goes high enough before buy', async () => {
-      const fundingGoalFiatCents = await poac.fundingGoalCents()
+      const fundingGoalFiatCents = await poac.fundingGoalInCents()
       const preNeededWei = await poac.fiatCentsToWei(fundingGoalFiatCents)
 
       // buy half of tokens based on original rate
