@@ -264,14 +264,14 @@ const testClaimFeeMany = async (
 
   testIsInRange(
     postFeeManagerEthBalance,
-    bigZero,
+    0,
     300,
     'the feeManager should have ~0 ether left if all ACT burned'
   )
 
   testIsInRange(
     postActTotalSupply,
-    bigZero,
+    0,
     actTotalSupplyToleranceAfterBurn,
     'the act contract totalSupply should be ~0 if all ACT burned and all ETH claimed'
   )
@@ -423,7 +423,7 @@ const generateRandomLockAmounts = async (
   contributors,
   { min = new BigNumber(1e10), logBalance = false } = {}
 ) => {
-  return await Promise.all(
+  return Promise.all(
     contributors.map(async contributor => {
       const contributorBalance = await getEtherBalance(contributor)
 

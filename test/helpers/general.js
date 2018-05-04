@@ -190,12 +190,10 @@ const getRandomInt = (min, max) => {
 }
 
 const getRandomBig = (min, max) => {
-  const res = BigNumber.random()
+  return BigNumber.random()
     .mul(max.sub(min).plus(1))
     .floor()
     .plus(min)
-
-  return res
 }
 
 const gasPrice = new BigNumber(30e9)
