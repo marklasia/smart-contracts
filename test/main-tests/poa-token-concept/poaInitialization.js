@@ -1,4 +1,4 @@
-const PoaTokenConcept = artifacts.require('PoaTokenConcept')
+const PoaToken = artifacts.require('PoaToken')
 const {
   owner,
   broker,
@@ -14,12 +14,12 @@ const {
   setupEcosystem,
   testSetCurrencyRate,
   testInitialization
-} = require('../helpers/poac')
+} = require('../helpers/poa')
 const { testWillThrow, addressZero } = require('../helpers/general.js')
 const BigNumber = require('bignumber.js')
 
-describe('when initializing PoaTokenConcept', () => {
-  contract('PoaTokenConcept', () => {
+describe('when initializing PoaToken', () => {
+  contract('PoaToken', () => {
     let reg
     let exr
     let exp
@@ -37,7 +37,7 @@ describe('when initializing PoaTokenConcept', () => {
     })
 
     it('should NOT initialize with a NON ready fiatRate', async () => {
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
@@ -63,7 +63,7 @@ describe('when initializing PoaTokenConcept', () => {
         }
       )
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         'is',
         defaultSymbol,
         defaultFiatCurrency,
@@ -89,7 +89,7 @@ describe('when initializing PoaTokenConcept', () => {
         }
       )
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         'US',
         defaultFiatCurrency,
@@ -115,7 +115,7 @@ describe('when initializing PoaTokenConcept', () => {
         }
       )
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         'US',
@@ -141,7 +141,7 @@ describe('when initializing PoaTokenConcept', () => {
         }
       )
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
@@ -154,7 +154,7 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFundingGoal
       ])
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
@@ -180,7 +180,7 @@ describe('when initializing PoaTokenConcept', () => {
         }
       )
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
@@ -193,7 +193,7 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFundingGoal
       ])
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
@@ -219,7 +219,7 @@ describe('when initializing PoaTokenConcept', () => {
         }
       )
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
@@ -232,7 +232,7 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFundingGoal
       ])
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
@@ -258,7 +258,7 @@ describe('when initializing PoaTokenConcept', () => {
         }
       )
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
@@ -285,7 +285,7 @@ describe('when initializing PoaTokenConcept', () => {
         }
       )
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
@@ -314,7 +314,7 @@ describe('when initializing PoaTokenConcept', () => {
         }
       )
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
@@ -344,7 +344,7 @@ describe('when initializing PoaTokenConcept', () => {
         }
       )
 
-      await testWillThrow(PoaTokenConcept.new, [
+      await testWillThrow(PoaToken.new, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,

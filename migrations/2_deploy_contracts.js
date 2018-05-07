@@ -9,7 +9,7 @@ const BrickblockToken = artifacts.require('BrickblockToken')
 const ExchangeRates = artifacts.require('ExchangeRates')
 const FeeManager = artifacts.require('BrickblockFeeManager')
 const PoaManager = artifacts.require('PoaManager')
-const PoaTokenConcept = artifacts.require('PoaTokenConcept')
+const PoaToken = artifacts.require('PoaToken')
 const Whitelist = artifacts.require('BrickblockWhitelist')
 let ExchangeRateProvider
 
@@ -101,7 +101,7 @@ module.exports = (deployer, network, accounts) => {
       })
 
       await deployer.deploy(
-        PoaTokenConcept,
+        PoaToken,
         'TestToken',
         'TST',
         'EUR',
