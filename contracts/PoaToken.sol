@@ -2,14 +2,15 @@ pragma solidity 0.4.18;
 
 import "zeppelin-solidity/contracts/token/PausableToken.sol";
 
+/* solium-disable security/no-block-members */
+
 
 // limited BrickblockContractRegistry definintion
 contract Registry {
   function getContractAddress(string _name)
     public
     view
-    returns (address)
-  {}
+    returns (address);
 }
 
 
@@ -18,8 +19,7 @@ contract FeeManager {
   function payFee()
     public
     payable
-    returns (bool)
-  {}
+    returns (bool);
 }
 
 
@@ -34,16 +34,14 @@ contract ExR {
   function getRate(bytes8 _queryTypeBytes)
     public
     view
-    returns (uint256)
-  {}
+    returns (uint256);
 
   // temp used to get rate... will use getRate later when updated to use string
   // relates 0.4.22
   function getRateReadable(string _queryTypeString)
     external
     view
-    returns (uint256)
-  {}
+    returns (uint256);
 }
 
 

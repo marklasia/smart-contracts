@@ -34,6 +34,8 @@ const addContractsToRegistry = async ({
   await reg.updateContractAddress('PoaManager', pmr.address, {
     from: owner
   })
+
+  return true
 }
 
 const setFiatRate = async (exr, exp, queryType, rate, config) => {

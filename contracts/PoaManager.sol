@@ -1,4 +1,4 @@
-pragma solidity ^0.4.18;
+pragma solidity 0.4.18;
 
 import "./PoaToken.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
@@ -200,9 +200,17 @@ contract PoaManager is Ownable {
   (
     string _name,
     string _symbol,
+    // fiat symbol used in ExchangeRates
+    string _fiatCurrency,
     address _custodian,
-    uint256 _timeout,
-    uint256 _supply
+    // given as unix time (seconds since 01.01.1970)
+    uint256 _startTime,
+    // given as seconds offset from startTime
+    uint256 _fundingTimeout,
+    // given as seconds offset from fundingTimeout
+    uint256 _activationTimeout,
+    // given as fiat cents
+    uint256 _fundingGoalInCents
   )
     public
     onlyActiveBroker(msg.sender)
@@ -211,11 +219,14 @@ contract PoaManager is Ownable {
     address _tokenAddress = new PoaToken(
       _name,
       _symbol,
+      _fiatCurrency,
       msg.sender,
       _custodian,
       registryAddress,
-      _timeout,
-      _supply
+      _startTime,
+      _fundingTimeout,
+      _activationTimeout,
+      _fundingGoalInCents
     );
 
     tokenMap[_tokenAddress] = addEntity(

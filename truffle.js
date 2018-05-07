@@ -4,8 +4,7 @@ module.exports = {
       host: 'localhost',
       port: 9545,
       network_id: 4447,
-      gas: 8e6,
-      gasPrice: 5e9
+      gas: 1e8
     },
     ropsten: {
       host: 'localhost',
@@ -18,7 +17,7 @@ module.exports = {
       host: 'localhost',
       port: 8545,
       network_id: 42,
-      gas: 4.7e6,
+      gas: 7.7e6,
       gasPrice: 20e9
     },
     rinkeby: {

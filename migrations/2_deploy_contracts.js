@@ -19,7 +19,7 @@ module.exports = (deployer, network, accounts) => {
   // eslint-disable-next-line no-console
   console.log(`deploying on ${network} network`)
 
-  if (network === 'dev' || network == 'test') {
+  if (network === 'dev' || network === 'test') {
     ExchangeRateProvider = artifacts.require('stubs/ExchangeRateProviderStub')
   } else {
     ExchangeRateProvider = artifacts.require('ExchangeRateProvider')
@@ -48,7 +48,7 @@ module.exports = (deployer, network, accounts) => {
       const act = await BrickblockAccessToken.deployed()
 
       //BrickblockAccount
-      await deployer.deploy(BrickblockAccount, reg.address, {
+      await deployer.deploy(BrickblockAccount, reg.address, 1000, {
         from: owner
       })
       const bat = await BrickblockAccount.deployed()
@@ -65,12 +65,6 @@ module.exports = (deployer, network, accounts) => {
       })
       const wht = await FeeManager.deployed()
 
-      // PoaManager
-      await deployer.deploy(PoaManager, reg.address, {
-        from: owner
-      })
-      const pmr = await PoaManager.deployed()
-
       // ExchangeRates
       await deployer.deploy(ExchangeRates, reg.address, { from: owner })
       const exr = await ExchangeRates.deployed()
@@ -81,7 +75,13 @@ module.exports = (deployer, network, accounts) => {
       })
       const exp = await ExchangeRateProvider.deployed()
 
-      addContractsToRegistry({
+      // PoaManager
+      await deployer.deploy(PoaManager, reg.address, {
+        from: owner
+      })
+      const pmr = await PoaManager.deployed()
+
+      await addContractsToRegistry({
         owner,
         reg,
         bbk,
