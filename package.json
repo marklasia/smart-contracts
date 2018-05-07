@@ -59,7 +59,7 @@
     "precommit:comment": "Makes sure we don't commit bad code",
     "precommit": "lint-staged",
     "prepush:comment": "Run healthcheck on prepush to ensure no bad code makes it to GitLab",
-    "prepush": "yarn lint && yarn test && yarn todo",
+    "prepush": "yarn health",
     "postmerge:comment": "Automatically run 'yarn install' on postmerge if `yarn.lock` changed",
     "postmerge": "$(pwd)/scripts/post-merge-githook.sh",
     "---SECTION:HOUSEKEEPING---": "-------------------- GITHOOKS, HEALTHCHECK, OPEN TODOS, VULNERABILITY CHECK etc. --------------------",
