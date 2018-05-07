@@ -92,7 +92,7 @@ contract PoaTokenConcept is PausableToken {
   mapping(address => uint256) public unclaimedPayoutTotals;
   // needs to be used due to tokens not directly correlating to fundingGoal
   // due to fluctuating fiat rates
-  mapping(address => uint256) public userWeiInvested;
+  mapping(address => uint256) public investmentAmountPerUserInWei;
 
   enum Stages {
     PreFunding,
@@ -411,7 +411,7 @@ contract PoaTokenConcept is PausableToken {
     // create new tokens for user
     mint(msg.sender, _buyAmount);
     // save this for later in case needing to reclaim
-    userWeiInvested[msg.sender] = _payAmount;
+    investmentAmountPerUserInWei[msg.sender] = _payAmount;
     // increment the funded amount
     fundedAmountInWei = fundedAmountInWei.add(_payAmount);
     BuyEvent(msg.sender, _buyAmount);
@@ -439,7 +439,7 @@ contract PoaTokenConcept is PausableToken {
     // create new tokens for user
     mint(msg.sender, _buyAmount);
     // save this for later in case needing to reclaim
-    userWeiInvested[msg.sender] = _payAmount;
+    investmentAmountPerUserInWei[msg.sender] = _payAmount;
     // increment the funded amount
     fundedAmountInWei = fundedAmountInWei.add(_payAmount);
     BuyEvent(msg.sender, _buyAmount);
@@ -585,8 +585,8 @@ contract PoaTokenConcept is PausableToken {
     atStage(Stages.Failed)
     returns (bool)
   {
-    uint256 _refundAmount = userWeiInvested[msg.sender];
-    userWeiInvested[msg.sender] = 0;
+    uint256 _refundAmount = investmentAmountPerUserInWei[msg.sender];
+    investmentAmountPerUserInWei[msg.sender] = 0;
     require(_refundAmount > 0);
     uint256 _tokenBalance = balances[msg.sender];
     balances[msg.sender] = 0;

@@ -395,7 +395,7 @@ const testBuyTokens = async (poac, config) => {
   const preEthBalance = await getEtherBalance(buyer)
   const preTokenBalance = await poac.balanceOf(buyer)
   const preFundedAmount = await poac.fundedAmountInWei()
-  const preUserWeiInvested = await poac.userWeiInvested(buyer)
+  const preUserWeiInvested = await poac.investmentAmountPerUserInWei(buyer)
 
   const tx = await poac.buy(config)
   const gasUsed = await getGasUsed(tx)
@@ -403,7 +403,7 @@ const testBuyTokens = async (poac, config) => {
   const postEthBalance = await getEtherBalance(buyer)
   const postTokenBalance = await poac.balanceOf(buyer)
   const postFundedAmount = await poac.fundedAmountInWei()
-  const postUserWeiInvested = await poac.userWeiInvested(buyer)
+  const postUserWeiInvested = await poac.investmentAmountPerUserInWei(buyer)
 
   const expectedPostEthBalance = preEthBalance.sub(weiBuyAmount).sub(gasCost)
   const tokenBuyAmount = await poac.weiToTokens(weiBuyAmount)
@@ -795,7 +795,9 @@ const testReclaim = async (poac, config) => {
   const preContractEtherBalance = await getEtherBalance(poac.address)
   const preClaimerTokenBalance = await poac.balanceOf(claimer)
   const preClaimerEtherBalance = await getEtherBalance(claimer)
-  const preOutstandingEtherBalance = await poac.userWeiInvested(claimer)
+  const preOutstandingEtherBalance = await poac.investmentAmountPerUserInWei(
+    claimer
+  )
 
   const tx = await poac.reclaim({
     from: claimer,
@@ -808,7 +810,9 @@ const testReclaim = async (poac, config) => {
   const postContractEtherBalance = await getEtherBalance(poac.address)
   const postClaimerTokenBalance = await poac.balanceOf(claimer)
   const postClaimerEtherBalance = await getEtherBalance(claimer)
-  const postOutstandingEtherBalance = await poac.userWeiInvested(claimer)
+  const postOutstandingEtherBalance = await poac.investmentAmountPerUserInWei(
+    claimer
+  )
   const expectedClaimerEtherBalance = preClaimerEtherBalance
     .sub(gasCost)
     .add(preOutstandingEtherBalance) // initialInvestAmount
