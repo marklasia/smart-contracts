@@ -114,7 +114,7 @@ contract PoaTokenConcept is PausableToken {
   event ProofOfCustodyUpdatedEvent(string ipfsHash);
   event MintEvent(address indexed to, uint256 amount);
   event ReclaimEvent(address indexed reclaimer, uint256 amount);
-  event CustodianChanged(address newAddress);
+  event CustodianChangedEvent(address newAddress);
 
   modifier eitherCustodianOrOwner() {
     require(
@@ -288,7 +288,7 @@ contract PoaTokenConcept is PausableToken {
     view
     returns (uint256)
   {
-    // divide by 1000 because permille
+    // divide by 1000 because feeRate permille
     return feeRate.mul(_value).div(1000);
   }
 
@@ -457,7 +457,7 @@ contract PoaTokenConcept is PausableToken {
     checkTimeout
     returns (bool)
   {
-    if (stage == Stages.Funding || stage == Stages.Pending) {
+    if (stage != Stages.Failed) {
       revert();
     }
     return true;
@@ -470,7 +470,7 @@ contract PoaTokenConcept is PausableToken {
   {
     require(_newCustodian != custodian);
     custodian = _newCustodian;
-    CustodianChanged(_newCustodian);
+    CustodianChangedEvent(_newCustodian);
     return true;
   }
 

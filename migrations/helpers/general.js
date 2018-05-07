@@ -1,13 +1,13 @@
 const addContractsToRegistry = async ({
   owner,
-  reg,
-  bbk,
-  act,
-  bat,
-  fmr,
-  exr,
-  exp,
-  wht
+  reg, // reg = Registry
+  bbk, // bbk = BrickblockToken
+  act, // act = AccessToken
+  bat, // bat = BrickblockAccount
+  fmr, // fmr = BrickblockFeeManager
+  exr, // exr = ExchangeRates
+  exp, // exp = ExchangeRatesProvider
+  wht // wht = BrickblockWhitelist
 }) => {
   await reg.updateContractAddress('BrickblockToken', bbk.address, {
     from: owner

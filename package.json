@@ -72,7 +72,7 @@
   },
   "lint-staged": {
     "*.sol": [
-      "solium --dir ./contracts",
+      "solium -f",
       "git add"
     ],
     "*.js": [
