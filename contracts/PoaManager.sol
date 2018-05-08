@@ -11,6 +11,7 @@ contract PoaManager is Ownable {
   uint256 constant version = 1;
 
   address private registryAddress;
+  address private poaMasterAddress;
 
   struct EntityState {
     uint256 index;
@@ -195,6 +196,21 @@ contract PoaManager is Ownable {
     return tokenAddressList;
   }
 
+  function createProxy(address _target)
+    internal
+    returns (address proxyContract)
+  {
+    assembly {
+      let contractCode := mload(0x40) // Find empty storage location using "free memory pointer"
+      
+      mstore(add(contractCode, 0x0b), _target) // Add target address, with a 11 bytes [i.e. 23 - (32 - 20)] offset to later accomodate first part of the bytecode
+      mstore(sub(contractCode, 0x09), 0x000000000000000000603160008181600b9039f3600080808080368092803773) // First part of the bytecode, shifted left by 9 bytes, overwrites left padding of target address
+      mstore(add(contractCode, 0x2b), 0x5af43d828181803e808314602f57f35bfd000000000000000000000000000000) // Final part of bytecode, offset by 43 bytes
+
+      proxyContract := create(0, contractCode, 60) // total length 60 bytes
+    }
+  }
+
   // Create a PoaToken contract with given parameters, and set active value to true
   function addToken
   (
@@ -216,17 +232,25 @@ contract PoaManager is Ownable {
     onlyActiveBroker(msg.sender)
     returns (address)
   {
-    address _tokenAddress = new PoaToken(
-      _name,
-      _symbol,
-      _fiatCurrency,
-      msg.sender,
-      _custodian,
-      registryAddress,
-      _startTime,
-      _fundingTimeout,
-      _activationTimeout,
-      _fundingGoalInCents
+    address _tokenAddress = createProxy(poaMasterAddress);
+    require(
+      // solium-disable-next-line security/no-low-level-calls 
+      _tokenAddress.call( // call address with
+        bytes4(
+          keccak256("setup(string,string,string,address,address,uint256,uint256,uint256,uint256)") // function signature (first 4 bytes of hashed param types)
+        ),
+        // with the following params
+        _name,
+        _symbol,
+        _fiatCurrency,
+        msg.sender,
+        _custodian,
+        registryAddress,
+        _startTime,
+        _fundingTimeout,
+        _activationTimeout,
+        _fundingGoalInCents
+      )
     );
 
     tokenMap[_tokenAddress] = addEntity(

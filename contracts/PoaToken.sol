@@ -83,6 +83,8 @@ contract PoaToken is PausableToken {
   uint256 public totalPerTokenPayout;
   // used to keep track of of actual fundedAmount in eth
   uint256 public fundedAmountInWei;
+  // used to ensure setup only runs once
+  bool public hasSetup;
 
   // used to deduct already claimed payouts on a per token basis
   mapping(address => uint256) public claimedPerTokenPayouts;
@@ -172,8 +174,7 @@ contract PoaToken is PausableToken {
     _;
   }
 
-  // token totalSupply must be more than fundingGoalInCents!
-  function PoaToken
+  function setup
   (
     string _name,
     string _symbol,
@@ -192,6 +193,8 @@ contract PoaToken is PausableToken {
   )
     public
   {
+    // ensure that contract has not already been setup
+    require(!hasSetup);
     // ensure all strings are valid
     require(bytes(_name).length >= 3);
     require(bytes(_symbol).length >= 3);
