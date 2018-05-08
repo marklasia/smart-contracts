@@ -1,5 +1,3 @@
-const BigNumber = require('bignumber.js')
-
 const BrickblockContractRegistry = artifacts.require(
   'BrickblockContractRegistry'
 )
@@ -29,8 +27,6 @@ module.exports = (deployer, network, accounts) => {
     .then(async () => {
       const owner = accounts[0]
       const bonusAddress = accounts[1]
-      const broker = accounts[2]
-      const custodian = accounts[3]
 
       await deployer.deploy(BrickblockContractRegistry, { from: owner })
       const reg = await BrickblockContractRegistry.deployed()
@@ -80,7 +76,7 @@ module.exports = (deployer, network, accounts) => {
       const poam = await PoaToken.deployed()
 
       // PoaManager
-      await deployer.deploy(PoaManager, reg.address, poam.address, {
+      await deployer.deploy(PoaManager, reg.address, {
         from: owner
       })
       const pmr = await PoaManager.deployed()
@@ -95,7 +91,8 @@ module.exports = (deployer, network, accounts) => {
         exr,
         exp,
         wht,
-        pmr
+        pmr,
+        poam
       })
 
       await exr.setActRate(1e3)
@@ -104,18 +101,7 @@ module.exports = (deployer, network, accounts) => {
         value: 1e18
       })
 
-      await poam.setupContract(
-        'TestToken',
-        'TST',
-        'EUR',
-        broker,
-        custodian,
-        reg.address,
-        new BigNumber(Date.now()).div(1000).add(60),
-        new BigNumber(60 * 60 * 24),
-        new BigNumber(60 * 60 * 24 * 7),
-        new BigNumber(5e5)
-      )
+      await reg.updateContractAddress('PoaTokenMaster', poam.address)
 
       return true
     })

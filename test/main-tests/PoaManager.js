@@ -1,6 +1,12 @@
 const PoaToken = artifacts.require('PoaToken.sol')
 const { checkForEvent, testWillThrow } = require('../helpers/general')
-const { addToken, setupPoaManager } = require('../helpers/pmr')
+const {
+  addToken,
+  setupPoaManager,
+  moveTokenToActive,
+  testPauseToken,
+  testUnpauseToken
+} = require('../helpers/pmr')
 
 describe('when creating a new instance of the contract', () => {
   contract('PoaManager', accounts => {
@@ -398,69 +404,56 @@ describe('when calling token functions', () => {
 describe('when calling token convenience functions', () => {
   contract('PoaManager', accounts => {
     let pmr
+    let fmr
     const owner = accounts[0]
-    const notOwner = accounts[1]
-    const broker = accounts[2]
+    // must be accounts[1] in order to work with poa helpers
+    const broker = accounts[1]
+    const notOwner = accounts[2]
     let addedToken
 
     before('setup contract state', async () => {
       const contracts = await setupPoaManager()
       pmr = contracts.pmr
+      fmr = contracts.fmr
 
       await pmr.addBroker(broker)
-
-      const { tokenAddress: addedTokenAddress } = await addToken(pmr, broker)
+      const { tokenAddress: addedTokenAddress } = await addToken(pmr, {
+        from: broker
+      })
       pmr.listToken(addedTokenAddress, { from: owner })
       addedToken = PoaToken.at(addedTokenAddress)
+      await moveTokenToActive(addedToken, fmr)
     })
 
     describe('when pausing a token', () => {
       it('should error when caller is notOwner', async () => {
-        await testWillThrow(pmr.pauseToken, [
-          addedToken.address,
-          { from: notOwner }
+        await testWillThrow(testPauseToken, [
+          pmr,
+          addedToken,
+          {
+            from: notOwner
+          }
         ])
       })
 
       it('should pause the addedToken', async () => {
-        assert.equal(
-          await addedToken.paused(),
-          false,
-          'token should begin unpaused'
-        )
-
-        await pmr.pauseToken(addedToken.address, { from: owner })
-
-        assert.equal(
-          await addedToken.paused(),
-          true,
-          'token should then become paused'
-        )
+        await testPauseToken(pmr, addedToken, { from: owner })
       })
     })
 
     describe('when unpausing a token', () => {
       it('should error when caller is notOwner', async () => {
-        await testWillThrow(pmr.unpauseToken, [
-          addedToken.address,
-          { from: notOwner }
+        await testWillThrow(testUnpauseToken, [
+          pmr,
+          addedToken,
+          {
+            from: notOwner
+          }
         ])
       })
 
       it('should unpause the addedToken', async () => {
-        assert.equal(
-          await addedToken.paused(),
-          true,
-          'token should begin paused'
-        )
-
-        await pmr.unpauseToken(addedToken.address, { from: owner })
-
-        assert.equal(
-          await addedToken.paused(),
-          false,
-          'token should then become unpaused'
-        )
+        await testUnpauseToken(pmr, addedToken, { from: owner })
       })
     })
   })

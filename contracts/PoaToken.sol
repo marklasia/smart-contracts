@@ -6,18 +6,18 @@ import "zeppelin-solidity/contracts/token/PausableToken.sol";
 
 
 // limited BrickblockContractRegistry definintion
-contract Registry {
+interface Registry {
   function getContractAddress(string _name)
-    public
+    external
     view
     returns (address);
 }
 
 
 // limited BrickblockFeeManager definition
-contract FeeManager {
+interface FeeManager {
   function payFee()
-    public
+    external
     payable
     returns (bool);
 }
@@ -30,9 +30,9 @@ contract Whitelist {
 
 
 // limited ExchangeRates definition
-contract ExR {
+interface ExR {
   function getRate(bytes8 _queryTypeBytes)
-    public
+    external
     view
     returns (uint256);
 
@@ -57,8 +57,6 @@ contract PoaToken is PausableToken {
   string public proofOfCustody;
   // fiat currency symbol used to get rate
   string public fiatCurrency;
-  // owner of contract, should be PoaManager
-  address public owner;
   // broker who is selling property, whitelisted on PoaManager
   address public broker;
   // custodian in charge of taking care of asset and payouts
@@ -220,10 +218,10 @@ contract PoaToken is PausableToken {
     fiatCurrency = _fiatCurrency;
 
     // assign addresses
-    owner = msg.sender;
     broker = _broker;
     custodian = _custodian;
     registry = Registry(_registry);
+    owner = registry.getContractAddress("PoaManager");
 
     // assign times
     creationTime = block.timestamp;
@@ -291,7 +289,7 @@ contract PoaToken is PausableToken {
   // public utility function to allow checking of required fee for a given amount
   function calculateFee(uint256 _value)
     public
-    view
+    pure
     returns (uint256)
   {
     // divide by 1000 because feeRate permille
@@ -306,7 +304,7 @@ contract PoaToken is PausableToken {
     FeeManager feeManager = FeeManager(
       registry.getContractAddress("FeeManager")
     );
-    require(feeManager.payFee.value(_value)());
+    require(feeManager.payFee.value(_value)());   
   }
 
   function fundedAmountCents()
@@ -319,7 +317,7 @@ contract PoaToken is PausableToken {
 
   // end utility functions
 
-  // pause override
+  // unpause override
   function unpause()
     public
     onlyOwner
@@ -327,7 +325,7 @@ contract PoaToken is PausableToken {
   {
     // only allow unpausing when in Active stage
     require(stage == Stages.Active);
-    return super.unpause();
+    super.unpause();
   }
 
   // stage related functions

@@ -1,11 +1,10 @@
 pragma solidity ^0.4.23;
 
-import "./PoaToken.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 import "zeppelin-solidity/contracts/math/SafeMath.sol";
 
 
-interface Poa {
+interface PoaTokenInterface {
   function setupContract
   (
     string _name,
@@ -25,6 +24,24 @@ interface Poa {
   )
     external
     returns (bool);
+
+  function pause()
+    external;
+  
+  function unpause()
+    external;
+  
+  function terminate()
+    external
+    returns (bool);
+}
+
+// limited BrickblockContractRegistry definintion
+interface RegistryInterface {
+  function getContractAddress(string _name)
+    external
+    view
+    returns (address);
 }
 
 
@@ -33,8 +50,7 @@ contract PoaManager is Ownable {
 
   uint256 constant version = 1;
 
-  address private registryAddress;
-  address private poaMasterAddress;
+  RegistryInterface private registry;
 
   struct EntityState {
     uint256 index;
@@ -76,23 +92,12 @@ contract PoaManager is Ownable {
   }
 
   constructor(
-    address _registryAddress, 
-    address _poaMasterAddress
+    address _registryAddress
   )
     public
   {
     require(_registryAddress != address(0));
-    require(_poaMasterAddress != address(0));
-    registryAddress = _registryAddress;
-    poaMasterAddress = _poaMasterAddress;
-  }
-
-  function changePoaMaster(address _poaMasterAddress)
-    public
-    onlyOwner
-  {
-    require(_poaMasterAddress != address(0));
-    poaMasterAddress = _poaMasterAddress;
+    registry = RegistryInterface(_registryAddress);
   }
 
   //
@@ -274,15 +279,16 @@ contract PoaManager is Ownable {
     onlyActiveBroker
     returns (address)
   {
-    address _tokenAddress = createProxy(poaMasterAddress);
+    address _poaTokenMaster = registry.getContractAddress("PoaTokenMaster");
+    address _tokenAddress = createProxy(_poaTokenMaster);
 
-    Poa(_tokenAddress).setupContract(
+    PoaTokenInterface(_tokenAddress).setupContract(
       _name,
       _symbol,
       _fiatCurrency,
       msg.sender,
       _custodian,
-      registryAddress,
+      address(registry),
       _startTime,
       _fundingTimeout,
       _activationTimeout,
@@ -349,15 +355,15 @@ contract PoaManager is Ownable {
   //
 
   // Allow unpausing a listed PoaToken
-  function pauseToken(PoaToken _tokenAddress)
+  function pauseToken(address _tokenAddress)
     public
     onlyOwner
   {
-    _tokenAddress.pause();
+    PoaTokenInterface(_tokenAddress).pause();
   }
 
   // Allow unpausing a listed PoaToken
-  function unpauseToken(PoaToken _tokenAddress)
+  function unpauseToken(PoaTokenInterface _tokenAddress)
     public
     onlyOwner
   {
@@ -365,7 +371,7 @@ contract PoaManager is Ownable {
   }
 
   // Allow terminating a listed PoaToken
-  function terminateToken(PoaToken _tokenAddress)
+  function terminateToken(PoaTokenInterface _tokenAddress)
     public
     onlyOwner
   {

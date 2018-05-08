@@ -5,10 +5,11 @@ const addContractsToRegistry = async ({
   exp, // ExchangeRateProvider
   exr, // ExchangeRates
   fmr, // BrickblockFeeManager
-  owner,
+  owner, // Owner of all contracts
   pmr, // PoaManager
   reg, // BrickblockContractRegistry
-  wht // BrickblockWhitelist
+  wht, // BrickblockWhitelist
+  poam // PoaTokenMaster
 }) => {
   await reg.updateContractAddress('BrickblockToken', bbk.address, {
     from: owner
@@ -32,6 +33,9 @@ const addContractsToRegistry = async ({
     from: owner
   })
   await reg.updateContractAddress('PoaManager', pmr.address, {
+    from: owner
+  })
+  await reg.updateContractAddress('PoaTokenMaster', poam.address, {
     from: owner
   })
 

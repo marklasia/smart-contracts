@@ -101,6 +101,7 @@ const setupEcosystem = async () => {
     assert(postWhitelisted, 'the buyer should be whitelisted')
   }
 
+  await reg.updateContractAddress('Owner', owner)
   await reg.updateContractAddress('BrickblockToken', bbk.address)
   await reg.updateContractAddress('AccessToken', act.address)
   await reg.updateContractAddress('ExchangeRates', exr.address)
@@ -1094,5 +1095,6 @@ module.exports = {
   testBuyTokensMulti,
   testCurrentPayout,
   getAccountInformation,
-  testResetCurrencyRate
+  testResetCurrencyRate,
+  timeTravel
 }
