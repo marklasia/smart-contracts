@@ -206,26 +206,18 @@ describe('when calling token functions', () => {
   contract('PoaManager', accounts => {
     // PoaManager
     let pmr
-    // PoaMaster
-    let poam
-    // PoaProxy
-    let poap
-    // BrickblockContractRegistrys
-    let reg
     // used for testing happy path (paired with owner address)
     let addedToken
     // used to testing listing / delisting and unhappy path (paired with notOwner address)
     let anotherToken
     const listedBroker = accounts[1]
     const delistedBroker = accounts[2]
-    const custodian = accounts[5]
     const notBroker = accounts[8]
     const notOwner = accounts[9]
 
     before('setup contract state', async () => {
       const contracts = await setupPoaManager()
       pmr = contracts.pmr
-      reg = contracts.reg
       await pmr.addBroker(listedBroker)
       await pmr.addBroker(delistedBroker)
       await pmr.delistBroker(delistedBroker)
@@ -237,23 +229,16 @@ describe('when calling token functions', () => {
       assert.deepEqual(actual, expected, 'list should be empty')
     })
 
-    describe.only('when adding a token', () => {
+    describe('when adding a token', () => {
       it('should emit TokenAddedEvent', async () => {
-        const { txReceipt, tokenAddress } = await addToken(
-          pmr,
-          reg,
-          custodian,
-          listedBroker
-        )
+        const { txReceipt, tokenAddress } = await addToken(pmr, {
+          from: listedBroker
+        })
 
         // setting this here for use in following tests in this contract block
         addedToken = tokenAddress
 
         checkForEvent('TokenAddedEvent', { token: addedToken }, txReceipt)
-
-        const thing = await PoaToken.at(tokenAddress)
-        const rate = await thing.feeRate()
-        console.log(rate.toString())
       })
 
       it('should have the PoaManager as the owner', async () => {
@@ -283,7 +268,9 @@ describe('when calling token functions', () => {
       })
 
       it('should allow for more tokens to be added', async () => {
-        const { tokenAddress } = await addToken(pmr, custodian, listedBroker)
+        const { tokenAddress } = await addToken(pmr, {
+          from: listedBroker
+        })
 
         // setting this here for use in following tests in this contract block
         anotherToken = tokenAddress
@@ -298,29 +285,11 @@ describe('when calling token functions', () => {
       })
 
       it('should error when trying to add a token from a delisted broker address', async () => {
-        await testWillThrow(pmr.addToken, [
-          'test-another',
-          'ANT',
-          custodian,
-          1000,
-          1e18,
-          {
-            from: delistedBroker
-          }
-        ])
+        await testWillThrow(addToken, [pmr, { from: delistedBroker }])
       })
 
       it('should error when trying to add a token from a non broker address', async () => {
-        await testWillThrow(pmr.addToken, [
-          'test-another',
-          'ANT',
-          custodian,
-          1000,
-          1e18,
-          {
-            from: notBroker
-          }
-        ])
+        await testWillThrow(addToken, [pmr, { from: notBroker }])
       })
     })
 
@@ -432,7 +401,6 @@ describe('when calling token convenience functions', () => {
     const owner = accounts[0]
     const notOwner = accounts[1]
     const broker = accounts[2]
-    const custodian = accounts[3]
     let addedToken
 
     before('setup contract state', async () => {
@@ -441,11 +409,7 @@ describe('when calling token convenience functions', () => {
 
       await pmr.addBroker(broker)
 
-      const { tokenAddress: addedTokenAddress } = await addToken(
-        pmr,
-        custodian,
-        broker
-      )
+      const { tokenAddress: addedTokenAddress } = await addToken(pmr, broker)
       pmr.listToken(addedTokenAddress, { from: owner })
       addedToken = PoaToken.at(addedTokenAddress)
     })

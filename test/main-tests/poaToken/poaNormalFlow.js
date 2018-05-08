@@ -11,8 +11,8 @@ const {
   testBrokerClaim,
   testPayout,
   testClaimAllPayouts
-} = require('../helpers/poa')
-const { timeTravel, gasPrice } = require('../helpers/general.js')
+} = require('../../helpers/poa')
+const { timeTravel, gasPrice } = require('../../helpers/general.js')
 
 describe("when going through Poa's normal flow", async () => {
   contract('PoaToken', () => {

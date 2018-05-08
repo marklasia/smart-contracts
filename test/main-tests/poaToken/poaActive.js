@@ -1,7 +1,6 @@
 const {
   owner,
   custodian,
-  bbkContributors,
   whitelistedPoaBuyers,
   defaultIpfsHash,
   setupPoaAndEcosystem,
@@ -16,16 +15,21 @@ const {
   testReclaim,
   testSetFailed,
   testPaused,
+  testPause,
   testUnpause,
   testUpdateProofOfCustody,
   testTransfer,
   testApprove,
   testTransferFrom,
   testTerminate
-} = require('../helpers/poa')
-const { testWillThrow, timeTravel, gasPrice } = require('../helpers/general.js')
+} = require('../../helpers/poa')
+const {
+  testWillThrow,
+  timeTravel,
+  gasPrice
+} = require('../../helpers/general.js')
 
-describe('when in Terminated (stage 5)', () => {
+describe('when in Active (stage 4)', () => {
   contract('PoaToken', () => {
     const newIpfsHash = 'Qmd286K6pohQcTKYqnS1YhWrCiS4gz7Xi34sdwMe9USZ7u'
     let poa
@@ -60,18 +64,34 @@ describe('when in Terminated (stage 5)', () => {
 
       // clean out broker balance for easier debugging
       await testBrokerClaim(poa)
-
-      // move into Terminated
-      //⚠️  also acts as a test terminating as owner rather than custodian
-      await testTerminate(poa, { from: owner })
     })
 
-    it('should start paused', async () => {
-      await testPaused(poa, true)
+    it('should be unpaused', async () => {
+      await testPaused(poa, false)
     })
 
-    it('should NOT unpause, even if owner', async () => {
+    it('should NOT unpause when already unpaused', async () => {
       await testWillThrow(testUnpause, [poa, { from: owner }])
+    })
+
+    it('should NOT pause if NOT owner', async () => {
+      await testWillThrow(testPause, [poa, { from: whitelistedPoaBuyers[0] }])
+    })
+
+    it('should pause if owner', async () => {
+      await testPause(poa, { from: owner })
+    })
+
+    it('should NOT pause if already paused', async () => {
+      await testWillThrow(testPause, [poa, { from: owner }])
+    })
+
+    it('should NOT unpause if NOT owner', async () => {
+      await testWillThrow(testUnpause, [poa, { from: whitelistedPoaBuyers[0] }])
+    })
+
+    it('should unpause if owner', async () => {
+      await testUnpause(poa, { from: owner })
     })
 
     it('should NOT startSale, even if owner', async () => {
@@ -98,57 +118,10 @@ describe('when in Terminated (stage 5)', () => {
       ])
     })
 
-    it('should NOT terminate, even if custodian', async () => {
-      await testWillThrow(testTerminate, [poa, { from: custodian }])
-    })
-
     it('should NOT reclaim, even if owning tokens', async () => {
       await testWillThrow(testReclaim, [poa, { from: whitelistedPoaBuyers[0] }])
     })
 
-    it('should NOT transfer', async () => {
-      await testWillThrow(testTransfer, [
-        poa,
-        whitelistedPoaBuyers[1],
-        1e17,
-        {
-          from: whitelistedPoaBuyers[0]
-        }
-      ])
-    })
-
-    it('should NOT approve', async () => {
-      await testWillThrow(testApprove, [
-        poa,
-        whitelistedPoaBuyers[1],
-        1e17,
-        {
-          from: whitelistedPoaBuyers[0]
-        }
-      ])
-    })
-
-    it('should NOT transferFrom', async () => {
-      // in theory would need approval put here for the sake of demonstrating
-      // that approval was attempted as well.
-      await testWillThrow(testApprove, [
-        poa,
-        whitelistedPoaBuyers[1],
-        1e17,
-        {
-          from: whitelistedPoaBuyers[0]
-        }
-      ])
-      await testWillThrow(testTransferFrom, [
-        poa,
-        whitelistedPoaBuyers[0],
-        bbkContributors[0],
-        1e17,
-        {
-          from: whitelistedPoaBuyers[1]
-        }
-      ])
-    })
     // start core stage functionality
 
     it('should NOT claim if no payouts', async () => {
@@ -176,7 +149,7 @@ describe('when in Terminated (stage 5)', () => {
     })
 
     it('should claim if payout has been made', async () => {
-      await testClaim(poa, { from: whitelistedPoaBuyers[0] }, true)
+      await testClaim(poa, { from: whitelistedPoaBuyers[0] })
     })
 
     it('should update proofOfCustody if custodian', async () => {
@@ -205,6 +178,35 @@ describe('when in Terminated (stage 5)', () => {
         'Zr' + newIpfsHash.slice(2),
         { from: owner }
       ])
+    })
+
+    it('should transfer', async () => {
+      await testTransfer(poa, whitelistedPoaBuyers[1], 1e17, {
+        from: whitelistedPoaBuyers[0]
+      })
+    })
+
+    it('should approve', async () => {
+      await testApprove(poa, whitelistedPoaBuyers[1], 1e17, {
+        from: whitelistedPoaBuyers[0]
+      })
+    })
+
+    it('should transferFrom', async () => {
+      await testTransferFrom(
+        poa,
+        whitelistedPoaBuyers[0],
+        whitelistedPoaBuyers[2],
+        1e17,
+        {
+          from: whitelistedPoaBuyers[1]
+        }
+      )
+    })
+
+    // test for owner done through contract setup test for Terminated stage
+    it('should allow terminating if owner or custodian', async () => {
+      await testTerminate(poa, { from: custodian })
     })
   })
 })

@@ -1,12 +1,31 @@
 const PoaManager = artifacts.require('PoaManager.sol')
 const PoaToken = artifacts.require('PoaToken.sol')
-const BigNumber = require('bignumber.js')
-const { setupEcosystem } = require('./poa')
+const {
+  setupEcosystem,
+  testSetCurrencyRate,
+  defaultName,
+  defaultSymbol,
+  defaultFiatCurrency,
+  defaultFundingTimeout,
+  defaultActivationTimeout,
+  defaultFundingGoal,
+  defaultFiatRate,
+  getDefaultStartTime
+} = require('./poa')
+
+const accounts = web3.eth.accounts
+const owner = accounts[0]
+const custodian = accounts[9]
 
 const setupPoaManager = async () => {
   const poam = await PoaToken.new()
-  const { reg } = await setupEcosystem()
+  const { reg, exr, exp } = await setupEcosystem()
   const pmr = await PoaManager.new(reg.address, poam.address)
+
+  await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
+    from: owner,
+    value: 1e18
+  })
 
   return {
     poam,
@@ -15,25 +34,19 @@ const setupPoaManager = async () => {
   }
 }
 
-const addToken = async (pmr, reg, custodian, broker) => {
+const addToken = async (pmr, config) => {
+  const defaultStartTime = await getDefaultStartTime()
+
   const txReceipt = await pmr.addToken(
-    'test', // name
-    'TST', // symbol
-    'EUR', // fiat currency
+    defaultName,
+    defaultSymbol,
+    defaultFiatCurrency,
     custodian,
-    // 60 seconds from now as unix timestamp
-    new BigNumber(Date.now()) // start time
-      .div(1000)
-      .add(60)
-      .floor(),
-    // 1 day from now
-    60 * 60 * 24, // funding timeout
-    // 7 days from fundingTimeout
-    60 * 60 * 24 * 7, // activation timeout
-    5e5, // fiat goal in cents
-    {
-      from: broker
-    }
+    defaultStartTime,
+    defaultFundingTimeout,
+    defaultActivationTimeout,
+    defaultFundingGoal,
+    config
   )
 
   const tokenAddress = txReceipt.logs[0].args.token

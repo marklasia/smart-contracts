@@ -90,7 +90,7 @@ const setupEcosystem = async () => {
 
   const exp = await ExchangeRateProvider.new(reg.address)
   const fmr = await FeeManager.new(reg.address)
-  const wht = await Whitelist.new(reg.address)
+  const wht = await Whitelist.new()
 
   for (const buyer of whitelistedPoaBuyers) {
     const preWhitelisted = await wht.whitelisted(buyer)
@@ -108,7 +108,7 @@ const setupEcosystem = async () => {
   await reg.updateContractAddress('FeeManager', fmr.address)
   await reg.updateContractAddress('Whitelist', wht.address)
 
-  testApproveAndLockMany(bbk, act, bbkContributors, bbkTokenDistAmount)
+  await testApproveAndLockMany(bbk, act, bbkContributors, bbkTokenDistAmount)
 
   return {
     reg,
@@ -149,7 +149,8 @@ const setupPoaAndEcosystem = async () => {
     value: 1e18
   })
 
-  const poa = await PoaToken.new(
+  const poa = await PoaToken.new()
+  await poa.setupContract(
     defaultName,
     defaultSymbol,
     defaultFiatCurrency,
@@ -182,7 +183,8 @@ const testInitialization = async (exr, exp, reg) => {
 
   const defaultStartTime = await getDefaultStartTime()
 
-  const poa = await PoaToken.new(
+  const poa = await PoaToken.new()
+  await poa.setupContract(
     defaultName,
     defaultSymbol,
     defaultFiatCurrency,
@@ -1051,6 +1053,7 @@ module.exports = {
   defaultSymbol,
   defaultFiatCurrency,
   defaultFundingTimeout,
+  defaultActivationTimeout,
   defaultFundingGoal,
   defaultFiatRate,
   getDefaultStartTime,

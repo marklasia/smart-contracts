@@ -1,8 +1,31 @@
-pragma solidity 0.4.18;
+pragma solidity ^0.4.23;
 
 import "./PoaToken.sol";
 import "zeppelin-solidity/contracts/ownership/Ownable.sol";
 import "zeppelin-solidity/contracts/math/SafeMath.sol";
+
+
+interface Poa {
+  function setupContract
+  (
+    string _name,
+    string _symbol,
+    // fiat symbol used in ExchangeRates
+    string _fiatCurrency,
+    address _broker,
+    address _custodian,
+    address _registry,
+    // given as unix time (seconds since 01.01.1970)
+    uint256 _startTime,
+    // given as seconds
+    uint256 _fundingTimeout,
+    uint256 _activationTimeout,
+    // given as fiat cents
+    uint256 _fundingGoalInCents
+  )
+    external
+    returns (bool);
+}
 
 
 contract PoaManager is Ownable {
@@ -46,13 +69,16 @@ contract PoaManager is Ownable {
     _;
   }
 
-  modifier onlyActiveBroker(address _brokerAddress) {
-    EntityState memory entity = brokerMap[_brokerAddress];
+  modifier onlyActiveBroker() {
+    EntityState memory entity = brokerMap[msg.sender];
     require(entity.active);
     _;
   }
 
-  function PoaManager(address _registryAddress, address _poaMasterAddress)
+  constructor(
+    address _registryAddress, 
+    address _poaMasterAddress
+  )
     public
   {
     require(_registryAddress != address(0));
@@ -148,7 +174,7 @@ contract PoaManager is Ownable {
       true
     );
 
-    BrokerAddedEvent(_brokerAddress);
+    emit BrokerAddedEvent(_brokerAddress);
   }
 
   // Remove a broker
@@ -157,11 +183,13 @@ contract PoaManager is Ownable {
     onlyOwner
     doesEntityExist(_brokerAddress, brokerMap[_brokerAddress])
   {
-    var (addressToUpdate, indexUpdate) = removeEntity(brokerMap[_brokerAddress], brokerAddressList);
+    address addressToUpdate;
+    uint256 indexUpdate;
+    (addressToUpdate, indexUpdate) = removeEntity(brokerMap[_brokerAddress], brokerAddressList);
     brokerMap[addressToUpdate].index = indexUpdate;
     delete brokerMap[_brokerAddress];
 
-    BrokerRemovedEvent(_brokerAddress);
+    emit BrokerRemovedEvent(_brokerAddress);
   }
 
   // Set previously delisted broker to listed
@@ -171,7 +199,7 @@ contract PoaManager is Ownable {
     doesEntityExist(_brokerAddress, brokerMap[_brokerAddress])
   {
     setEntityActiveValue(brokerMap[_brokerAddress], true);
-    BrokerStatusChangedEvent(_brokerAddress, true);
+    emit BrokerStatusChangedEvent(_brokerAddress, true);
   }
 
   // Set previously listed broker to delisted
@@ -181,7 +209,7 @@ contract PoaManager is Ownable {
     doesEntityExist(_brokerAddress, brokerMap[_brokerAddress])
   {
     setEntityActiveValue(brokerMap[_brokerAddress], false);
-    BrokerStatusChangedEvent(_brokerAddress, false);
+    emit BrokerStatusChangedEvent(_brokerAddress, false);
   }
 
   function getBrokerStatus(address _brokerAddress)
@@ -218,6 +246,10 @@ contract PoaManager is Ownable {
       mstore(add(contractCode, 0x2b), 0x5af43d828181803e808314602f57f35bfd000000000000000000000000000000) // Final part of bytecode, offset by 43 bytes
 
       proxyContract := create(0, contractCode, 60) // total length 60 bytes
+
+      if iszero(extcodesize(proxyContract)) {
+        revert(0, 0)
+      }
     }
   }
 
@@ -239,29 +271,22 @@ contract PoaManager is Ownable {
     uint256 _fundingGoalInCents
   )
     public
-    onlyActiveBroker(msg.sender)
+    onlyActiveBroker
     returns (address)
   {
     address _tokenAddress = createProxy(poaMasterAddress);
 
-    require(
-      // solium-disable-next-line security/no-low-level-calls 
-      _tokenAddress.call( // call address with
-        bytes4(
-          keccak256("setupContract(string,string,string,address,address,address,uint256,uint256,uint256,uint256)") // function signature (first 4 bytes of hashed param types)
-        ),
-        // with the following params
-        _name,
-        _symbol,
-        _fiatCurrency,
-        msg.sender,
-        _custodian,
-        registryAddress,
-        _startTime,
-        _fundingTimeout,
-        _activationTimeout,
-        _fundingGoalInCents
-      )
+    Poa(_tokenAddress).setupContract(
+      _name,
+      _symbol,
+      _fiatCurrency,
+      msg.sender,
+      _custodian,
+      registryAddress,
+      _startTime,
+      _fundingTimeout,
+      _activationTimeout,
+      _fundingGoalInCents
     );
 
     tokenMap[_tokenAddress] = addEntity(
@@ -270,7 +295,7 @@ contract PoaManager is Ownable {
       false
     );
 
-    TokenAddedEvent(_tokenAddress);
+    emit TokenAddedEvent(_tokenAddress);
 
     return _tokenAddress;
   }
@@ -281,11 +306,13 @@ contract PoaManager is Ownable {
     onlyOwner
     doesEntityExist(_tokenAddress, tokenMap[_tokenAddress])
   {
-    var (addressToUpdate, indexUpdate) = removeEntity(tokenMap[_tokenAddress], tokenAddressList);
+    address addressToUpdate;
+    uint256 indexUpdate;
+    (addressToUpdate, indexUpdate) = removeEntity(tokenMap[_tokenAddress], tokenAddressList);
     tokenMap[addressToUpdate].index = indexUpdate;
     delete tokenMap[_tokenAddress];
 
-    TokenRemovedEvent(_tokenAddress);
+    emit TokenRemovedEvent(_tokenAddress);
   }
 
   // Set previously delisted token to listed
@@ -295,7 +322,7 @@ contract PoaManager is Ownable {
     doesEntityExist(_tokenAddress, tokenMap[_tokenAddress])
   {
     setEntityActiveValue(tokenMap[_tokenAddress], true);
-    TokenStatusChangedEvent(_tokenAddress, true);
+    emit TokenStatusChangedEvent(_tokenAddress, true);
   }
 
   // Set previously listed token to delisted
@@ -305,7 +332,7 @@ contract PoaManager is Ownable {
     doesEntityExist(_tokenAddress, tokenMap[_tokenAddress])
   {
     setEntityActiveValue(tokenMap[_tokenAddress], false);
-    TokenStatusChangedEvent(_tokenAddress, false);
+    emit TokenStatusChangedEvent(_tokenAddress, false);
   }
 
   function getTokenStatus(address _tokenAddress)

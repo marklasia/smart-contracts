@@ -3,9 +3,12 @@ const {
   custodian,
   bbkContributors,
   whitelistedPoaBuyers,
+  defaultIpfsHash,
+  setupPoaAndEcosystem,
   testStartSale,
   testBuyTokens,
   determineNeededTimeTravel,
+  testBuyRemainingTokens,
   testActivate,
   testPayout,
   testClaim,
@@ -17,18 +20,15 @@ const {
   testTransfer,
   testApprove,
   testTransferFrom,
-  testTerminate,
-  defaultIpfsHash,
-  setupPoaAndEcosystem
-} = require('../helpers/poa')
+  testTerminate
+} = require('../../helpers/poa')
 const {
   testWillThrow,
-
   timeTravel,
   gasPrice
-} = require('../helpers/general.js')
+} = require('../../helpers/general.js')
 
-describe('when in PreFunding (stage 0)', async () => {
+describe('when in Funding (stage 1)', () => {
   contract('PoaToken', () => {
     let poa
     let fmr
@@ -37,6 +37,10 @@ describe('when in PreFunding (stage 0)', async () => {
       const contracts = await setupPoaAndEcosystem()
       poa = contracts.poa
       fmr = contracts.fmr
+
+      const neededTime = await determineNeededTimeTravel(poa)
+      await timeTravel(neededTime)
+      await testStartSale(poa)
     })
 
     it('should start paused', async () => {
@@ -47,11 +51,8 @@ describe('when in PreFunding (stage 0)', async () => {
       await testWillThrow(testUnpause, [poa, { from: owner }])
     })
 
-    it('should NOT buy, even if whitelisted', async () => {
-      await testWillThrow(testBuyTokens, [
-        poa,
-        { from: whitelistedPoaBuyers[0], value: 3e17, gasPrice }
-      ])
+    it('should NOT startSale, even if owner', async () => {
+      await testWillThrow(testStartSale, [poa, { from: owner }])
     })
 
     it('should NOT setFailed', async () => {
@@ -71,7 +72,7 @@ describe('when in PreFunding (stage 0)', async () => {
       await testWillThrow(testTerminate, [poa, { from: custodian }])
     })
 
-    it('should NOT reclaim', async () => {
+    it('should NOT reclaim, even if owning tokens', async () => {
       await testWillThrow(testReclaim, [poa, { from: whitelistedPoaBuyers[0] }])
     })
 
@@ -141,17 +142,19 @@ describe('when in PreFunding (stage 0)', async () => {
 
     // start core stage functionality
 
-    it('should NOT move to funding before startTime, EVEN if owner', async () => {
-      await testWillThrow(testStartSale, [poa, { from: owner }])
+    it('should allow buying', async () => {
+      await testBuyTokens(poa, {
+        from: whitelistedPoaBuyers[0],
+        value: 5e17,
+        gasPrice
+      })
     })
 
-    it('should allow ANYONE to move to Stages.Funding when after startTime', async () => {
-      const neededTime = await determineNeededTimeTravel(
-        poa,
-        whitelistedPoaBuyers[0]
-      )
-      await timeTravel(neededTime)
-      await testStartSale(poa)
+    it('should move into pending when all tokens are bought', async () => {
+      await testBuyRemainingTokens(poa, {
+        from: whitelistedPoaBuyers[1],
+        gasPrice
+      })
     })
   })
 })

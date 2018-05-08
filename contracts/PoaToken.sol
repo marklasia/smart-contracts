@@ -1,4 +1,4 @@
-pragma solidity 0.4.18;
+pragma solidity ^0.4.23;
 
 import "zeppelin-solidity/contracts/token/PausableToken.sol";
 
@@ -191,7 +191,7 @@ contract PoaToken is PausableToken {
     // given as fiat cents
     uint256 _fundingGoalInCents
   )
-    external
+    public
     returns (bool)
   {
     // ensure that contract has not already been setup
@@ -240,6 +240,8 @@ contract PoaToken is PausableToken {
     // run getRate once in order to see if rate is initialized, throws if not
     ExR(registry.getContractAddress("ExchangeRates"))
       .getRateReadable(_fiatCurrency);
+
+    hasSetup = true;
 
     return true;
   }
@@ -333,7 +335,7 @@ contract PoaToken is PausableToken {
     private
   {
     stage = _stage;
-    StageEvent(_stage);
+    emit StageEvent(_stage);
   }
 
   // start lifecycle functions
@@ -358,8 +360,8 @@ contract PoaToken is PausableToken {
   {
     totalSupply = totalSupply.add(_amount);
     balances[_to] = balances[_to].add(_amount);
-    MintEvent(_to, _amount);
-    Transfer(address(0), _to, _amount);
+    emit MintEvent(_to, _amount);
+    emit Transfer(address(0), _to, _amount);
     return true;
   }
 
@@ -418,7 +420,7 @@ contract PoaToken is PausableToken {
     investmentAmountPerUserInWei[msg.sender] = _payAmount;
     // increment the funded amount
     fundedAmountInWei = fundedAmountInWei.add(_payAmount);
-    BuyEvent(msg.sender, _buyAmount);
+    emit BuyEvent(msg.sender, _buyAmount);
 
     return true;
   }
@@ -446,7 +448,7 @@ contract PoaToken is PausableToken {
     investmentAmountPerUserInWei[msg.sender] = _payAmount;
     // increment the funded amount
     fundedAmountInWei = fundedAmountInWei.add(_payAmount);
-    BuyEvent(msg.sender, _buyAmount);
+    emit BuyEvent(msg.sender, _buyAmount);
 
     return true;
   }
@@ -474,7 +476,7 @@ contract PoaToken is PausableToken {
   {
     require(_newCustodian != custodian);
     custodian = _newCustodian;
-    CustodianChangedEvent(_newCustodian);
+    emit CustodianChangedEvent(_newCustodian);
     return true;
   }
 
@@ -495,7 +497,7 @@ contract PoaToken is PausableToken {
     payFee(_fee);
     proofOfCustody = _ipfsHash;
     // event showing that proofOfCustody has been updated.
-    ProofOfCustodyUpdatedEvent(_ipfsHash);
+    emit ProofOfCustodyUpdatedEvent(_ipfsHash);
     // balance of contract (fundingGoalInCents) set to claimable by broker.
     // can now be claimed by broker via claim function
     // should only be buy()s - fee. this ensures buy() dust is cleared
@@ -504,7 +506,7 @@ contract PoaToken is PausableToken {
     // allow trading of tokens
     paused = false;
     // let world know that this token can now be traded.
-    Unpause();
+    emit Unpause();
 
     return true;
   }
@@ -522,7 +524,7 @@ contract PoaToken is PausableToken {
     // pause. Cannot be unpaused now that in Stages.Terminated
     paused = true;
     // let the world know this token is in Terminated Stage
-    TerminatedEvent();
+    emit TerminatedEvent();
     return true;
   }
 
@@ -596,7 +598,7 @@ contract PoaToken is PausableToken {
     balances[msg.sender] = 0;
     totalSupply = totalSupply.sub(_tokenBalance);
     fundedAmountInWei = fundedAmountInWei.sub(_refundAmount);
-    Transfer(msg.sender, address(0), _tokenBalance);
+    emit Transfer(msg.sender, address(0), _tokenBalance);
     msg.sender.transfer(_refundAmount);
     return true;
   }
@@ -632,7 +634,7 @@ contract PoaToken is PausableToken {
     // pay fee along with any dust to FeeManager
     payFee(_fee.add(_delta));
     // let the world know that a payout has happened for this token
-    PayoutEvent(_payoutAmount.sub(_delta));
+    emit PayoutEvent(_payoutAmount.sub(_delta));
     return true;
   }
 
@@ -656,7 +658,7 @@ contract PoaToken is PausableToken {
     // 0 out unclaimedPayoutTotals for user
     unclaimedPayoutTotals[msg.sender] = 0;
     // let the world know that a payout for sender has been claimed
-    ClaimEvent(_payoutAmount);
+    emit ClaimEvent(_payoutAmount);
     // transfer Ξ payable amount to sender
     msg.sender.transfer(_payoutAmount);
     return _payoutAmount;
@@ -671,7 +673,7 @@ contract PoaToken is PausableToken {
     returns (bool)
   {
     proofOfCustody = _ipfsHash;
-    ProofOfCustodyUpdatedEvent(_ipfsHash);
+    emit ProofOfCustodyUpdatedEvent(_ipfsHash);
     return true;
   }
 

@@ -8,8 +8,8 @@ const {
   testCalculateFee,
   testFallback,
   testChangeCustodianAddress
-} = require('../helpers/poa')
-const { testWillThrow } = require('../helpers/general.js')
+} = require('../../helpers/poa')
+const { testWillThrow } = require('../../helpers/general.js')
 const BigNumber = require('bignumber.js')
 
 describe('when testing stage independent functions', () => {
