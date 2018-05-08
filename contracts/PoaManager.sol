@@ -52,11 +52,21 @@ contract PoaManager is Ownable {
     _;
   }
 
-  function PoaManager(address _registryAddress)
+  function PoaManager(address _registryAddress, address _poaMasterAddress)
     public
   {
     require(_registryAddress != address(0));
+    require(_poaMasterAddress != address(0));
     registryAddress = _registryAddress;
+    poaMasterAddress = _poaMasterAddress;
+  }
+
+  function changePoaMaster(address _poaMasterAddress)
+    public
+    onlyOwner
+  {
+    require(_poaMasterAddress != address(0));
+    poaMasterAddress = _poaMasterAddress;
   }
 
   //
@@ -197,7 +207,7 @@ contract PoaManager is Ownable {
   }
 
   function createProxy(address _target)
-    internal
+    public
     returns (address proxyContract)
   {
     assembly {
@@ -233,11 +243,12 @@ contract PoaManager is Ownable {
     returns (address)
   {
     address _tokenAddress = createProxy(poaMasterAddress);
+
     require(
       // solium-disable-next-line security/no-low-level-calls 
       _tokenAddress.call( // call address with
         bytes4(
-          keccak256("setup(string,string,string,address,address,uint256,uint256,uint256,uint256)") // function signature (first 4 bytes of hashed param types)
+          keccak256("setupContract(string,string,string,address,address,address,uint256,uint256,uint256,uint256)") // function signature (first 4 bytes of hashed param types)
         ),
         // with the following params
         _name,

@@ -174,7 +174,7 @@ contract PoaToken is PausableToken {
     _;
   }
 
-  function setup
+  function setupContract
   (
     string _name,
     string _symbol,
@@ -191,7 +191,8 @@ contract PoaToken is PausableToken {
     // given as fiat cents
     uint256 _fundingGoalInCents
   )
-    public
+    external
+    returns (bool)
   {
     // ensure that contract has not already been setup
     require(!hasSetup);
@@ -239,6 +240,8 @@ contract PoaToken is PausableToken {
     // run getRate once in order to see if rate is initialized, throws if not
     ExR(registry.getContractAddress("ExchangeRates"))
       .getRateReadable(_fiatCurrency);
+
+    return true;
   }
 
   // start utility functions

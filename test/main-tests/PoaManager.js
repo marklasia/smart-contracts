@@ -1,11 +1,6 @@
-const PoaManager = artifacts.require('PoaManager.sol')
 const PoaToken = artifacts.require('PoaToken.sol')
-const {
-  checkForEvent,
-  setupRegistry,
-  testWillThrow
-} = require('../helpers/general')
-const { addToken } = require('../helpers/pmr')
+const { checkForEvent, testWillThrow } = require('../helpers/general')
+const { addToken, setupPoaManager } = require('../helpers/pmr')
 
 describe('when creating a new instance of the contract', () => {
   contract('PoaManager', accounts => {
@@ -13,8 +8,8 @@ describe('when creating a new instance of the contract', () => {
     const owner = accounts[0]
 
     before('setup contract state', async () => {
-      const { registry } = await setupRegistry()
-      pmr = await PoaManager.new(registry.address)
+      const contracts = await setupPoaManager()
+      pmr = contracts.pmr
     })
 
     it('should set the owner as msg.sender on creation', async () => {
@@ -37,8 +32,8 @@ describe('when calling broker functions', () => {
     const notOwner = accounts[9]
 
     before('setup contract state', async () => {
-      const { registry } = await setupRegistry()
-      pmr = await PoaManager.new(registry.address)
+      const contracts = await setupPoaManager()
+      pmr = contracts.pmr
     })
 
     it('should be created with an empty brokerAddressList', async () => {
@@ -209,7 +204,14 @@ describe('when calling broker functions', () => {
 
 describe('when calling token functions', () => {
   contract('PoaManager', accounts => {
+    // PoaManager
     let pmr
+    // PoaMaster
+    let poam
+    // PoaProxy
+    let poap
+    // BrickblockContractRegistrys
+    let reg
     // used for testing happy path (paired with owner address)
     let addedToken
     // used to testing listing / delisting and unhappy path (paired with notOwner address)
@@ -221,8 +223,9 @@ describe('when calling token functions', () => {
     const notOwner = accounts[9]
 
     before('setup contract state', async () => {
-      const { registry } = await setupRegistry()
-      pmr = await PoaManager.new(registry.address)
+      const contracts = await setupPoaManager()
+      pmr = contracts.pmr
+      reg = contracts.reg
       await pmr.addBroker(listedBroker)
       await pmr.addBroker(delistedBroker)
       await pmr.delistBroker(delistedBroker)
@@ -234,10 +237,11 @@ describe('when calling token functions', () => {
       assert.deepEqual(actual, expected, 'list should be empty')
     })
 
-    describe('when adding a token', () => {
+    describe.only('when adding a token', () => {
       it('should emit TokenAddedEvent', async () => {
         const { txReceipt, tokenAddress } = await addToken(
           pmr,
+          reg,
           custodian,
           listedBroker
         )
@@ -246,6 +250,10 @@ describe('when calling token functions', () => {
         addedToken = tokenAddress
 
         checkForEvent('TokenAddedEvent', { token: addedToken }, txReceipt)
+
+        const thing = await PoaToken.at(tokenAddress)
+        const rate = await thing.feeRate()
+        console.log(rate.toString())
       })
 
       it('should have the PoaManager as the owner', async () => {
@@ -428,8 +436,8 @@ describe('when calling token convenience functions', () => {
     let addedToken
 
     before('setup contract state', async () => {
-      const { registry } = await setupRegistry()
-      pmr = await PoaManager.new(registry.address, { from: owner })
+      const contracts = await setupPoaManager()
+      pmr = contracts.pmr
 
       await pmr.addBroker(broker)
 

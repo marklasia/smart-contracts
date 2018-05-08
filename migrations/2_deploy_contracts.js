@@ -75,8 +75,12 @@ module.exports = (deployer, network, accounts) => {
       })
       const exp = await ExchangeRateProvider.deployed()
 
+      // PoaToken Master
+      await deployer.deploy(PoaToken)
+      const poam = await PoaToken.deployed()
+
       // PoaManager
-      await deployer.deploy(PoaManager, reg.address, {
+      await deployer.deploy(PoaManager, reg.address, poam.address, {
         from: owner
       })
       const pmr = await PoaManager.deployed()
@@ -100,8 +104,7 @@ module.exports = (deployer, network, accounts) => {
         value: 1e18
       })
 
-      await deployer.deploy(
-        PoaToken,
+      await poam.setupContract(
         'TestToken',
         'TST',
         'EUR',
