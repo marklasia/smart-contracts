@@ -221,8 +221,7 @@ contract PoaToken is PausableToken {
     broker = _broker;
     custodian = _custodian;
     registry = Registry(_registry);
-    owner = registry.getContractAddress("PoaManager");
-
+    owner = msg.sender;
     // assign times
     creationTime = block.timestamp;
     startTime = _startTime;
