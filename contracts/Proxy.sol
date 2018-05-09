@@ -16,36 +16,40 @@ contract Proxy {
     payable
   {
     assembly {
-      // let master := and(sload(0), 0xffffffffffffffffffffffffffffffffffffffff)
-      // calldatacopy(0, 0, calldatasize())
-      // // g gas
-      // // a address
-      // // in mem
-      // // insize input size mem[in..(in+insize)]
-      // // out mem
-      // // outsize output size mem[in..(out+outsize)]
-      // // returns 0 on error and 1 on success
-      // // delegatecall(g, a, in, insize, out, outsize)
-      // let success := delegatecall(not(0), master, 0, calldatasize(), 0, 0)
-      // // s bytes
-      // // t position to
-      // // f position from
-      // // returndatacopy(t, f, s)
-      // returndatacopy(0, 0, returndatasize())
+      // address is 20 bytes which means that there are going to be extra data here
+      let master := and( // bitwise & 
+        sload(0x0), // masterContract stored in storage at first pointer already
+        0xffffffffffffffffffffffffffffffffffffffff // mask since address is 20 bytes
+      )
 
-      // if iszero(success) {
-      //   return(0, returndatasize())
-      // }
+      // calldatacopy(t, f, s)
+      calldatacopy(
+        0, // t = mem position to
+        0, // f = mem position from
+        calldatasize() // s = size bytes
+      )
 
-      // revert(0, returndatasize())
+      // delegatecall(g, a, in, insize, out, outsize) => 0 on error 1 on success
+      let success := delegatecall(
+        not(0), // g = gas ?
+        master, // a = address
+        0, // in = mem in  mem[in..(in+insize)
+        calldatasize(), // insize = mem insize  mem[in..(in+insize)
+        0, // out = mem out  mem[out..(out+outsize)
+        0 // outsize = mem outsize  mem[out..(out+outsize)
+      )
 
-      let masterCopy := and(sload(0), 0xffffffffffffffffffffffffffffffffffffffff)
-      calldatacopy(0, 0, calldatasize())
-      let success := delegatecall(not(0), masterCopy, 0, calldatasize(), 0, 0)
-      returndatacopy(0, 0, returndatasize())
-      switch success
-      case 0 { revert(0, returndatasize()) }
-      default { return(0, returndatasize()) }
+      // returndatacopy(t, f, s)
+      returndatacopy(
+        0, // t = mem position to
+        0,  // f = mem positin from
+        returndatasize() // s = size bytes
+      )
+
+      if iszero(success) {
+        revert(0, returndatasize())
+      }
+        return(0, returndatasize())
     }
   }
 }
