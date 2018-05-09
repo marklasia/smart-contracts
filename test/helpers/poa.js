@@ -441,9 +441,14 @@ const testBuyTokensMulti = async (poa, buyAmount) => {
   }
 }
 
+/*
+  it seems that somehow the actual call is disconnected from the proxy instance
+  what is going on here? need to find some way to test this....
+*/
 const testBuyRemainingTokens = async (poa, config) => {
   assert(!!config.gasPrice, 'gasPrice must be given')
   assert(!!config.from, 'from must be given')
+
   const fundedAmountInWei = await poa.fundedAmountInWei()
   const fundingGoalInCents = await poa.fundingGoalInCents()
   const fundingGoalWei = await poa.fiatCentsToWei(fundingGoalInCents)
@@ -458,6 +463,7 @@ const testBuyRemainingTokens = async (poa, config) => {
   const preTokenBalance = await poa.balanceOf(buyer)
   const preFundedWei = await poa.fundedAmountInWei()
   const tx = await poa.buy(config)
+  console.log(tx.logs)
   const gasUsed = await getGasUsed(tx)
   const gasCost = new BigNumber(gasUsed).mul(config.gasPrice)
 

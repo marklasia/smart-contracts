@@ -401,7 +401,7 @@ describe('when calling token functions', () => {
   })
 })
 
-describe('when calling token convenience functions', () => {
+describe.only('when calling token convenience functions', () => {
   contract('PoaManager', accounts => {
     let pmr
     let fmr
@@ -420,8 +420,8 @@ describe('when calling token convenience functions', () => {
       const { tokenAddress: addedTokenAddress } = await addToken(pmr, {
         from: broker
       })
-      pmr.listToken(addedTokenAddress, { from: owner })
-      addedToken = PoaToken.at(addedTokenAddress)
+      await pmr.listToken(addedTokenAddress, { from: owner })
+      addedToken = await PoaToken.at(addedTokenAddress)
       await moveTokenToActive(addedToken, fmr)
     })
 

@@ -363,7 +363,7 @@ contract PoaToken is PausableToken {
   }
 
   function buy()
-    public
+    external
     payable
     checkTimeout
     atStage(Stages.Funding)
@@ -388,7 +388,7 @@ contract PoaToken is PausableToken {
       // give a range due to fun fun integer division
       if (fundingGoalInCents.sub(_currentFundedCents) > 1) {
         // continue sale if more than 1 cent from goal in fiat
-        return buyAndContinueFunding();
+        buyAndContinueFunding();
       } else {
         // finish sale if within 1 cent of goal in fiat
         // no refunds for overpayment should be given
@@ -402,7 +402,7 @@ contract PoaToken is PausableToken {
   }
 
   function buyAndContinueFunding()
-    private
+    internal
     returns (bool)
   {
     // _payAmount is just value sent
@@ -424,7 +424,7 @@ contract PoaToken is PausableToken {
   }
 
   function buyAndEndFunding(bool _shouldRefund)
-    private
+    internal
     returns (bool)
   {
     // let the world know that the token is in Pending Stage
