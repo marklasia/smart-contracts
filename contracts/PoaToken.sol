@@ -415,7 +415,8 @@ contract PoaToken is PausableToken {
     // create new tokens for user
     mint(msg.sender, _buyAmount);
     // save this for later in case needing to reclaim
-    investmentAmountPerUserInWei[msg.sender] = _payAmount;
+    investmentAmountPerUserInWei[msg.sender] = investmentAmountPerUserInWei[msg.sender]
+      .add(_payAmount);
     // increment the funded amount
     fundedAmountInWei = fundedAmountInWei.add(_payAmount);
     emit BuyEvent(msg.sender, _buyAmount);
