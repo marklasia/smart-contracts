@@ -463,7 +463,6 @@ const testBuyRemainingTokens = async (poa, config) => {
   const preTokenBalance = await poa.balanceOf(buyer)
   const preFundedWei = await poa.fundedAmountInWei()
   const tx = await poa.buy(config)
-  console.log(tx.logs)
   const gasUsed = await getGasUsed(tx)
   const gasCost = new BigNumber(gasUsed).mul(config.gasPrice)
 
