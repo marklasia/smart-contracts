@@ -75,7 +75,6 @@ const moveTokenToActive = async (poa, fmr) => {
   await timeTravel(neededTime)
 
   await testStartSale(poa)
-
   await testBuyRemainingTokens(poa, {
     // must be accounts 4 - 8 to work with poa test helpers
     from: accounts[8],

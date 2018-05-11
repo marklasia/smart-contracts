@@ -83,7 +83,6 @@ contract PoaToken is PausableToken {
   uint256 public fundedAmountInWei;
   // used to ensure setup only runs once
   bool public hasSetup;
-
   // used to deduct already claimed payouts on a per token basis
   mapping(address => uint256) public claimedPerTokenPayouts;
   // fallback for when a transfer happens with payouts remaining

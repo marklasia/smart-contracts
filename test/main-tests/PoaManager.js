@@ -401,7 +401,7 @@ describe('when calling token functions', () => {
   })
 })
 
-describe.only('when calling token convenience functions', () => {
+describe('when calling token convenience functions', () => {
   contract('PoaManager', accounts => {
     let pmr
     let fmr
