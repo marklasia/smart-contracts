@@ -1,6 +1,6 @@
-pragma solidity 0.4.18;
+pragma solidity ^0.4.23;
 
-import "zeppelin-solidity/contracts/math/SafeMath.sol";
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 
 // limited BrickblockContractRegistry definition
@@ -43,13 +43,13 @@ contract ExR {
 
 
 contract BrickblockFeeManager {
+
+  uint8 public constant version = 1;
   using SafeMath for uint256;
 
   Registry private registry;
 
-  function BrickblockFeeManager(
-    address _registryAddress
-  )
+  constructor(address _registryAddress)
     public
   {
     require(_registryAddress != address(0));
