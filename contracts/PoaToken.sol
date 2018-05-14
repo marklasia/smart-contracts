@@ -206,7 +206,7 @@ contract PoaToken is PausableToken {
     returns (bool)
   {
     require(stage == Stages.Pending || stage == Stages.Active);
-    require(msg.value == totalSupply_);
+    require(msg.value == totalSupply());
     uint256 _fee = calculateFee(msg.value);
     require(payFee(_fee));
     enterStage(Stages.Terminated);
@@ -222,7 +222,7 @@ contract PoaToken is PausableToken {
     require(stage == Stages.Failed || stage == Stages.Terminated);
     uint256 balance = balances[msg.sender];
     balances[msg.sender] = 0;
-    totalSupply_.sub(balance);
+    totalSupply_ = totalSupply().sub(balance);
     msg.sender.transfer(balance);
     return true;
   }
@@ -244,7 +244,7 @@ contract PoaToken is PausableToken {
       msg.value
         .sub(_fee)
         .mul(10e18)
-        .div(totalSupply_)
+        .div(totalSupply())
     );
     emit Payout(msg.value);
     return true;

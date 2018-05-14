@@ -106,7 +106,7 @@
     "rimraf": "^2.6.2",
     "snyk": "^1.71.0",
     "solidity-coverage": "^0.4.9",
-    "solium": "^1.0.4",
+    "solium": "^1.1.7",
     "standard-version": "^4.3.0",
     "table": "^4.0.3",
     "truffle": "4.1.8",
