@@ -142,7 +142,10 @@ contract BrickblockAccessToken is PausableToken {
     _;
   }
 
-  constructor (address _registryAddress) public
+  constructor (
+    address _registryAddress
+  )
+    public
   {
     require(_registryAddress != address(0));
     registry = Registry(_registryAddress);

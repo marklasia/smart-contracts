@@ -352,7 +352,7 @@ contract PoaTokenConcept is PausableToken {
     private
     returns (bool)
   {
-    totalSupply_ = totalSupply_.add(_amount);
+    totalSupply_ = totalSupply().add(_amount);
     balances[_to] = balances[_to].add(_amount);
     emit MintEvent(_to, _amount);
     emit Transfer(address(0), _to, _amount);
@@ -590,7 +590,7 @@ contract PoaTokenConcept is PausableToken {
     require(_refundAmount > 0);
     uint256 _tokenBalance = balances[msg.sender];
     balances[msg.sender] = 0;
-    totalSupply_ = totalSupply_.sub(_tokenBalance);
+    totalSupply_ = totalSupply().sub(_tokenBalance);
     fundedAmountInWei = fundedAmountInWei.sub(_refundAmount);
     emit Transfer(msg.sender, address(0), _tokenBalance);
     msg.sender.transfer(_refundAmount);
@@ -619,12 +619,12 @@ contract PoaTokenConcept is PausableToken {
     totalPerTokenPayout = totalPerTokenPayout
       .add(_payoutAmount
         .mul(1e18)
-        .div(totalSupply_)
+        .div(totalSupply())
       );
 
     // take remaining dust and send to feeManager rather than leave stuck in
     // contract. should not be more than a few wei
-    uint256 _delta = (_payoutAmount.mul(1e18) % totalSupply_).div(1e18);
+    uint256 _delta = (_payoutAmount.mul(1e18) % totalSupply()).div(1e18);
     // pay fee along with any dust to FeeManager
     payFee(_fee.add(_delta));
     // let the world know that a payout has happened for this token

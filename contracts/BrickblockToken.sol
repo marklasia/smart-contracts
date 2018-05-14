@@ -36,7 +36,9 @@ contract BrickblockToken is PausableToken {
     _;
   }
 
-  constructor(address _bonusDistributionAddress)
+  constructor(
+    address _bonusDistributionAddress
+  )
     public
   {
     require(_bonusDistributionAddress != address(0));

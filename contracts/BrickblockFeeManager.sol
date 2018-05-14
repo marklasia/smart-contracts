@@ -44,8 +44,8 @@ contract ExR {
 
 contract BrickblockFeeManager {
 
-  uint8 public constant version = 1;
   using SafeMath for uint256;
+  uint8 public constant version = 1;
 
   Registry private registry;
 
