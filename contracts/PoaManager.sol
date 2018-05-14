@@ -51,7 +51,9 @@ contract PoaManager is Ownable {
     _;
   }
 
-  constructor(address _registryAddress)
+  constructor(
+    address _registryAddress
+  )
     public
   {
     require(_registryAddress != address(0));
