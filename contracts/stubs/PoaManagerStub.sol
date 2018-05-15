@@ -36,7 +36,7 @@ contract PoaManagerStub {
   }
 
   // Create a PoaToken contract with given parameters, and set active value to true
-  function setupPoaTokenConcept
+  function setupPoaToken
   (
     address _tokenAddress,
     string _name,

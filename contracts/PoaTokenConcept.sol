@@ -52,7 +52,7 @@ interface PoaManagerInterface {
 }
 
 
-contract PoaTokenConcept is PausableToken {
+contract PoaToken is PausableToken {
 
   // instance of registry to call other contracts
   Registry public registry;

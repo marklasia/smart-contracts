@@ -1,4 +1,4 @@
-const PoaTokenConcept = artifacts.require('PoaTokenConcept.sol')
+const PoaToken = artifacts.require('PoaToken.sol')
 const { checkForEvent, testWillThrow } = require('../helpers/general')
 const {
   addToken,
@@ -272,11 +272,11 @@ describe('when calling token functions', () => {
       })
 
       it('should have the PoaManager as the owner', async () => {
-        const poaToken = await PoaTokenConcept.at(addedToken)
+        const poaToken = await PoaToken.at(addedToken)
         assert.equal(
           await poaToken.owner(),
           pmr.address,
-          'the PoaManager will be the owner of all PoaTokenConcept'
+          'the PoaManager will be the owner of all PoaToken'
         )
       })
 
@@ -480,7 +480,7 @@ describe('when calling token convenience functions', () => {
       await pmr.listToken(addedTokenAddress, {
         from: owner
       })
-      addedToken = await PoaTokenConcept.at(addedTokenAddress)
+      addedToken = await PoaToken.at(addedTokenAddress)
       await moveTokenToActive(addedToken, fmr)
     })
 

@@ -1,5 +1,5 @@
 const PoaManager = artifacts.require('PoaManager.sol')
-const PoaTokenConcept = artifacts.require('PoaTokenConcept.sol')
+const PoaToken = artifacts.require('PoaToken.sol')
 const {
   setupEcosystem,
   testSetCurrencyRate,
@@ -18,7 +18,7 @@ const {
   testBuyRemainingTokens,
   testActivate,
   defaultIpfsHash
-} = require('./poac')
+} = require('./poa')
 
 const { gasPrice } = require('./general')
 
@@ -28,7 +28,7 @@ const owner = accounts[0]
 const custodian = accounts[2]
 
 const setupPoaManager = async () => {
-  const poam = await PoaTokenConcept.new()
+  const poam = await PoaToken.new()
   const { reg, exr, exp, fmr } = await setupEcosystem()
   const pmr = await PoaManager.new(reg.address)
 
