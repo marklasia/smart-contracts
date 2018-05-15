@@ -24,7 +24,8 @@ const {
   testTerminate,
   testActiveBalances,
   defaultBuyAmount,
-  testToggleWhitelistTransfers
+  testToggleWhitelistTransfers,
+  testTerminate
 } = require('../../helpers/poac')
 const {
   testWillThrow,
