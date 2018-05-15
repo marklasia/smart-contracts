@@ -20,6 +20,7 @@ const {
   testTransferFrom,
   testBuyTokensMulti,
   getAccountInformation,
+  testActiveBalances,
   testResetCurrencyRate
 } = require('../../helpers/poac')
 const {

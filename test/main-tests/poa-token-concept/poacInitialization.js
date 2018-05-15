@@ -13,6 +13,7 @@ const {
   getDefaultStartTime,
   setupEcosystem,
   testSetCurrencyRate,
+  defaultTotalSupply,
   testInitialization
 } = require('../../helpers/poac')
 const { testWillThrow, addressZero } = require('../../helpers/general.js')
