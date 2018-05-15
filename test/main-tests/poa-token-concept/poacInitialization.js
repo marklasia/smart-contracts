@@ -50,7 +50,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         broker,
         custodian,
-        reg.address,
         defaultTotalSupply,
         await getDefaultStartTime(),
         defaultFundingTimeout,
@@ -77,7 +76,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         broker,
         custodian,
-        reg.address,
         defaultTotalSupply,
         await getDefaultStartTime(),
         defaultFundingTimeout,
@@ -104,7 +102,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         broker,
         custodian,
-        reg.address,
         defaultTotalSupply,
         await getDefaultStartTime(),
         defaultFundingTimeout,
@@ -131,7 +128,6 @@ describe('when initializing PoaTokenConcept', () => {
         'US',
         broker,
         custodian,
-        reg.address,
         defaultTotalSupply,
         await getDefaultStartTime(),
         defaultFundingTimeout,
@@ -158,7 +154,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         addressZero,
         custodian,
-        reg.address,
         defaultTotalSupply,
         await getDefaultStartTime(),
         defaultFundingTimeout,
@@ -172,7 +167,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         null,
         custodian,
-        reg.address,
         defaultTotalSupply,
         await getDefaultStartTime(),
         defaultFundingTimeout,
@@ -199,7 +193,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         broker,
         addressZero,
-        reg.address,
         defaultTotalSupply,
         await getDefaultStartTime(),
         defaultFundingTimeout,
@@ -212,48 +205,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultSymbol,
         defaultFiatCurrency,
         broker,
-        null,
-        reg.address,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
-      ])
-    })
-
-    it('should NOT initialize with address(0) or null for registry', async () => {
-      await testSetCurrencyRate(
-        exr,
-        exp,
-        defaultFiatCurrency,
-        defaultFiatRate,
-        {
-          from: owner,
-          value: 1e18
-        }
-      )
-
-      await testWillThrow(poac.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        addressZero,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
-      ])
-
-      await testWillThrow(poac.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
         null,
         defaultTotalSupply,
         await getDefaultStartTime(),
@@ -281,7 +232,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         broker,
         custodian,
-        reg.address,
         9e17,
         await getDefaultStartTime(),
         defaultFundingTimeout,
@@ -295,7 +245,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         broker,
         custodian,
-        reg.address,
         null,
         await getDefaultStartTime(),
         defaultFundingTimeout,
@@ -322,7 +271,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         broker,
         custodian,
-        reg.address,
         defaultTotalSupply,
         // simulate day before
         new BigNumber(Date.now()).div(1000).sub(60 * 60 * 24),
@@ -350,7 +298,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         broker,
         custodian,
-        reg.address,
         defaultTotalSupply,
         await getDefaultStartTime(),
         // simulate 1 second less than a day
@@ -381,7 +328,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         broker,
         custodian,
-        reg.address,
         defaultTotalSupply,
         await getDefaultStartTime(),
         // simulate 1 second less than a day
@@ -417,7 +363,6 @@ describe('when initializing PoaTokenConcept', () => {
         defaultFiatCurrency,
         broker,
         custodian,
-        reg.address,
         defaultTotalSupply,
         await getDefaultStartTime(),
         defaultFundingTimeout,

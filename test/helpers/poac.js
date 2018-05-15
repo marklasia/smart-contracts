@@ -6,6 +6,7 @@ const AccessToken = artifacts.require('BrickblockAccessToken')
 const ExchangeRates = artifacts.require('ExchangeRates')
 const ExchangeRateProvider = artifacts.require('ExchangeRateProviderStub')
 const FeeManager = artifacts.require('BrickblockFeeManager')
+const PoaManagerStub = artifacts.require('PoaManagerStub')
 
 const assert = require('assert')
 const {
@@ -156,14 +157,23 @@ const setupPoaAndEcosystem = async () => {
     value: 1e18
   })
 
+  // PoaManagerStub
+  const pmrs = await PoaManagerStub.new(reg.address)
+
+  // we need to have a contract call setup in order to return the registry address
+  // this stub just runs setupContract on a poa and returns registry
+  // this way we can test PoaTokenConcept as a regular contract without
+  // deploying through PoaManager
+  await reg.updateContractAddress('PoaManager', pmrs.address)
+
   const poac = await PoaTokenConcept.new()
-  await poac.setupContract(
+  await pmrs.setupPoaTokenConcept(
+    poac.address,
     defaultName,
     defaultSymbol,
     defaultFiatCurrency,
     broker,
     custodian,
-    reg.address,
     defaultTotalSupply,
     await getDefaultStartTime(),
     defaultFundingTimeout,
@@ -172,7 +182,8 @@ const setupPoaAndEcosystem = async () => {
   )
 
   // we change the PoaManager to owner address in registry in order to "trick"
-  // the only owner function so that testing is easier
+  // the only owner function so that testing is easier registry address
+  // in the contract remains the same
   await reg.updateContractAddress('PoaManager', owner)
 
   return {
@@ -196,14 +207,20 @@ const testInitialization = async (exr, exp, reg) => {
 
   const defaultStartTime = await getDefaultStartTime()
 
+  // poac needs registry returned from creating contract
+  // this stub allows for that without having to deploy through proxy
+  const pmrs = await PoaManagerStub.new(reg.address)
+  reg.updateContractAddress('PoaManager', pmrs.address)
+
   const poac = await PoaTokenConcept.new()
-  await poac.setupContract(
+
+  await pmrs.setupPoaTokenConcept(
+    poac.address,
     defaultName,
     defaultSymbol,
     defaultFiatCurrency,
     broker,
     custodian,
-    reg.address,
     defaultTotalSupply,
     defaultStartTime,
     defaultFundingTimeout,
@@ -215,7 +232,6 @@ const testInitialization = async (exr, exp, reg) => {
   const symbol = await poac.symbol()
   const proofOfCustody = await poac.proofOfCustody()
   const fiatCurrency = await poac.fiatCurrency()
-  const actualOwner = await poac.owner()
   const actualBroker = await poac.broker()
   const actualCustodian = await poac.custodian()
   const decimals = await poac.decimals()
@@ -230,6 +246,8 @@ const testInitialization = async (exr, exp, reg) => {
   const stage = await poac.stage()
   const paused = await poac.paused()
   const whitelistTransfers = await poac.whitelistTransfers()
+  const registry = await poac.registry()
+  const contractOwner = await poac.owner()
 
   assert.equal(name, defaultName, 'name should match that given in constructor')
   assert.equal(
@@ -242,11 +260,6 @@ const testInitialization = async (exr, exp, reg) => {
     fiatCurrency,
     defaultFiatCurrency,
     'fiatCurrency should match that given in constructor'
-  )
-  assert.equal(
-    owner,
-    actualOwner,
-    'actualOwner should match that in msg.sender in creating tx'
   )
   assert.equal(
     actualBroker,
@@ -307,6 +320,16 @@ const testInitialization = async (exr, exp, reg) => {
     stage.toString(),
     bigZero.toString(),
     'stage should start at 0 (PreFunding)'
+  )
+  assert.equal(
+    reg.address,
+    registry,
+    'registry should match actual registry address'
+  )
+  assert.equal(
+    contractOwner,
+    pmrs.address,
+    'the owner should be PoaManagerStub'
   )
   assert(paused, 'contract should start paused')
   assert(
@@ -1198,5 +1221,6 @@ module.exports = {
   getAccountInformation,
   testResetCurrencyRate,
   testActiveBalances,
-  testToggleWhitelistTransfers
+  testToggleWhitelistTransfers,
+  timeTravel
 }

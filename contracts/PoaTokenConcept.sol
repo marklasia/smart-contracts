@@ -44,11 +44,18 @@ interface ExR {
     returns (uint256);
 }
 
+interface PoaManagerInterface {
+  function registry()
+    external
+    view
+    returns (address);
+}
+
 
 contract PoaTokenConcept is PausableToken {
 
   // instance of registry to call other contracts
-  Registry private registry;
+  Registry public registry;
   // ERC20 name of the token
   string public name;
   // ERC20 symbol
@@ -207,7 +214,6 @@ contract PoaTokenConcept is PausableToken {
     string _fiatCurrency,
     address _broker,
     address _custodian,
-    address _registry,
     uint256 _totalSupply,
     // given as unix time (seconds since 01.01.1970)
     uint256 _startTime,
@@ -218,6 +224,7 @@ contract PoaTokenConcept is PausableToken {
     uint256 _fundingGoalInCents
   )
     public
+    returns (bool)
   {
     // ensure all strings are valid
     require(bytes(_name).length >= 3);
@@ -227,7 +234,6 @@ contract PoaTokenConcept is PausableToken {
     // ensure all addresses given are valid
     require(_broker != address(0));
     require(_custodian != address(0));
-    require(_registry != address(0));
 
     // ensure totalSupply is at least 1 whole token
     require(_totalSupply >= 1e18);
@@ -247,7 +253,8 @@ contract PoaTokenConcept is PausableToken {
     // assign addresses
     broker = _broker;
     custodian = _custodian;
-    registry = Registry(_registry);
+    // get registry address from PoaManager which should be msg.sender
+    registry = Registry(PoaManagerInterface(msg.sender).registry());
     owner = registry.getContractAddress("PoaManager");
 
     // assign times
