@@ -199,6 +199,59 @@ const setupPoaAndEcosystem = async () => {
   }
 }
 
+const setupPoaProxyAndEcosystem = async () => {
+  const { reg, act, bbk, exr, exp, fmr, wht, pmr } = await setupEcosystem()
+
+  await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
+    from: owner,
+    value: 1e18
+  })
+
+  // deploy poa master in order to allow proxies to use it's code
+  const poam = await PoaToken.new()
+  // add to registry for use by PoaManager and PoaToken proxies
+  await reg.updateContractAddress('PoaTokenMaster', poam.address)
+
+  // add broker to allow for adding a new token from PoaManager
+  await pmr.addBroker(broker)
+
+  // Poa Proxy contract
+  const poaTx = await pmr.addToken(
+    defaultName,
+    defaultSymbol,
+    defaultFiatCurrency,
+    custodian,
+    defaultTotalSupply,
+    await getDefaultStartTime(),
+    defaultFundingTimeout,
+    defaultActivationTimeout,
+    defaultFundingGoal,
+    {
+      from: broker
+    }
+  )
+
+  // wrap the proxied PoA in PoaToken ABI to call as if regular PoA
+  const poa = await PoaToken.at(poaTx.logs[0].args.token)
+  // trick the proxyPoa into thinking that PoaManager is owner
+  // this makes it easier to test with a regular account
+  // PoaManager only functions are tested in PoaManager tests as
+  // actual PoaManager as well
+  await reg.updateContractAddress('PoaManager', owner)
+  return {
+    reg,
+    act,
+    bbk,
+    exr,
+    exp,
+    fmr,
+    wht,
+    pmr,
+    poa,
+    poam
+  }
+}
+
 const testInitialization = async (exr, exp, reg) => {
   await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
     from: owner,
@@ -1185,6 +1238,7 @@ module.exports = {
   setupEcosystem,
   testSetCurrencyRate,
   setupPoaAndEcosystem,
+  setupPoaProxyAndEcosystem,
   testInitialization,
   testWeiToFiatCents,
   testFiatCentsToWei,

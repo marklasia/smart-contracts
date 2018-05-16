@@ -1,7 +1,5 @@
 /* eslint-disable no-console */
 
-const BigNumber = require('bignumber.js')
-
 const BrickblockContractRegistry = artifacts.require(
   'BrickblockContractRegistry'
 )
@@ -30,8 +28,6 @@ module.exports = (deployer, network, accounts) => {
     .then(async () => {
       const owner = accounts[0]
       const bonusAddress = accounts[1]
-      const broker = accounts[2]
-      const custodian = accounts[3]
 
       await deployer.deploy(BrickblockContractRegistry, { from: owner })
       const reg = await BrickblockContractRegistry.deployed()
@@ -82,6 +78,9 @@ module.exports = (deployer, network, accounts) => {
       })
       const exp = await ExchangeRateProvider.deployed()
 
+      // PoaToken master
+      const poa = await deployer.deploy(PoaToken)
+
       // eslint-disable-next-line no-console
       console.log('adding contracts to the registry')
       await addContractsToRegistry({
@@ -94,7 +93,8 @@ module.exports = (deployer, network, accounts) => {
         exr,
         exp,
         wht,
-        pmr
+        pmr,
+        poa
       })
 
       console.log('setting ACT rate')
@@ -105,23 +105,6 @@ module.exports = (deployer, network, accounts) => {
         from: owner,
         value: 1e18
       })
-
-      console.log('deploying POA token concept')
-      const poa = await deployer.deploy(
-        PoaToken,
-        'TestToken',
-        'TST',
-        'EUR',
-        broker,
-        custodian,
-        reg.address,
-        new BigNumber(Date.now()).div(1000).add(60),
-        new BigNumber(60 * 60 * 24),
-        new BigNumber(60 * 60 * 24 * 7),
-        new BigNumber(5e5)
-      )
-
-      await reg.updateContractAddress('PoaTokenMaster', poa.address)
 
       return true
     })
