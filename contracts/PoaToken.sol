@@ -226,6 +226,8 @@ contract PoaToken is PausableToken {
     public
     returns (bool)
   {
+    // ensure that setup has not been called
+    require(_startTime > 0);
     // ensure all strings are valid
     require(bytes(_name).length >= 3);
     require(bytes(_symbol).length >= 3);

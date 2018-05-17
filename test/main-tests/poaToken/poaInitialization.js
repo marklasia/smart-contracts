@@ -43,6 +43,22 @@ describe('when initializing PoaToken', () => {
       await testInitialization(exr, exp, reg)
     })
 
+    it('should NOT setup more than once', async () => {
+      const setupPoa = await testInitialization(exr, exp, reg)
+      await testWillThrow(setupPoa.setupContract, [
+        defaultName,
+        defaultSymbol,
+        defaultFiatCurrency,
+        broker,
+        custodian,
+        defaultTotalSupply,
+        await getDefaultStartTime(),
+        defaultFundingTimeout,
+        defaultActivationTimeout,
+        defaultFundingGoal
+      ])
+    })
+
     it('should NOT initialize with a NON ready fiatRate', async () => {
       await testWillThrow(poa.setupContract, [
         defaultName,

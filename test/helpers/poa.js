@@ -512,6 +512,8 @@ const testInitialization = async (exr, exp, reg) => {
     !whitelistTransfers,
     'contract should start not requiring whitelisted for transfers'
   )
+
+  return poa
 }
 
 const testWeiToFiatCents = async (poa, weiInput) => {

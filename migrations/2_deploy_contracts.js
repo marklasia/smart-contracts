@@ -77,10 +77,8 @@ module.exports = (deployer, network, accounts) => {
         from: owner
       })
       const exp = await ExchangeRateProvider.deployed()
-
       // PoaToken master
       const poa = await deployer.deploy(PoaToken)
-
       // eslint-disable-next-line no-console
       console.log('adding contracts to the registry')
       await addContractsToRegistry({
