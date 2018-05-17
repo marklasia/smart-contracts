@@ -5,7 +5,8 @@ const {
   setupPoaManager,
   moveTokenToActive,
   testPauseToken,
-  testUnpauseToken
+  testUnpauseToken,
+  testTerminateToken
 } = require('../helpers/pmr')
 
 describe('when creating a new instance of the contract', () => {
@@ -517,6 +518,22 @@ describe('when calling token convenience functions', () => {
         await testUnpauseToken(pmr, addedToken, {
           from: owner
         })
+      })
+    })
+
+    describe('when terminating a token', () => {
+      it('should NOT when caller is notOwner', async () => {
+        await testWillThrow(testTerminateToken, [
+          pmr,
+          addedToken,
+          {
+            from: notOwner
+          }
+        ])
+      })
+
+      it('should terminate the addedToken when owner', async () => {
+        await testTerminateToken(pmr, addedToken)
       })
     })
   })

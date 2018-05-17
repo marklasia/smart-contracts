@@ -1,5 +1,6 @@
 const PoaManager = artifacts.require('PoaManager.sol')
 const PoaToken = artifacts.require('PoaToken.sol')
+const BigNumber = require('bignumber.js')
 const {
   setupEcosystem,
   testSetCurrencyRate,
@@ -105,10 +106,30 @@ const testUnpauseToken = async (pmr, poa, config) => {
   assert.equal(await poa.paused(), false, 'token should then become unpaused')
 }
 
+const testTerminateToken = async (pmr, poa, config) => {
+  const preStage = await poa.stage()
+
+  await pmr.terminateToken(poa.address, config)
+
+  const postStage = await poa.stage()
+
+  assert.equal(
+    preStage.toString(),
+    new BigNumber(4).toString(),
+    'poa should start in stage 4, Active'
+  )
+  assert.equal(
+    postStage.toString(),
+    new BigNumber(5).toString(),
+    'poa should be in stage 5, Terminated after terminate'
+  )
+}
+
 module.exports = {
   setupPoaManager,
   addToken,
   moveTokenToActive,
   testPauseToken,
-  testUnpauseToken
+  testUnpauseToken,
+  testTerminateToken
 }

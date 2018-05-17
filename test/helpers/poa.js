@@ -252,6 +252,129 @@ const setupPoaProxyAndEcosystem = async () => {
   }
 }
 
+const testProxyInitialization = async (reg, pmr, args) => {
+  // list broker
+  await pmr.addBroker(broker)
+  // create new master poa
+  const poam = await PoaToken.new()
+  // add poa master to registry
+  await reg.updateContractAddress('PoaTokenMaster', poam.address)
+
+  const defaultStartTime = await getDefaultStartTime()
+
+  // Poa Proxy contract tx
+  const poaTx = await pmr.addToken.apply(null, args)
+
+  // wrap the proxied PoA in PoaToken ABI to call as if regular PoA
+  const poa = await PoaToken.at(poaTx.logs[0].args.token)
+
+  const name = await poa.name()
+  const symbol = await poa.symbol()
+  const proofOfCustody = await poa.proofOfCustody()
+  const fiatCurrency = await poa.fiatCurrency()
+  const actualBroker = await poa.broker()
+  const actualCustodian = await poa.custodian()
+  const decimals = await poa.decimals()
+  const feeRate = await poa.feeRate()
+  const startTime = await poa.startTime()
+  const fundingTimeout = await poa.fundingTimeout()
+  const fundingGoalInCents = await poa.fundingGoalInCents()
+  const totalPerTokenPayout = await poa.totalPerTokenPayout()
+  const fundedAmountInWei = await poa.fundedAmountInWei()
+  const totalSupply = await poa.totalSupply()
+  const contractBalance = await poa.balanceOf(poa.address)
+  const stage = await poa.stage()
+  const paused = await poa.paused()
+  const whitelistTransfers = await poa.whitelistTransfers()
+  const registry = await poa.registry()
+  const contractOwner = await poa.owner()
+
+  assert.equal(name, defaultName, 'name should match that given in constructor')
+  assert.equal(
+    symbol,
+    defaultSymbol,
+    'symbol should match that given in constructor'
+  )
+  assert.equal(proofOfCustody, '', 'proofOfCustody should start uninitialized')
+  assert.equal(
+    fiatCurrency,
+    defaultFiatCurrency,
+    'fiatCurrency should match that given in constructor'
+  )
+  assert.equal(
+    actualBroker,
+    broker,
+    'actualBroker should match broker in constructor'
+  )
+  assert.equal(
+    actualCustodian,
+    custodian,
+    'actualCustodian should match custodian in constructor'
+  )
+  assert.equal(
+    decimals.toString(),
+    new BigNumber(18).toString(),
+    'decimals should be constant of 18'
+  )
+  assert.equal(
+    feeRate.toString(),
+    new BigNumber(5).toString(),
+    'fee rate should be a constant of 5'
+  )
+  assert.equal(
+    fundingTimeout.toString(),
+    defaultFundingTimeout.toString(),
+    'fundingTimeout should match that given in constructor'
+  )
+  assert.equal(
+    fundingGoalInCents.toString(),
+    defaultFundingGoal.toString(),
+    'fundingGoalInCents should match that given in constructor'
+  )
+  assert.equal(
+    totalPerTokenPayout.toString(),
+    bigZero.toString(),
+    'totalPerTokenPayout should start uninitialized'
+  )
+  assert.equal(
+    fundedAmountInWei.toString(),
+    bigZero.toString(),
+    'fundedAmountInWei should start uninitialized'
+  )
+  assert.equal(
+    totalSupply.toString(),
+    defaultTotalSupply.toString(),
+    'totalSupply should match defaultTotalSupply'
+  )
+  assert.equal(
+    contractBalance.toString(),
+    bigZero.toString(),
+    'contract balance should be 0'
+  )
+  assert.equal(
+    stage.toString(),
+    bigZero.toString(),
+    'stage should start at 0 (PreFunding)'
+  )
+  assert.equal(
+    reg.address,
+    registry,
+    'registry should match actual registry address'
+  )
+  assert.equal(contractOwner, pmr.address, 'the owner should be pmr')
+  assert(paused, 'contract should start paused')
+  assert(
+    !whitelistTransfers,
+    'contract should start not requiring whitelisted for transfers'
+  )
+  assert(
+    areInRange(startTime, defaultStartTime, 1),
+    'startTime should match startTime given in constructor'
+  )
+
+  return poa
+}
+
 const testInitialization = async (exr, exp, reg) => {
   await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
     from: owner,
@@ -1214,6 +1337,59 @@ const testToggleWhitelistTransfers = async (poa, config) => {
   return postWhitelistTransfers
 }
 
+const testProxyUnchanged = async (poa, first, state) => {
+  if (first) {
+    return {
+      name: poa.name(),
+      symbol: poa.symbol(),
+      proofOfCustody: poa.proofOfCustody(),
+      fiatCurrency: poa.fiatCurrency(),
+      actualBroker: poa.broker(),
+      actualCustodian: poa.custodian(),
+      decimals: poa.decimals(),
+      feeRate: poa.feeRate(),
+      startTime: poa.startTime(),
+      fundingTimeout: poa.fundingTimeout(),
+      fundingGoalInCents: poa.fundingGoalInCents(),
+      totalPerTokenPayout: poa.totalPerTokenPayout(),
+      fundedAmountInWei: poa.fundedAmountInWei(),
+      totalSupply: poa.totalSupply(),
+      contractBalance: poa.balanceOf(poa.address),
+      stage: poa.stage(),
+      paused: poa.paused(),
+      whitelistTransfers: poa.whitelistTransfers(),
+      registry: poa.registry(),
+      contractOwner: poa.owner()
+    }
+  } else {
+    assert.deepEqual(
+      {
+        name: poa.name(),
+        symbol: poa.symbol(),
+        proofOfCustody: poa.proofOfCustody(),
+        fiatCurrency: poa.fiatCurrency(),
+        actualBroker: poa.broker(),
+        actualCustodian: poa.custodian(),
+        decimals: poa.decimals(),
+        feeRate: poa.feeRate(),
+        startTime: poa.startTime(),
+        fundingTimeout: poa.fundingTimeout(),
+        fundingGoalInCents: poa.fundingGoalInCents(),
+        totalPerTokenPayout: poa.totalPerTokenPayout(),
+        fundedAmountInWei: poa.fundedAmountInWei(),
+        totalSupply: poa.totalSupply(),
+        contractBalance: poa.balanceOf(poa.address),
+        stage: poa.stage(),
+        paused: poa.paused(),
+        whitelistTransfers: poa.whitelistTransfers(),
+        registry: poa.registry(),
+        contractOwner: poa.owner()
+      },
+      state
+    )
+  }
+}
+
 module.exports = {
   accounts,
   owner,
@@ -1240,6 +1416,7 @@ module.exports = {
   setupPoaAndEcosystem,
   setupPoaProxyAndEcosystem,
   testInitialization,
+  testProxyInitialization,
   testWeiToFiatCents,
   testFiatCentsToWei,
   testCalculateFee,
@@ -1274,5 +1451,6 @@ module.exports = {
   testResetCurrencyRate,
   testActiveBalances,
   testToggleWhitelistTransfers,
-  timeTravel
+  timeTravel,
+  testProxyUnchanged
 }

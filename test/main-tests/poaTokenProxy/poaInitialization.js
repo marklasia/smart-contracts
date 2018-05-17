@@ -1,4 +1,3 @@
-const PoaToken = artifacts.require('PoaToken')
 const {
   owner,
   broker,
@@ -13,7 +12,7 @@ const {
   getDefaultStartTime,
   setupEcosystem,
   testSetCurrencyRate,
-  testInitialization,
+  testProxyInitialization,
   defaultTotalSupply
 } = require('../../helpers/poa')
 const { testWillThrow, addressZero } = require('../../helpers/general.js')
@@ -24,37 +23,78 @@ describe('when initializing PoaToken', () => {
     let reg
     let exr
     let exp
-    let poa
+    let pmr
 
     beforeEach('setup contracts', async () => {
       const contracts = await setupEcosystem()
-      poa = await PoaToken.new()
 
       reg = contracts.reg
       exr = contracts.exr
       exp = contracts.exp
-
-      // we change the PoaManager to owner address in registry in order to "trick"
-      // the only owner function so that testing is easier
-      await reg.updateContractAddress('PoaManager', owner)
+      pmr = contracts.pmr
     })
 
     it('should start with the right values', async () => {
-      await testInitialization(exr, exp, reg)
-    })
+      await testSetCurrencyRate(
+        exr,
+        exp,
+        defaultFiatCurrency,
+        defaultFiatRate,
+        {
+          from: owner,
+          value: 1e18
+        }
+      )
 
-    it('should NOT initialize with a NON ready fiatRate', async () => {
-      await testWillThrow(poa.setupContract, [
+      await testProxyInitialization(reg, pmr, [
         defaultName,
         defaultSymbol,
         defaultFiatCurrency,
-        broker,
         custodian,
         defaultTotalSupply,
         await getDefaultStartTime(),
         defaultFundingTimeout,
         defaultActivationTimeout,
-        defaultFundingGoal
+        defaultFundingGoal,
+        { from: broker }
+      ])
+    })
+
+    it('should NOT initialize with a NON ready fiatRate', async () => {
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: broker }
+        ]
+      ])
+    })
+
+    it('should NOT initialize with a NON ready fiatRate', async () => {
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: broker }
+        ]
       ])
     })
 
@@ -70,17 +110,21 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupContract, [
-        'is',
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          'is',
+          defaultSymbol,
+          defaultFiatCurrency,
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: broker }
+        ]
       ])
     })
 
@@ -96,17 +140,21 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        'US',
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          'US',
+          defaultFiatCurrency,
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: broker }
+        ]
       ])
     })
 
@@ -122,21 +170,25 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        'US',
-        broker,
-        custodian,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          'US',
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: broker }
+        ]
       ])
     })
 
-    it('should NOT initialize with address(0) or null for broker', async () => {
+    it('should NOT initialize when NOT sent from listed broker', async () => {
       await testSetCurrencyRate(
         exr,
         exp,
@@ -148,30 +200,21 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        addressZero,
-        custodian,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
-      ])
-
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        null,
-        custodian,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: custodian }
+        ]
       ])
     })
 
@@ -187,30 +230,38 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        addressZero,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          addressZero,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: broker }
+        ]
       ])
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        null,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          null,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: broker }
+        ]
       ])
     })
 
@@ -226,30 +277,37 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        9e17,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          custodian,
+          9e17,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: broker }
+        ]
       ])
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        null,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          custodian,
+          null,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal
+        ]
       ])
     })
 
@@ -265,18 +323,21 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        defaultTotalSupply,
-        // simulate day before
-        new BigNumber(Date.now()).div(1000).sub(60 * 60 * 24),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          custodian,
+          defaultTotalSupply,
+          // simulate day before
+          new BigNumber(Date.now()).div(1000).sub(60 * 60 * 24),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal
+        ]
       ])
     })
 
@@ -292,21 +353,24 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        // simulate 1 second less than a day
-        new BigNumber(60)
-          .mul(60)
-          .mul(24)
-          .sub(1),
-        defaultActivationTimeout,
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          // simulate 1 second less than a day
+          new BigNumber(60)
+            .mul(60)
+            .mul(24)
+            .sub(1),
+          defaultActivationTimeout,
+          defaultFundingGoal
+        ]
       ])
     })
 
@@ -322,26 +386,29 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        // simulate 1 second less than a day
-        new BigNumber(60)
-          .mul(60)
-          .mul(24)
-          .mul(7)
-          .sub(1),
-        new BigNumber(60)
-          .mul(60)
-          .mul(24)
-          .mul(7)
-          .sub(1),
-        defaultFundingGoal
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          // simulate 1 second less than a day
+          new BigNumber(60)
+            .mul(60)
+            .mul(24)
+            .mul(7)
+            .sub(1),
+          new BigNumber(60)
+            .mul(60)
+            .mul(24)
+            .mul(7)
+            .sub(1),
+          defaultFundingGoal
+        ]
       ])
     })
 
@@ -357,17 +424,20 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupContract, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        0
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName,
+          defaultSymbol,
+          defaultFiatCurrency,
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          0
+        ]
       ])
     })
   })
