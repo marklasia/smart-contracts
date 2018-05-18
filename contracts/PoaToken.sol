@@ -121,9 +121,8 @@ contract PoaToken is PausableToken {
   event StageEvent(Stages stage);
   event BuyEvent(address indexed buyer, uint256 amount);
   event PayoutEvent(uint256 amount);
-  event ClaimEvent(uint256 payout);
+  event ClaimEvent(address indexed, uint256 payout);
   event TerminatedEvent();
-  event WhitelistedEvent(address indexed account, bool isWhitelisted);
   event ProofOfCustodyUpdatedEvent(string ipfsHash);
   event ReclaimEvent(address indexed reclaimer, uint256 amount);
   event CustodianChangedEvent(address newAddress);
@@ -654,7 +653,7 @@ contract PoaToken is PausableToken {
     // 0 out unclaimedPayoutTotals for user
     unclaimedPayoutTotals[msg.sender] = 0;
     // let the world know that a payout for sender has been claimed
-    emit ClaimEvent(_payoutAmount);
+    emit ClaimEvent(msg.sender, _payoutAmount);
     // transfer Ξ payable amount to sender
     msg.sender.transfer(_payoutAmount);
     return _payoutAmount;
