@@ -34,7 +34,7 @@ describe('when initializing PoaToken', () => {
       pmr = contracts.pmr
     })
 
-    it('should start with the right values', async () => {
+    it.only('should start with the right values', async () => {
       await testSetCurrencyRate(
         exr,
         exp,

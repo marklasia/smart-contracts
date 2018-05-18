@@ -368,6 +368,43 @@ contract PoaManager is Ownable {
     _tokenAddress.terminate();
   }
 
+  function setupPoaToken(
+    address _tokenAddress,
+    string _name,
+    string _symbol,
+    // fiat symbol used in ExchangeRates
+    string _fiatCurrency,
+    address _broker,
+    address _custodian,
+    uint256 _totalSupply,
+    // given as unix time (seconds since 01.01.1970)
+    uint256 _startTime,
+    // given as seconds
+    uint256 _fundingTimeout,
+    uint256 _activationTimeout,
+    // given as fiat cents
+    uint256 _fundingGoalInCents
+  )
+    public
+    onlyOwner
+    returns (bool)
+  {
+    PoaTokenInterface(_tokenAddress).setupContract(
+      _name,
+      _symbol,
+      _fiatCurrency,
+      _broker,
+      _custodian,
+      _totalSupply,
+      _startTime,
+      _fundingTimeout,
+      _activationTimeout,
+      _fundingGoalInCents
+    );
+
+    return true;
+  }
+
   //
   // Fallback
   //

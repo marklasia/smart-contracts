@@ -157,17 +157,8 @@ const setupPoaAndEcosystem = async () => {
     value: 1e18
   })
 
-  // PoaManagerStub
-  const pmrs = await PoaManagerStub.new(reg.address)
-
-  // we need to have a contract call setup in order to return the registry address
-  // this stub just runs setupContract on a poa and returns registry
-  // this way we can test PoaToken as a regular contract without
-  // deploying through PoaManager
-  await reg.updateContractAddress('PoaManager', pmrs.address)
-
   const poa = await PoaToken.new()
-  await pmrs.setupPoaToken(
+  await pmr.setupPoaToken(
     poa.address,
     defaultName,
     defaultSymbol,
@@ -1342,50 +1333,50 @@ const testToggleWhitelistTransfers = async (poa, config) => {
 const testProxyUnchanged = async (poa, first, state) => {
   if (first) {
     return {
-      name: poa.name(),
-      symbol: poa.symbol(),
-      proofOfCustody: poa.proofOfCustody(),
-      fiatCurrency: poa.fiatCurrency(),
-      actualBroker: poa.broker(),
-      actualCustodian: poa.custodian(),
-      decimals: poa.decimals(),
-      feeRate: poa.feeRate(),
-      startTime: poa.startTime(),
-      fundingTimeout: poa.fundingTimeout(),
-      fundingGoalInCents: poa.fundingGoalInCents(),
-      totalPerTokenPayout: poa.totalPerTokenPayout(),
-      fundedAmountInWei: poa.fundedAmountInWei(),
-      totalSupply: poa.totalSupply(),
-      contractBalance: poa.balanceOf(poa.address),
-      stage: poa.stage(),
-      paused: poa.paused(),
-      whitelistTransfers: poa.whitelistTransfers(),
-      registry: poa.registry(),
-      contractOwner: poa.owner()
+      name: await poa.name(),
+      symbol: await poa.symbol(),
+      proofOfCustody: await poa.proofOfCustody(),
+      fiatCurrency: await poa.fiatCurrency(),
+      actualBroker: await poa.broker(),
+      actualCustodian: await poa.custodian(),
+      decimals: await poa.decimals(),
+      feeRate: await poa.feeRate(),
+      startTime: await poa.startTime(),
+      fundingTimeout: await poa.fundingTimeout(),
+      fundingGoalInCents: await poa.fundingGoalInCents(),
+      totalPerTokenPayout: await poa.totalPerTokenPayout(),
+      fundedAmountInWei: await poa.fundedAmountInWei(),
+      totalSupply: await poa.totalSupply(),
+      contractBalance: await poa.balanceOf(await poa.address),
+      stage: await poa.stage(),
+      paused: await poa.paused(),
+      whitelistTransfers: await poa.whitelistTransfers(),
+      registry: await poa.registry(),
+      contractOwner: await poa.owner()
     }
   } else {
     assert.deepEqual(
       {
-        name: poa.name(),
-        symbol: poa.symbol(),
-        proofOfCustody: poa.proofOfCustody(),
-        fiatCurrency: poa.fiatCurrency(),
-        actualBroker: poa.broker(),
-        actualCustodian: poa.custodian(),
-        decimals: poa.decimals(),
-        feeRate: poa.feeRate(),
-        startTime: poa.startTime(),
-        fundingTimeout: poa.fundingTimeout(),
-        fundingGoalInCents: poa.fundingGoalInCents(),
-        totalPerTokenPayout: poa.totalPerTokenPayout(),
-        fundedAmountInWei: poa.fundedAmountInWei(),
-        totalSupply: poa.totalSupply(),
-        contractBalance: poa.balanceOf(poa.address),
-        stage: poa.stage(),
-        paused: poa.paused(),
-        whitelistTransfers: poa.whitelistTransfers(),
-        registry: poa.registry(),
-        contractOwner: poa.owner()
+        name: await poa.name(),
+        symbol: await poa.symbol(),
+        proofOfCustody: await poa.proofOfCustody(),
+        fiatCurrency: await poa.fiatCurrency(),
+        actualBroker: await poa.broker(),
+        actualCustodian: await poa.custodian(),
+        decimals: await poa.decimals(),
+        feeRate: await poa.feeRate(),
+        startTime: await poa.startTime(),
+        fundingTimeout: await poa.fundingTimeout(),
+        fundingGoalInCents: await poa.fundingGoalInCents(),
+        totalPerTokenPayout: await poa.totalPerTokenPayout(),
+        fundedAmountInWei: await poa.fundedAmountInWei(),
+        totalSupply: await poa.totalSupply(),
+        contractBalance: await poa.balanceOf(await poa.address),
+        stage: await poa.stage(),
+        paused: await poa.paused(),
+        whitelistTransfers: await poa.whitelistTransfers(),
+        registry: await poa.registry(),
+        contractOwner: await poa.owner()
       },
       state
     )

@@ -4,14 +4,6 @@ import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
 
 /* solium-disable security/no-block-members */
 
-// limited BrickblockContractRegistry definintion
-interface Registry {
-  function getContractAddress(string _name)
-    external
-    view
-    returns (address);
-}
-
 // limited BrickblockFeeManager definition
 interface FeeManager {
   function payFee()
@@ -53,9 +45,8 @@ interface PoaManagerInterface {
 
 
 contract PoaToken is PausableToken {
-
   // instance of registry to call other contracts
-  Registry public registry;
+  address public registry;
   // ERC20 name of the token
   string public name;
   // ERC20 symbol
@@ -64,8 +55,6 @@ contract PoaToken is PausableToken {
   string public proofOfCustody;
   // fiat currency symbol used to get rate
   string public fiatCurrency;
-  // owner of contract, should be PoaManager
-  address public owner;
   // broker who is selling property, whitelisted on PoaManager
   address public broker;
   // custodian in charge of taking care of asset and payouts
@@ -74,15 +63,13 @@ contract PoaToken is PausableToken {
   uint256 public constant decimals = 18;
   // ‰ permille NOT percent: fee paid to BBK holders through ACT
   uint256 public constant feeRate = 5;
-  // use to calculate when the contract should to Failed stage
-  uint256 public creationTime;
   // used to check when contract should move from PreFunding to Funding stage
   uint256 public startTime;
   // amount of seconds until moving to Failed from
-  // Funding stage after creationTime
+  // Funding stage after startTime
   uint256 public fundingTimeout;
   // amount of seconds until moving to Failed from
-  // Pending stage after creationTime + fundingTimeout
+  // Pending stage after startTime + fundingTimeout
   uint256 public activationTimeout;
   // amount needed before moving to pending calculated in fiat
   uint256 public fundingGoalInCents;
@@ -128,7 +115,7 @@ contract PoaToken is PausableToken {
   event CustodianChangedEvent(address newAddress);
 
   modifier eitherCustodianOrOwner() {
-    owner = registry.getContractAddress("PoaManager");
+    owner = getContractAddress("PoaManager");
     require(
       msg.sender == custodian ||
       msg.sender == owner
@@ -137,7 +124,7 @@ contract PoaToken is PausableToken {
   }
 
   modifier onlyOwner() {
-    owner = registry.getContractAddress("PoaManager");
+    owner = getContractAddress("PoaManager");
     require(msg.sender == owner);
     _;
   }
@@ -156,10 +143,16 @@ contract PoaToken is PausableToken {
     require(stage == _stage || stage == _orStage);
     _;
   }
-
+  
+  // event Test(bool, address);
   modifier isBuyWhitelisted() {
+    // address _whitelist = getContractAddress("Whitelist");
+    // bool _whitelisted = Whitelist(getContractAddress("Whitelist"))
+    //   .whitelisted(msg.sender);
+
+    // emit Test(_whitelisted, _whitelist);
     require(
-      Whitelist(registry.getContractAddress("Whitelist"))
+      Whitelist(getContractAddress("Whitelist"))
         .whitelisted(msg.sender)
     );
 
@@ -169,7 +162,7 @@ contract PoaToken is PausableToken {
   modifier isTransferWhitelisted(address _to) {
     if (whitelistTransfers) {
       require(
-        Whitelist(registry.getContractAddress("Whitelist"))
+        Whitelist(getContractAddress("Whitelist"))
           .whitelisted(_to)
       );
     }
@@ -178,8 +171,8 @@ contract PoaToken is PausableToken {
   }
 
   modifier checkTimeout() {
-    uint256 fundingTimeoutDeadline = creationTime.add(fundingTimeout);
-    uint256 activationTimeoutDeadline = creationTime
+    uint256 fundingTimeoutDeadline = startTime.add(fundingTimeout);
+    uint256 activationTimeoutDeadline = startTime
       .add(fundingTimeout)
       .add(activationTimeout);
 
@@ -226,7 +219,7 @@ contract PoaToken is PausableToken {
     returns (bool)
   {
     // ensure that setup has not been called
-    require(_startTime > 0);
+    require(startTime == 0);
     // ensure all strings are valid
     require(bytes(_name).length >= 3);
     require(bytes(_symbol).length >= 3);
@@ -254,12 +247,8 @@ contract PoaToken is PausableToken {
     // assign addresses
     broker = _broker;
     custodian = _custodian;
-    // get registry address from PoaManager which should be msg.sender
-    registry = Registry(PoaManagerInterface(msg.sender).registry());
-    owner = registry.getContractAddress("PoaManager");
 
     // assign times
-    creationTime = block.timestamp;
     startTime = _startTime;
     fundingTimeout = _fundingTimeout;
     activationTimeout = _activationTimeout;
@@ -274,12 +263,63 @@ contract PoaToken is PausableToken {
     paused = true;
     whitelistTransfers = false;
 
+    // get registry address from PoaManager which should be msg.sender
+    registry = PoaManagerInterface(msg.sender).registry();
+
+    owner = getContractAddress("PoaManager");
     // run getRate once in order to see if rate is initialized, throws if not
-    ExR(registry.getContractAddress("ExchangeRates"))
+    ExR(getContractAddress("ExchangeRates"))
       .getRateReadable(_fiatCurrency);
+
+    return true;
   }
 
   // start utility functions
+
+  function getContractAddress(string _name)
+    public
+    view
+    returns (address)
+  {
+    bytes4 _sig = bytes4(keccak256("getContractAddress32(bytes32)"));
+    address _addr = address(registry);
+
+    assembly {
+      let _call := mload(0x40) // set _call to free memory pointer
+      let _name32 := mload(add(_name, 0x20)) // load _name from stack offset by 32 bytes to strip out array length
+      mstore(_call, _sig) // store _sig at _call pointer
+      mstore(add(_call, 0x04), _name32) // store _name32 at _call offset by 4 bytes for pre-existing _sig
+      
+      
+      // delegatecall(g, a, in, insize, out, outsize) => 0 on error 1 on success
+      let success := staticcall(
+        gas,    // g = gas 
+        _addr,  // a = address
+        _call,  // in = mem in  mem[in..(in+insize)
+        0x24,   // insize = mem insize  mem[in..(in+insize) // size of an address (20 bytes)
+        0x0,  // out = mem out  mem[out..(out+outsize)
+        returndatasize    // outsize = mem outsize  mem[out..(out+outsize)
+      )
+
+      // returndatacopy(t, f, s)
+      returndatacopy(
+        0x0, // t = mem position to
+        0x0,  // f = mem position from
+        returndatasize // s = size bytes
+      )
+      if iszero(success) {
+        revert(
+          0x0, 
+          returndatasize
+        )
+      }
+      
+      return(
+        0x0, 
+        returndatasize
+      )
+    }
+  }
 
   // returns fiat value in cents of given wei amount
   function weiToFiatCents(uint256 _wei)
@@ -290,7 +330,7 @@ contract PoaToken is PausableToken {
     // get eth to fiat rate in cents from ExchangeRates
     return _wei
       .mul(
-        ExR(registry.getContractAddress("ExchangeRates"))
+        ExR(getContractAddress("ExchangeRates"))
           .getRateReadable(fiatCurrency)
       )
       .div(1e18);
@@ -304,7 +344,7 @@ contract PoaToken is PausableToken {
     return _cents
       .mul(1e18)
       .div(
-        ExR(registry.getContractAddress("ExchangeRates"))
+        ExR(getContractAddress("ExchangeRates"))
           .getRateReadable(fiatCurrency)
       );
   }
@@ -341,7 +381,7 @@ contract PoaToken is PausableToken {
     returns (bool)
   {
     FeeManager feeManager = FeeManager(
-      registry.getContractAddress("FeeManager")
+      getContractAddress("FeeManager")
     );
     require(feeManager.payFee.value(_value)());
   }
@@ -473,6 +513,7 @@ contract PoaToken is PausableToken {
     onlyCustodian
     returns (bool)
   {
+    require(_newCustodian != address(0));
     require(_newCustodian != custodian);
     custodian = _newCustodian;
     emit CustodianChangedEvent(_newCustodian);
