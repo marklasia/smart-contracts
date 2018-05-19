@@ -158,6 +158,7 @@ const setupPoaAndEcosystem = async () => {
   })
 
   const poa = await PoaToken.new()
+
   await pmr.setupPoaToken(
     poa.address,
     defaultName,

@@ -47,6 +47,7 @@ describe('when in Active (stage 4)', () => {
       // move into Funding
       const neededTime = await determineNeededTimeTravel(poa)
       await timeTravel(neededTime)
+
       await testStartSale(poa)
 
       // move into Pending

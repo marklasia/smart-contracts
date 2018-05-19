@@ -108,7 +108,7 @@ contract PoaToken is PausableToken {
   event StageEvent(Stages stage);
   event BuyEvent(address indexed buyer, uint256 amount);
   event PayoutEvent(uint256 amount);
-  event ClaimEvent(address indexed, uint256 payout);
+  event ClaimEvent(address indexed claimer, uint256 payout);
   event TerminatedEvent();
   event ProofOfCustodyUpdatedEvent(string ipfsHash);
   event ReclaimEvent(address indexed reclaimer, uint256 amount);
@@ -144,13 +144,7 @@ contract PoaToken is PausableToken {
     _;
   }
   
-  // event Test(bool, address);
   modifier isBuyWhitelisted() {
-    // address _whitelist = getContractAddress("Whitelist");
-    // bool _whitelisted = Whitelist(getContractAddress("Whitelist"))
-    //   .whitelisted(msg.sender);
-
-    // emit Test(_whitelisted, _whitelist);
     require(
       Whitelist(getContractAddress("Whitelist"))
         .whitelisted(msg.sender)
@@ -196,7 +190,7 @@ contract PoaToken is PausableToken {
     require(keccak256(_ipfsHash) != keccak256(proofOfCustody));
     _;
   }
-
+  
   // token totalSupply must be more than fundingGoalInCents!
   function setupContract
   (
@@ -269,17 +263,16 @@ contract PoaToken is PausableToken {
     owner = getContractAddress("PoaManager");
     // run getRate once in order to see if rate is initialized, throws if not
     ExR(getContractAddress("ExchangeRates"))
-      .getRateReadable(_fiatCurrency);
+      .getRateReadable(fiatCurrency);
 
     return true;
   }
 
   // start utility functions
-
   function getContractAddress(string _name)
     public
     view
-    returns (address)
+    returns (address _contractAddress)
   {
     bytes4 _sig = bytes4(keccak256("getContractAddress32(bytes32)"));
     address _addr = address(registry);
@@ -290,34 +283,26 @@ contract PoaToken is PausableToken {
       mstore(_call, _sig) // store _sig at _call pointer
       mstore(add(_call, 0x04), _name32) // store _name32 at _call offset by 4 bytes for pre-existing _sig
       
-      
-      // delegatecall(g, a, in, insize, out, outsize) => 0 on error 1 on success
+      // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
       let success := staticcall(
-        gas,    // g = gas 
-        _addr,  // a = address
-        _call,  // in = mem in  mem[in..(in+insize)
-        0x24,   // insize = mem insize  mem[in..(in+insize) // size of an address (20 bytes)
-        0x0,  // out = mem out  mem[out..(out+outsize)
-        returndatasize    // outsize = mem outsize  mem[out..(out+outsize)
+        gas,    // g = gas: whatever was passed already 
+        _addr,  // a = address: address is already on stack
+        _call,  // in = mem in  mem[in..(in+insize): set to free memory pointer
+        0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
+        0xf0,  // out = mem out  mem[out..(out+outsize): output assigned to this storage address
+        0x20    // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (address size = 0x14 <  slot size 0x20)
       )
-
-      // returndatacopy(t, f, s)
-      returndatacopy(
-        0x0, // t = mem position to
-        0x0,  // f = mem position from
-        returndatasize // s = size bytes
-      )
+      
+      // revert if not successful
       if iszero(success) {
         revert(
-          0x0, 
-          returndatasize
+          0xf0,
+          0x20
         )
       }
       
-      return(
-        0x0, 
-        returndatasize
-      )
+      mstore(0x40, 0x100) // clear out the free memory pointer
+      _contractAddress := mload(0xf0) // assign result to return value
     }
   }
 

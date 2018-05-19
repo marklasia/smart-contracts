@@ -34,7 +34,50 @@ describe('when initializing PoaToken', () => {
       pmr = contracts.pmr
     })
 
-    it.only('should start with the right values', async () => {
+    it('should get the correct contract addresses', async () => {
+      await testSetCurrencyRate(
+        exr,
+        exp,
+        defaultFiatCurrency,
+        defaultFiatRate,
+        {
+          from: owner,
+          value: 1e18
+        }
+      )
+
+      const poa = await testProxyInitialization(reg, pmr, [
+        defaultName,
+        defaultSymbol,
+        defaultFiatCurrency,
+        custodian,
+        defaultTotalSupply,
+        await getDefaultStartTime(),
+        defaultFundingTimeout,
+        defaultActivationTimeout,
+        defaultFundingGoal,
+        {
+          from: broker
+        }
+      ])
+
+      const pmrAddr = await poa.getContractAddress('PoaManager')
+      const exrAddr = await poa.getContractAddress('ExchangeRates')
+
+      assert.equal(
+        pmrAddr,
+        pmr.address,
+        'pmr address returned from getContractAddress should match actual pmr address'
+      )
+
+      assert.equal(
+        exrAddr,
+        exr.address,
+        'exr address returned from getContractAddress should match actual exr address'
+      )
+    })
+
+    it('should start with the right values', async () => {
       await testSetCurrencyRate(
         exr,
         exp,
