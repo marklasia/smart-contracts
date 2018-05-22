@@ -464,9 +464,7 @@ contract PoaToken is PausableToken {
     // let the world know that the token is in Pending Stage
     enterStage(Stages.Pending);
     uint256 _refundAmount = _shouldRefund ?
-      fiatCentsToWei(
-        weiToFiatCents(fundedAmountInWei.add(msg.value)).sub(fundingGoalInCents)
-      ) :
+      fundedAmountInWei.add(msg.value).sub(fiatCentsToWei(fundingGoalInCents)) :
       0;
     // transfer refund amount back to user
     msg.sender.transfer(_refundAmount);
