@@ -289,7 +289,7 @@ contract PoaToken is PausableToken {
         _addr,  // a = address: address is already on stack
         _call,  // in = mem in  mem[in..(in+insize): set to free memory pointer
         0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
-        0xf0,  // out = mem out  mem[out..(out+outsize): output assigned to this storage address
+        0xf0,   // out = mem out  mem[out..(out+outsize): output assigned to this storage address
         0x20    // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (address size = 0x14 <  slot size 0x20)
       )
       
