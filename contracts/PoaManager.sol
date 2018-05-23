@@ -205,7 +205,7 @@ contract PoaManager is Ownable {
     private
     returns (address _proxyContract)
   {
-    _proxyContract = new Proxy(_target);
+    _proxyContract = new Proxy(_target, address(registry));
   }
 
   // Create a PoaToken contract with given parameters, and set active value to true
