@@ -89,6 +89,7 @@ contract Proxy {
     }
   }
 
+  // ensures that address has code/is contract
   function proxyIsContract(address _address)
     private
     view
