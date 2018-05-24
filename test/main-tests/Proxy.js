@@ -1,19 +1,22 @@
 const assert = require('assert')
 const Proxy = artifacts.require('Proxy')
 const PoaToken = artifacts.require('PoaToken')
+const UpgradedPoa = artifacts.require('UpgradedPoa')
 const { setupPoaAndEcosystem } = require('../helpers/poa')
 const {
   checkPreSetupStorage,
   setupContract,
   checkPostSetupStorage,
   enterActiveStage,
-  checkPostActiveStorage
+  checkPostActiveStorage,
+  checkPostIsUpgradedStorage
 } = require('../helpers/pxy')
 const { testApprove, whitelistedPoaBuyers } = require('../helpers/poa')
 
 describe('when using Proxy contract to proxy a PoaToken', () => {
   contract('Proxy/PoaToken', () => {
     let poam
+    let upoam
     let pmr
     let pxy
     let poa
@@ -27,9 +30,9 @@ describe('when using Proxy contract to proxy a PoaToken', () => {
       pmr = contracts.pmr
       fmr = contracts.fmr
       poam = await PoaToken.new()
+      upoam = await UpgradedPoa.new()
       pxy = await Proxy.new(poam.address, reg.address)
       poa = await PoaToken.at(pxy.address)
-
       assert.equal(
         poa.address,
         pxy.address,
@@ -61,6 +64,45 @@ describe('when using Proxy contract to proxy a PoaToken', () => {
 
     it('should have correct storage after entering active', async () => {
       await checkPostActiveStorage(poa, reg)
+    })
+
+    it('should upgrade to new master with additional functionality and storage', async () => {
+      const preMaster = await pxy.proxyMasterContract()
+
+      await pxy.proxyChangeProxyMaster(upoam.address)
+
+      const postMaster = await pxy.proxyMasterContract()
+
+      assert.equal(
+        preMaster,
+        poam.address,
+        'old master should be equal to poam.address'
+      )
+      assert.equal(
+        postMaster,
+        upoam.address,
+        'new master should be equal to upoam.address'
+      )
+    })
+
+    it('should have the same storage as before', async () => {
+      await checkPostActiveStorage(poa, reg)
+      poa = UpgradedPoa.at(pxy.address)
+    })
+
+    it('should use added functionality to change isUpgraded', async () => {
+      const preIsUpgraded = await poa.isUpgraded()
+
+      await poa.setUpgrade()
+
+      const postIsUpgraded = await poa.isUpgraded()
+
+      assert(!preIsUpgraded, 'preIsUpgraded should be false')
+      assert(postIsUpgraded, 'postIsUpgraded should be true')
+    })
+
+    it('should have new storage for new bool isUpgraded after being set', async () => {
+      await checkPostIsUpgradedStorage(poa, reg)
     })
     /*
       what do we want to do???

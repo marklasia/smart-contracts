@@ -65,9 +65,8 @@ contract Proxy {
 
     assembly {
       let _call := mload(0x40) // set _call to free memory pointer
-      let _name32 := mload(add(_name, 0x20)) // load _name from stack offset by 32 bytes to strip out array length
       mstore(_call, _sig) // store _sig at _call pointer
-      mstore(add(_call, 0x04), _name32) // store _name32 at _call offset by 4 bytes for pre-existing _sig
+      mstore(add(_call, 0x04), _name) // store _name32 at _call offset by 4 bytes for pre-existing _sig
       
       // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
       let success := staticcall(
@@ -114,7 +113,7 @@ contract Proxy {
     msg.sender == proxyPoaManagerAddress();
     require(_master != address(0));
     require(proxyMasterContract() != _master);
-    require(proxyIsContract(msg.sender));
+    require(proxyIsContract(_master));
     bytes32 _masterContractSlot = masterContractSlot;
     assembly {
       sstore(_masterContractSlot, _master)

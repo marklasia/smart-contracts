@@ -285,6 +285,123 @@ const checkPostActiveStorage = async (poa, reg) => {
   )
 }
 
+const checkPostIsUpgradedStorage = async (poa, reg) => {
+  const storage = await getAllSimpleStorage(poa.address)
+  // eslint-disable-next-line no-console
+  console.log(storage)
+  const balances = storage[0].data
+  const totalSupply = new BigNumber(storage[1].data)
+  const allowance = storage[2].data
+  // bool paused is no longer packed or visible due to being 0
+  const actualOwner = storage[3].data
+  const registry = storage[4].data
+  const name = shortHexStorageToAscii(storage[5].data)
+  const symbol = shortHexStorageToAscii(storage[6].data)
+  // this is an array length value because it is too big to fit into 32 bytes
+  // get this by: web3.sha3(arrSlotLoc, { encoding: 'hex' })
+  // arrSlotLoc is 0 padded to 64
+  const proofOfCustodyLength = storage[7].data
+  const fiatCurrency = shortHexStorageToAscii(storage[8].data)
+  const actualBroker = storage[9].data
+  const actualCustodian = storage[10].data
+  const startTime = new BigNumber(storage[11].data)
+  const fundingTimeout = new BigNumber(storage[12].data)
+  const activationTimeout = new BigNumber(storage[13].data)
+  const fundingGoalInCents = new BigNumber(storage[14].data)
+
+  const {
+    mappingValueStorage: investmentPerUserInWeiHex
+  } = await findMappingStorage(poa.address, whitelistedPoaBuyers[0], 0, 20)
+
+  const investmentPerUserInWei = new BigNumber(investmentPerUserInWeiHex)
+
+  const {
+    nestedMappingValueStorage: allowanceValueHex
+  } = await findNestedMappingStorage(
+    poa.address,
+    whitelistedPoaBuyers[0],
+    whitelistedPoaBuyers[1],
+    new BigNumber(0),
+    new BigNumber(20)
+  )
+  const allowanceValue = new BigNumber(allowanceValueHex)
+
+  assert.equal(
+    balances,
+    '0x00',
+    'slot 0 balances should be an empty slot used for mapping locations'
+  )
+  assert.equal(
+    totalSupply.toString(),
+    defaultTotalSupply.toString(),
+    'slot 1 should contain correct totalSupply'
+  )
+  assert.equal(
+    allowance,
+    '0x00',
+    'slot 2 allowance should be an empty slot used for mapping location'
+  )
+  assert.equal(actualOwner, owner, 'slot 3 should contain correct owner value')
+  assert.equal(
+    registry,
+    reg.address,
+    'slot 4 should contain correct registry address'
+  )
+  assert.equal(
+    name,
+    defaultName,
+    'slot 5 should contain name along with name legnth'
+  )
+  assert.equal(
+    symbol,
+    defaultSymbol,
+    'slot 6 should contain symbol along with symbol length'
+  )
+  assert.equal(
+    proofOfCustodyLength,
+    '0x5d',
+    'slot 7 should contain empty entry for proofOfCustody'
+  )
+  assert.equal(
+    fiatCurrency,
+    defaultFiatCurrency,
+    'slot 8 should contain correct fiatRate'
+  )
+  assert.equal(actualBroker, broker, 'slot 9 should contain correct broker')
+  assert.equal(
+    actualCustodian,
+    custodian,
+    'slot 10 should contain correct custodian'
+  )
+  assert(startTime.gt(0), 'slot 11 startTime should be more than 0')
+  assert.equal(
+    fundingTimeout.toString(),
+    defaultFundingTimeout.toString(),
+    'slot 12 should contain correct fundningTimeout'
+  )
+  assert.equal(
+    activationTimeout.toString(),
+    defaultActivationTimeout.toString(),
+    'slot 13 should contain correct activationTimeout'
+  )
+  assert.equal(
+    fundingGoalInCents.toString(),
+    defaultFundingGoal.toString(),
+    'slot 14 should contain correct fundingGoalInCents'
+  )
+  assert.equal(
+    allowanceValue.toString(),
+    new BigNumber(3e18).toString(),
+    'allowance in mapping from slot 2 should match expected value'
+  )
+  assert.equal(
+    investmentPerUserInWei.toString(),
+    // calculated based on default values for poa tests
+    new BigNumber('15000150001500015000').toString(),
+    'investmentPerUserInWei should match expected value'
+  )
+}
+
 /*
   [{
       slot: 0,
@@ -317,7 +434,7 @@ const checkPostActiveStorage = async (poa, reg) => {
     {
       slot: 7,
       data: '0x5d'
-    }, // ipfs hash length or slot?
+    }, // ipfs hash length
     {
       slot: 8,
       data: '0x4555520000000000000000000000000000000000000000000000000000000006'
@@ -438,5 +555,6 @@ module.exports = {
   setupContract,
   checkPostSetupStorage,
   enterActiveStage,
-  checkPostActiveStorage
+  checkPostActiveStorage,
+  checkPostIsUpgradedStorage
 }
