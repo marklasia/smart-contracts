@@ -5,7 +5,10 @@ contract Proxy {
   bytes32 public constant masterContractSlot = keccak256("masterAddress");
   bytes32 public constant proxyRegistrySlot = keccak256("registry");
 
-  constructor(address _master, address _registry) 
+  constructor(
+    address _master, 
+    address _registry
+  ) 
     public
   {
     require(_master != address(0));
