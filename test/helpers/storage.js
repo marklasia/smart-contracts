@@ -17,7 +17,7 @@ const getAllSimpleStorage = async addr => {
     })
     slot++
 
-    if (zeroCounter > 10) {
+    if (zeroCounter > 20) {
       break
     }
   }
@@ -125,11 +125,16 @@ const findNestedMappingStorage = async (
   return null
 }
 
+// must be small enough to fit string length value in same slot as string
+const shortHexStorageToAscii = hex =>
+  web3.toAscii(hex.slice(0, parseInt('0x' + hex[hex.length - 1], 16) + 2))
+
 module.exports = {
   getAllSimpleStorage,
   findMappingStorage,
   getMappingSlot,
   getMappingStorage,
   getNestedMappingStorage,
-  findNestedMappingStorage
+  findNestedMappingStorage,
+  shortHexStorageToAscii
 }

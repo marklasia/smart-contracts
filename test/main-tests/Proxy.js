@@ -1,20 +1,15 @@
 const assert = require('assert')
 const Proxy = artifacts.require('Proxy')
 const PoaToken = artifacts.require('PoaToken')
+const { setupPoaAndEcosystem } = require('../helpers/poa')
 const {
-  setupPoaAndEcosystem,
-  defaultName,
-  defaultSymbol,
-  defaultFiatCurrency,
-  broker,
-  custodian,
-  defaultTotalSupply,
-  getDefaultStartTime,
-  defaultFundingTimeout,
-  defaultActivationTimeout,
-  defaultFundingGoal
-} = require('../helpers/poa')
-const { getAllSimpleStorage } = require('../helpers/storage')
+  checkPreSetupStorage,
+  setupContract,
+  checkPostSetupStorage,
+  enterActiveStage,
+  checkPostActiveStorage
+} = require('../helpers/pxy')
+const { testApprove, whitelistedPoaBuyers } = require('../helpers/poa')
 
 describe('when using Proxy contract to proxy a PoaToken', () => {
   contract('Proxy/PoaToken', () => {
@@ -23,11 +18,14 @@ describe('when using Proxy contract to proxy a PoaToken', () => {
     let pxy
     let poa
     let reg
+    let fmr
 
     before('setup contracts', async () => {
+      // this sets PoaManager contract as owner in registry... storage will reflect that
       const contracts = await setupPoaAndEcosystem()
       reg = contracts.reg
       pmr = contracts.pmr
+      fmr = contracts.fmr
       poam = await PoaToken.new()
       pxy = await Proxy.new(poam.address, reg.address)
       poa = await PoaToken.at(pxy.address)
@@ -39,37 +37,51 @@ describe('when using Proxy contract to proxy a PoaToken', () => {
       )
     })
 
-    it('should have no storage in first 10 slots', async () => {
-      const storage = await getAllSimpleStorage(poa.address)
-
-      for (const item of storage) {
-        assert.equal(
-          item.data,
-          '0x00',
-          'all storage at least in range of 0-10 should be 0x00'
-        )
-      }
+    it('should have no storage sequential storage', async () => {
+      await checkPreSetupStorage(poa)
     })
 
     it('should setupContract', async () => {
-      await pmr.setupPoaToken(
-        poa.address,
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
-        broker,
-        custodian,
-        defaultTotalSupply,
-        await getDefaultStartTime(),
-        defaultFundingTimeout,
-        defaultActivationTimeout,
-        defaultFundingGoal
-      )
+      await setupContract(pmr, poa)
     })
 
     it('should have new storage after setupPoaToken', async () => {
-      const storage = await getAllSimpleStorage(poa.address)
-      console.log(storage)
+      await checkPostSetupStorage(poa, reg)
     })
+
+    it('should move to active poa stage', async () => {
+      await enterActiveStage(poa, fmr)
+    })
+
+    it('should approve', async () => {
+      await testApprove(poa, whitelistedPoaBuyers[1], 3e18, {
+        from: whitelistedPoaBuyers[0]
+      })
+    })
+
+    it('should have correct storage after entering active', async () => {
+      await checkPostActiveStorage(poa, reg)
+    })
+    /*
+      what do we want to do???
+      check initial no storage
+      check storage after setup
+      do move to active
+        check storage
+        do transfers/approvals
+        check storage
+      upgrade
+        check storage
+        do transfers/approvals
+        check storage
+      bad upgrade
+        check storage
+        do transfers/approvals ?
+        check storage ?
+      empty upgrade
+        check storage
+        do transfers/approvals ?
+        check storage ?
+    */
   })
 })
