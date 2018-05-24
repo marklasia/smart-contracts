@@ -149,10 +149,13 @@ const testSetCurrencyRate = async (exr, exp, currencyType, rate, config) => {
   await testSetRate(exr, exp, rate, false)
 }
 
-const setupPoaAndEcosystem = async () => {
+const setupPoaAndEcosystem = async ({
+  fundingGoal = defaultFundingGoal,
+  fiatRate = defaultFiatRate
+} = {}) => {
   const { reg, act, bbk, exr, exp, fmr, wht, pmr } = await setupEcosystem()
 
-  await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
+  await testSetCurrencyRate(exr, exp, defaultFiatCurrency, fiatRate, {
     from: owner,
     value: 1e18
   })
@@ -170,7 +173,7 @@ const setupPoaAndEcosystem = async () => {
     await getDefaultStartTime(),
     defaultFundingTimeout,
     defaultActivationTimeout,
-    defaultFundingGoal
+    fundingGoal
   )
 
   // we change the PoaManager to owner address in registry in order to "trick"
@@ -634,6 +637,21 @@ const testBuyTokens = async (poa, config) => {
 const testBuyTokensMulti = async (poa, buyAmount) => {
   for (const buyer of whitelistedPoaBuyers) {
     await testBuyTokens(poa, { from: buyer, value: buyAmount, gasPrice })
+  }
+}
+
+const testBuyTokensMultiWithIndiviualAmounts = async (poac, buyers) => {
+  for (let index = 0; index < buyers.length; index++) {
+    const buyer = buyers[index]
+    // eslint-disable-next-line
+    console.log('********buying ', buyer.account, buyer.amount.toString())
+    await testBuyTokens(poac, {
+      from: buyer.account,
+      value: buyer.amount,
+      gasPrice
+    })
+    // eslint-disable-next-line
+    console.log('********buyed')
   }
 }
 
@@ -1440,6 +1458,7 @@ module.exports = {
   testTerminate,
   testChangeCustodianAddress,
   testBuyTokensMulti,
+  testBuyTokensMultiWithIndiviualAmounts,
   testCurrentPayout,
   getAccountInformation,
   testResetCurrencyRate,

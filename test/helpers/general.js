@@ -214,6 +214,60 @@ const checkForEvent = (eventName, eventArgs, txReceipt) => {
   )
 }
 
+const determineMaxAmount = (balance, remainingMax) => {
+  let max
+
+  if (typeof remainingMax !== 'undefined' && balance.gt(remainingMax)) {
+    max = remainingMax
+  } else {
+    max = balance
+  }
+
+  return max.div(2).floor()
+}
+
+// Generates random amount that is less then the account balance
+const generateRandomAmountForAccount = async (
+  account,
+  { min = 1e10, remainingMax, maxFunc = determineMaxAmount, balance } = {}
+) => {
+  const valueMax = maxFunc(
+    balance || (await getEtherBalance(account)),
+    remainingMax
+  )
+
+  return getRandomBigInt(min, valueMax)
+}
+
+const generateRandomAmountForAccounts = async (
+  accounts,
+  { min, remainingMax, maxFunc } = {}
+) => {
+  const buyersWithAmountsList = []
+  let actualRemainingMax = remainingMax.mul(0.9)
+
+  for (let index = 0; index < accounts.length; index++) {
+    const account = accounts[index]
+    const balance = await getEtherBalance(account)
+
+    if (balance.gte(1e18) && actualRemainingMax.gt(1e18)) {
+      const item = {
+        account,
+        amount: await generateRandomAmountForAccount(account, {
+          min,
+          remainingMax: actualRemainingMax,
+          maxFunc,
+          balance
+        })
+      }
+      actualRemainingMax = actualRemainingMax.minus(item.amount)
+      buyersWithAmountsList.push(item)
+    }
+  }
+
+  return buyersWithAmountsList
+}
+
 module.exports = {
   bigZero,
   checkForEvent,
@@ -233,5 +287,7 @@ module.exports = {
   addressZero,
   areInRange,
   testWillThrow,
-  warpBlocks
+  warpBlocks,
+  generateRandomAmountForAccount,
+  generateRandomAmountForAccounts
 }
