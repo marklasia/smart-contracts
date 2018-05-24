@@ -107,14 +107,15 @@ contract ExchangeRateProvider is usingOraclize {
     bool _ratesActive = _exchangeRates.ratesActive();
     uint256 _callInterval;
     uint256 _callbackGasLimit;
+    string memory queryType = _exchangeRates.queryTypes(_queryId);
     string memory _queryString;
     (
       _callInterval,
       _callbackGasLimit,
       _queryString
-    ) = _exchangeRates.getCurrencySettings(_exchangeRates.queryTypes(_queryId));
+    ) = _exchangeRates.getCurrencySettings(queryType);
 
-    // set rate on ExchangeRates contract giving queryType for validation
+    // set rate on ExchangeRates contract giving queryId for validation
     // rate is set in cents api returns float string which is parsed as int
     /* TODO: make sure that tests are all fine with this */
     require(_exchangeRates.setRate(_queryId, parseInt(_result, 2)));
@@ -126,7 +127,7 @@ contract ExchangeRateProvider is usingOraclize {
         _queryString,
         _callInterval,
         _callbackGasLimit,
-        _exchangeRates.queryTypes(_queryId)
+        queryType
       );
     }
   }

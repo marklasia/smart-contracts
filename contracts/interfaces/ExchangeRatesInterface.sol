@@ -12,7 +12,7 @@ interface ExchangeRatesInterface {
     returns (bool);
 
   function getRate(
-    string _queryTypeBytes
+    string _queryType
   )
     external
     view

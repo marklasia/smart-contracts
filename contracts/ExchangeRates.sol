@@ -160,9 +160,7 @@ contract ExchangeRates is Ownable {
     string memory _queryType = queryTypes[_queryId];
     // check that first byte of _queryType is not 0 (something wrong or empty)
     // if the queryType is 0 then the queryId is incorrect
-    // TODO: ask Cody how to check string type
-    require(_queryId[0] != 0x0);
-    //require(_queryType != "");
+    require(bytes(_queryType).length > 0);
     // set _queryId to empty (uninitialized, to prevent from being called again)
     delete queryTypes[_queryId];
     // set currency rate depending on _queryType (USD, EUR, etc.)
@@ -320,7 +318,6 @@ contract ExchangeRates is Ownable {
     view
     returns (uint256, uint256, string)
   {
-    //TODO: shall we return currencySettings[_queryTypeString] directly?
     Settings memory _settings = currencySettings[_queryTypeString];
     return (
       _settings.callInterval,
@@ -328,18 +325,6 @@ contract ExchangeRates is Ownable {
       _settings.queryString
     );
   }
-
-  // get rate by bytes, meant to be used by contracts
-  // if the rate is 0 (errored or uninitialized), it will throw
-/*   function getRate(bytes8 _queryTypeBytes)
-    public
-    view
-    returns (uint256)
-  {
-    uint256 _rate = rates[_queryTypeBytes];
-    require(_rate > 0);
-    return _rate;
-  } */
 
   // same as getRate but uses string for easy use by regular accounts
   function getRate(string _queryTypeString)

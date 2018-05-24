@@ -77,7 +77,7 @@ contract ExchangeRateProviderStub {
       return false;
     } else {
       // simulate _queryId by hashing first element of bytes32 array
-      pendingTestQueryId = keccak256(bytes(_queryString)[0]);
+      pendingTestQueryId = keccak256(_queryString);
       setQueryId(pendingTestQueryId, _queryType);
       return true;
     }
