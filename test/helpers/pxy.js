@@ -308,6 +308,8 @@ const checkPostIsUpgradedStorage = async (poa, reg) => {
   const fundingTimeout = new BigNumber(storage[12].data)
   const activationTimeout = new BigNumber(storage[13].data)
   const fundingGoalInCents = new BigNumber(storage[14].data)
+  const isUpgraded = new BigNumber(storage[24].data.slice(0, 4))
+  const stage = new BigNumber(storage[24].data.slice(4))
 
   const {
     mappingValueStorage: investmentPerUserInWeiHex
@@ -400,154 +402,56 @@ const checkPostIsUpgradedStorage = async (poa, reg) => {
     new BigNumber('15000150001500015000').toString(),
     'investmentPerUserInWei should match expected value'
   )
+  assert(isUpgraded, 'slot 24 shoudl contain isUpgraded as true')
+  assert.equal(
+    stage.toString(),
+    new BigNumber(4).toString(),
+    'slot 24 should contain correct stage'
+  )
 }
 
 /*
-  [{
-      slot: 0,
-      data: '0x00'
-    }, // balances
-    {
-      slot: 1,
-      data: '0x152d02c7e14af6800000'
-    }, // totalSupply
-    {
-      slot: 2,
-      data: '0x00'
-    }, // allowance
-    {
-      slot: 3,
-      data: '0x627306090abab3a6e1400e9345bc60c78a8bef57'
-    }, // owner // bool gone due to false
-    {
-      slot: 4,
-      data: '0x2eca6fcfef74e2c8d03fbaf0ff6712314c9bd58b'
-    }, // registry
-    {
-      slot: 5,
-      data: '0x54657374506f610000000000000000000000000000000000000000000000000e'
-    }, // name
-    {
-      slot: 6,
-      data: '0x5450410000000000000000000000000000000000000000000000000000000006'
-    }, // symbol
-    {
-      slot: 7,
-      data: '0x5d'
-    }, // ipfs hash length
-    {
-      slot: 8,
-      data: '0x4555520000000000000000000000000000000000000000000000000000000006'
-    }, // fiatCurrency
-    {
-      slot: 9,
-      data: '0xf17f52151ebef6c7334fad080c5704d77216b732'
-    }, // broker
-    {
-      slot: 10,
-      data: '0xc5fdf4076b8f3a5357c5e395ab970b5b54098fef'
-    }, // custodian
-    {
-      slot: 11,
-      data: '0x5b06baf6'
-    }, // start time
-    {
-      slot: 12,
-      data: '0x015180'
-    }, // fundingTimeout
-    {
-      slot: 13,
-      data: '0x093a80'
-    }, // activationTimeout
-    {
-      slot: 14,
-      data: '0x07a120'
-    }, // fundingGoalInCents
-    {
-      slot: 15,
-      data: '0x00'
-    },
-    {
-      slot: 16,
-      data: '0xd02b3cf3c0fbc998'
-    }, // perTokenPayoutRate
-    {
-      slot: 17,
-      data: '0x00'
-    },
-    {
-      slot: 18,
-      data: '0x00'
-    },
-    {
-      slot: 19,
-      data: '0x00'
-    },
-    {
-      slot: 20,
-      data: '0x00'
-    },
-    {
-      slot: 21,
-      data: '0x00'
-    },
-    {
-      slot: 22,
-      data: '0x00'
-    },
-    {
-      slot: 23,
-      data: '0x00'
-    },
-    {
-      slot: 24,
-      data: '0x04'
-    },
-    {
-      slot: 25,
-      data: '0x00'
-    },
-    {
-      slot: 26,
-      data: '0x00'
-    },
-    {
-      slot: 27,
-      data: '0x00'
-    },
-    {
-      slot: 28,
-      data: '0x00'
-    },
-    {
-      slot: 29,
-      data: '0x00'
-    },
-    {
-      slot: 30,
-      data: '0x00'
-    },
-    {
-      slot: 31,
-      data: '0x00'
-    },
-    {
-      slot: 32,
-      data: '0x00'
-    },
-    {
-      slot: 33,
-      data: '0x00'
-    },
-    {
-      slot: 34,
-      data: '0x00'
-    },
-    {
-      slot: 35,
-      data: '0x00'
-    }
-  ]
+
+
+[ { slot: 0, data: '0x00' }, // balances
+  { slot: 1, data: '0x152d02c7e14af6800000' }, // totalSupply
+  { slot: 2, data: '0x00' }, // allowances
+  { slot: 3, data: '0x627306090abab3a6e1400e9345bc60c78a8bef57' }, // owner
+  { slot: 4, data: '0x2eca6fcfef74e2c8d03fbaf0ff6712314c9bd58b' }, // registry
+  { slot: 5,
+    data: '0x54657374506f610000000000000000000000000000000000000000000000000e' }, // name
+  { slot: 6,
+    data: '0x5450410000000000000000000000000000000000000000000000000000000006' }, // symbol
+  { slot: 7, data: '0x5d' }, // length of proofOfAsset
+  { slot: 8,
+    data: '0x4555520000000000000000000000000000000000000000000000000000000006' }, // fiat currency
+  { slot: 9, data: '0xf17f52151ebef6c7334fad080c5704d77216b732' }, // broker
+  { slot: 10, data: '0xc5fdf4076b8f3a5357c5e395ab970b5b54098fef' }, // custodian
+  { slot: 11, data: '0x5b06e93f' }, // start time
+  { slot: 12, data: '0x015180' }, // funding timeout
+  { slot: 13, data: '0x093a80' }, // activation timeout
+  { slot: 14, data: '0x07a120' }, // funding goal in cents
+  { slot: 15, data: '0x00' },
+  { slot: 16, data: '0xd02b3cf3c0fbc998' }, // per token payout rate
+  { slot: 17, data: '0x00' },
+  { slot: 18, data: '0x00' },
+  { slot: 19, data: '0x00' },
+  { slot: 20, data: '0x00' },
+  { slot: 21, data: '0x00' },
+  { slot: 22, data: '0x00' },
+  { slot: 23, data: '0x00' },
+  { slot: 24, data: '0x0104' }, // isUpgraded & stage
+  { slot: 25, data: '0x00' },
+  { slot: 26, data: '0x00' },
+  { slot: 27, data: '0x00' },
+  { slot: 28, data: '0x00' },
+  { slot: 29, data: '0x00' },
+  { slot: 30, data: '0x00' },
+  { slot: 31, data: '0x00' },
+  { slot: 32, data: '0x00' },
+  { slot: 33, data: '0x00' },
+  { slot: 34, data: '0x00' },
+  { slot: 35, data: '0x00' } ]
 */
 
 module.exports = {

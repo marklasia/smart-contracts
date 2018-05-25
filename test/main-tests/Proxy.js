@@ -104,26 +104,5 @@ describe('when using Proxy contract to proxy a PoaToken', () => {
     it('should have new storage for new bool isUpgraded after being set', async () => {
       await checkPostIsUpgradedStorage(poa, reg)
     })
-    /*
-      what do we want to do???
-      check initial no storage
-      check storage after setup
-      do move to active
-        check storage
-        do transfers/approvals
-        check storage
-      upgrade
-        check storage
-        do transfers/approvals
-        check storage
-      bad upgrade
-        check storage
-        do transfers/approvals ?
-        check storage ?
-      empty upgrade
-        check storage
-        do transfers/approvals ?
-        check storage ?
-    */
   })
 })

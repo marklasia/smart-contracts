@@ -5,6 +5,8 @@ contract Proxy {
   bytes32 public constant masterContractSlot = keccak256("masterAddress");
   bytes32 public constant proxyRegistrySlot = keccak256("registry");
 
+  event ProxyUpgraded(address upgradedFrom, address upgradedTo);
+
   constructor(
     address _master, 
     address _registry
@@ -114,11 +116,14 @@ contract Proxy {
     require(_master != address(0));
     require(proxyMasterContract() != _master);
     require(proxyIsContract(_master));
+    address _oldMaster = proxyMasterContract();
     bytes32 _masterContractSlot = masterContractSlot;
     assembly {
       sstore(_masterContractSlot, _master)
     }
 
+    emit ProxyUpgraded(_oldMaster, _master);
+  
     return true;
   }
 
