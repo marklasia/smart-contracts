@@ -2,7 +2,7 @@ const assert = require('assert')
 const Proxy = artifacts.require('Proxy')
 const PoaToken = artifacts.require('PoaToken')
 const UpgradedPoa = artifacts.require('UpgradedPoa')
-const { setupPoaAndEcosystem } = require('../helpers/poa')
+const { testWillThrow } = require('../helpers/general')
 const {
   checkPreSetupStorage,
   setupContract,
@@ -11,10 +11,14 @@ const {
   checkPostActiveStorage,
   checkPostIsUpgradedStorage
 } = require('../helpers/pxy')
-const { testApprove, whitelistedPoaBuyers } = require('../helpers/poa')
+const {
+  testApprove,
+  whitelistedPoaBuyers,
+  setupPoaAndEcosystem
+} = require('../helpers/poa')
 
 describe('when using Proxy contract to proxy a PoaToken', () => {
-  contract('Proxy/PoaToken', () => {
+  contract('Proxy/PoaToken', accounts => {
     let poam
     let upoam
     let pmr
@@ -64,6 +68,13 @@ describe('when using Proxy contract to proxy a PoaToken', () => {
 
     it('should have correct storage after entering active', async () => {
       await checkPostActiveStorage(poa, reg)
+    })
+
+    it('should NOT upgrade to new master if NOT PoaManager (accounts[0] for test)', async () => {
+      await testWillThrow(pxy.proxyChangeMaster, [
+        upoam.address,
+        { from: accounts[1] }
+      ])
     })
 
     it('should upgrade to new master with additional functionality and storage', async () => {
