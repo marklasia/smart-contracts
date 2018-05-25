@@ -371,7 +371,7 @@ contract PoaManager is Ownable {
     onlyOwner
     returns (bool)
   {
-    Proxy(_proxyTokenAddress).proxyChangeProxyMaster(_masterUpgrade);
+    Proxy(_proxyTokenAddress).proxyChangeMaster(_masterUpgrade);
   }
 
   //

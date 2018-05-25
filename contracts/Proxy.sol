@@ -21,7 +21,7 @@ contract Proxy {
     // all storage locations are pre-calculated using hashes of names
     assembly {
       sstore(_masterContractSlot, _master) // store master address in master slot
-      sstore(_proxyRegistrySlot, _registry) // stoer registry address in registry slot
+      sstore(_proxyRegistrySlot, _registry) // store registry address in registry slot
     }
   }
 
@@ -51,7 +51,7 @@ contract Proxy {
     }
   }
 
-    //
+  //
   // proxy state helpers
   //
 
@@ -108,7 +108,7 @@ contract Proxy {
   // proxy state setters
   //
 
-  function proxyChangeProxyMaster(address _master)
+  function proxyChangeMaster(address _master)
     public
     returns (bool)
   {

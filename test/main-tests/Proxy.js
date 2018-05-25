@@ -69,7 +69,7 @@ describe('when using Proxy contract to proxy a PoaToken', () => {
     it('should upgrade to new master with additional functionality and storage', async () => {
       const preMaster = await pxy.proxyMasterContract()
 
-      await pxy.proxyChangeProxyMaster(upoam.address)
+      await pxy.proxyChangeMaster(upoam.address)
 
       const postMaster = await pxy.proxyMasterContract()
 
