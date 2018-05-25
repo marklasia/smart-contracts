@@ -2,9 +2,9 @@ pragma solidity ^0.4.23;
 
 import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
 import "./interfaces/BrickblockFeeManagerInterface.sol";
+import "./interfaces/BrickblockWhitelistInterface.sol";
 import "./interfaces/ExchangeRatesInterface.sol";
 import "./interfaces/PoaManagerInterface.sol";
-import "./interfaces/BrickblockWhitelistInterface.sol";
 
 /* solium-disable security/no-block-members */
 
@@ -108,7 +108,7 @@ contract PoaToken is PausableToken {
     require(stage == _stage || stage == _orStage);
     _;
   }
-  
+
   modifier isBuyWhitelisted() {
     require(
       WhitelistInterface(getContractAddress("Whitelist"))
@@ -155,7 +155,7 @@ contract PoaToken is PausableToken {
     require(keccak256(_ipfsHash) != keccak256(proofOfCustody));
     _;
   }
-  
+
   // token totalSupply must be more than fundingGoalInCents!
   function setupContract
   (
@@ -247,17 +247,17 @@ contract PoaToken is PausableToken {
       let _name32 := mload(add(_name, 0x20)) // load _name from stack offset by 32 bytes to strip out array length
       mstore(_call, _sig) // store _sig at _call pointer
       mstore(add(_call, 0x04), _name32) // store _name32 at _call offset by 4 bytes for pre-existing _sig
-      
+
       // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
       let success := staticcall(
-        gas,    // g = gas: whatever was passed already 
+        gas,    // g = gas: whatever was passed already
         _addr,  // a = address: address is already on stack
         _call,  // in = mem in  mem[in..(in+insize): set to free memory pointer
         0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
         0xf0,   // out = mem out  mem[out..(out+outsize): output assigned to this storage address
         0x20    // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (address size = 0x14 <  slot size 0x20)
       )
-      
+
       // revert if not successful
       if iszero(success) {
         revert(
@@ -265,7 +265,7 @@ contract PoaToken is PausableToken {
           0x20
         )
       }
-      
+
       mstore(0x40, 0x100) // clear out the free memory pointer
       _contractAddress := mload(0xf0) // assign result to return value
     }
@@ -418,7 +418,12 @@ contract PoaToken is PausableToken {
       .add(_payAmount);
     // increment the funded amount
     fundedAmountInWei = fundedAmountInWei.add(_payAmount);
+
     emit BuyEvent(msg.sender, _payAmount);
+    getContractAddress("Logger").call(
+      bytes4(sha3("logBuyEvent(address,uint256)")), msg.sender, _payAmount
+    );
+
     return true;
   }
 
@@ -436,7 +441,7 @@ contract PoaToken is PausableToken {
     // actual Ξ amount to buy after refund
     uint256 _payAmount = msg.value.sub(_refundAmount);
     buyAndContinueFunding(_payAmount);
-    
+
     return true;
   }
 

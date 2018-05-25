@@ -202,19 +202,23 @@ const gasPrice = new BigNumber(30e9)
 const bigZero = new BigNumber(0)
 const addressZero = '0x' + '0'.repeat(40)
 
+const printJSON = x => JSON.stringify(x, null, 2)
+
 const checkForEvent = (eventName, eventArgs, txReceipt) => {
   assert.equal(txReceipt.logs.length, 1, 'there should be one event emitted')
 
   const log = txReceipt.logs[0]
   assert.equal(log.event, eventName, `the event emitted is ${eventName}`)
   assert.deepEqual(
-    log.args,
-    eventArgs,
-    `the event args should match ${eventArgs}`
+    printJSON(log.args),
+    printJSON(eventArgs),
+    `the event args should match ${printJSON(eventArgs)} ${printJSON(log.args)}`
   )
 }
 
 module.exports = {
+  addressZero,
+  areInRange,
   bigZero,
   checkForEvent,
   finalizeBbk,
@@ -229,9 +233,7 @@ module.exports = {
   sendTransaction,
   setupRegistry,
   testIsInRange,
-  timeTravel,
-  addressZero,
-  areInRange,
   testWillThrow,
+  timeTravel,
   warpBlocks
 }

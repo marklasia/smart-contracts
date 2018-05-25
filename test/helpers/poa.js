@@ -1,23 +1,25 @@
-const PoaToken = artifacts.require('PoaToken')
-const PoaManager = artifacts.require('PoaManager')
-const ContractRegistry = artifacts.require('BrickblockContractRegistry')
-const Whitelist = artifacts.require('BrickblockWhitelist')
 const AccessToken = artifacts.require('BrickblockAccessToken')
-const ExchangeRates = artifacts.require('ExchangeRates')
+const ContractRegistry = artifacts.require('BrickblockContractRegistry')
 const ExchangeRateProvider = artifacts.require('ExchangeRateProviderStub')
+const ExchangeRates = artifacts.require('ExchangeRates')
 const FeeManager = artifacts.require('BrickblockFeeManager')
+const Logger = artifacts.require('BrickblockLogger')
+const PoaManager = artifacts.require('PoaManager')
 const PoaManagerStub = artifacts.require('PoaManagerStub')
+const PoaToken = artifacts.require('PoaToken')
+const Whitelist = artifacts.require('BrickblockWhitelist')
 
 const assert = require('assert')
 const {
+  areInRange,
+  bigZero,
+  checkForEvent,
+  gasPrice,
   getEtherBalance,
   getGasUsed,
-  areInRange,
-  gasPrice,
-  timeTravel,
   sendTransaction,
   testWillThrow,
-  bigZero
+  timeTravel
 } = require('./general')
 const { finalizedBBK } = require('./bbk')
 const { testApproveAndLockMany } = require('./act')
@@ -97,6 +99,7 @@ const setupEcosystem = async () => {
   const fmr = await FeeManager.new(reg.address)
   const wht = await Whitelist.new(reg.address)
   const pmr = await PoaManager.new(reg.address)
+  const log = await Logger.new(reg.address)
 
   for (const buyer of whitelistedPoaBuyers) {
     const preWhitelisted = await wht.whitelisted(buyer)
@@ -114,6 +117,7 @@ const setupEcosystem = async () => {
   await reg.updateContractAddress('FeeManager', fmr.address)
   await reg.updateContractAddress('Whitelist', wht.address)
   await reg.updateContractAddress('PoaManager', pmr.address)
+  await reg.updateContractAddress('Logger', log.address)
 
   testApproveAndLockMany(bbk, act, bbkContributors, bbkTokenDistAmount)
 
@@ -150,7 +154,7 @@ const testSetCurrencyRate = async (exr, exp, currencyType, rate, config) => {
 }
 
 const setupPoaAndEcosystem = async () => {
-  const { reg, act, bbk, exr, exp, fmr, wht, pmr } = await setupEcosystem()
+  const { reg, act, bbk, exr, exp, fmr, wht, pmr, log } = await setupEcosystem()
 
   await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
     from: owner,
@@ -179,15 +183,16 @@ const setupPoaAndEcosystem = async () => {
   await reg.updateContractAddress('PoaManager', owner)
 
   return {
-    reg,
     act,
     bbk,
-    exr,
     exp,
+    exr,
     fmr,
-    wht,
+    log,
     pmr,
-    poa
+    poa,
+    reg,
+    wht
   }
 }
 
@@ -601,6 +606,15 @@ const testBuyTokens = async (poa, config) => {
   const postUserWeiInvested = await poa.investmentAmountPerUserInWei(buyer)
 
   const expectedPostEthBalance = preEthBalance.sub(weiBuyAmount).sub(gasCost)
+
+  checkForEvent(
+    'BuyEvent',
+    {
+      buyer: config.from,
+      amount: config.value
+    },
+    tx
+  )
 
   assert.equal(
     expectedPostEthBalance.toString(),
@@ -1386,65 +1400,65 @@ const testProxyUnchanged = async (poa, first, state) => {
 
 module.exports = {
   accounts,
-  owner,
-  broker,
-  custodian,
+  activationTimeoutContract,
+  actRate,
   bbkBonusAddress,
   bbkContributors,
-  whitelistedPoaBuyers,
   bbkTokenDistAmount,
-  actRate,
+  broker,
+  custodian,
+  defaultActivationTimeout,
+  defaultBuyAmount,
+  defaultFiatCurrency,
+  defaultFiatRate,
+  defaultFundingGoal,
+  defaultFundingTimeout,
+  defaultIpfsHash,
   defaultName,
   defaultSymbol,
-  defaultFiatCurrency,
-  defaultFundingTimeout,
-  defaultActivationTimeout,
-  defaultFundingGoal,
   defaultTotalSupply,
-  defaultFiatRate,
+  determineNeededTimeTravel,
+  fundingTimeoutContract,
+  getAccountInformation,
   getDefaultStartTime,
-  defaultIpfsHash,
-  defaultBuyAmount,
+  owner,
   setupEcosystem,
-  testSetCurrencyRate,
   setupPoaAndEcosystem,
   setupPoaProxyAndEcosystem,
-  testInitialization,
-  testProxyInitialization,
-  testWeiToFiatCents,
-  testFiatCentsToWei,
-  testCalculateFee,
-  testStartSale,
-  testBuyTokens,
-  determineNeededTimeTravel,
-  testBuyRemainingTokens,
   testActivate,
+  testActiveBalances,
+  testApprove,
   testBrokerClaim,
-  testPayout,
+  testBuyRemainingTokens,
+  testBuyTokens,
+  testBuyTokensMulti,
+  testCalculateFee,
+  testChangeCustodianAddress,
   testClaim,
   testClaimAllPayouts,
-  testFirstReclaim,
-  testReclaim,
-  fundingTimeoutContract,
-  activationTimeoutContract,
-  testSetFailed,
-  testReclaimAll,
-  testPaused,
-  testPause,
-  testUnpause,
-  testFallback,
-  testUpdateProofOfCustody,
-  testTransfer,
-  testApprove,
-  testTransferFrom,
-  testTerminate,
-  testChangeCustodianAddress,
-  testBuyTokensMulti,
   testCurrentPayout,
-  getAccountInformation,
+  testFallback,
+  testFiatCentsToWei,
+  testFirstReclaim,
+  testInitialization,
+  testPause,
+  testPaused,
+  testPayout,
+  testProxyInitialization,
+  testProxyUnchanged,
+  testReclaim,
+  testReclaimAll,
   testResetCurrencyRate,
-  testActiveBalances,
+  testSetCurrencyRate,
+  testSetFailed,
+  testStartSale,
+  testTerminate,
   testToggleWhitelistTransfers,
+  testTransfer,
+  testTransferFrom,
+  testUnpause,
+  testUpdateProofOfCustody,
+  testWeiToFiatCents,
   timeTravel,
-  testProxyUnchanged
+  whitelistedPoaBuyers
 }
