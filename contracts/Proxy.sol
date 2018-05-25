@@ -112,7 +112,7 @@ contract Proxy {
     public
     returns (bool)
   {
-    msg.sender == proxyPoaManagerAddress();
+    require(msg.sender == proxyPoaManagerAddress());
     require(_master != address(0));
     require(proxyMasterContract() != _master);
     require(proxyIsContract(_master));
