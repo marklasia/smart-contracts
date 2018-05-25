@@ -5,7 +5,7 @@ contract Proxy {
   bytes32 public constant masterContractSlot = keccak256("masterAddress");
   bytes32 public constant proxyRegistrySlot = keccak256("registry");
 
-  event ProxyUpgraded(address upgradedFrom, address upgradedTo);
+  event ProxyUpgradedEvent(address upgradedFrom, address upgradedTo);
 
   constructor(
     address _master, 
@@ -122,7 +122,7 @@ contract Proxy {
       sstore(_masterContractSlot, _master)
     }
 
-    emit ProxyUpgraded(_oldMaster, _master);
+    emit ProxyUpgradedEvent(_oldMaster, _master);
   
     return true;
   }
