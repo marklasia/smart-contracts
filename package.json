@@ -1,6 +1,6 @@
 {
   "name": "@brickblock/smart-contracts",
-  "version": "2.5.2",
+  "version": "2.5.4",
   "description": "Smart contracts for the Brickblock platform",
   "license": "UNLICENSED",
   "engines": {
@@ -40,7 +40,7 @@
     "seed": "cross-env NODE_PATH=build NODE_ENV=development node scripts/seed.js",
     "seed:ropsten": "cross-env NODE_PATH=build NODE_ENV=development node scripts/seed.ropsten.js",
     "---SECTION:TEST---": "-------------------- HOW TO TEST THE SMART CONTRACTS --------------------",
-    "test": "yarn run clean:contracts && truffle test test/main-tests/* && truffle test test/main-tests/**/* && truffle test test/unit-tests/*",
+    "test": "yarn run clean:contracts && truffle test test/main-tests/**/* && truffle test test/main-tests/* && truffle test test/unit-tests/*",
     "test:stress-test": "truffle test test/stress-tests/*",
     "test:coverage:comment": "Because solidity-coverage is still experimental we won't fail CI if it fails for now",
     "test:coverage": "( yarn solidity-coverage || true ) && open coverage/contracts/index.html",
@@ -96,6 +96,7 @@
     "eslint-plugin-prettier": "^2.6.0",
     "eslint-plugin-promise": "^3.6.0",
     "eslint-plugin-security": "^1.4.0",
+    "eth-gas-reporter": "^0.1.5",
     "ethereumjs-testrpc": "^6.0.1",
     "ethereumjs-util": "^5.1.5",
     "husky": "^0.14.3",

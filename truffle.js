@@ -4,8 +4,7 @@ module.exports = {
       host: 'localhost',
       port: 9545,
       network_id: 4447,
-      gas: 8e6,
-      gasPrice: 5e9
+      gasPrice: 1e9
     },
     ropsten: {
       host: 'localhost',
@@ -28,5 +27,8 @@ module.exports = {
       gas: 7e6,
       gasPrice: 1e9
     }
+  },
+  mocha: {
+    reporter: 'eth-gas-reporter'
   }
 }

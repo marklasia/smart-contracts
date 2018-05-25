@@ -8,7 +8,8 @@ const addContractsToRegistry = async ({
   owner,
   pmr, // PoaManager
   reg, // BrickblockContractRegistry
-  wht // BrickblockWhitelist
+  wht, // BrickblockWhitelist
+  poa // PoaToken master
 }) => {
   await reg.updateContractAddress('BrickblockToken', bbk.address, {
     from: owner
@@ -34,6 +35,10 @@ const addContractsToRegistry = async ({
   await reg.updateContractAddress('PoaManager', pmr.address, {
     from: owner
   })
+
+  await reg.updateContractAddress('PoaTokenMaster', poa.address, {
+    from: owner
+  })
 }
 
 const setFiatRate = async (exr, exp, queryType, rate, config) => {
@@ -46,7 +51,7 @@ const setFiatRate = async (exr, exp, queryType, rate, config) => {
       from: config.from
     }
   )
-  await exr.getCurrencySettingsReadable(queryType)
+  await exr.getCurrencySettings(queryType)
   await exr.fetchRate(queryType, config)
   const pendingQueryId = await exp.pendingTestQueryId()
   await exp.simulate__callback(pendingQueryId, '50000', {
