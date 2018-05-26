@@ -260,7 +260,7 @@ contract PoaToken is PausableToken {
   //
 
   function getContractAddress(string _name)
-    private
+    public
     view
     returns (address _contractAddress)
   {
@@ -299,7 +299,7 @@ contract PoaToken is PausableToken {
   // use assembly in order to avoid gas gas usage which is too high
   // used to check if whitelisted at Whitelist contract
   function checkIsWhitelisted(address _address)
-    private
+    public
     view
     returns (bool _isWhitelisted)
   {
