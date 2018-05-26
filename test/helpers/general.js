@@ -216,6 +216,24 @@ const checkForEvent = (eventName, eventArgs, txReceipt) => {
   )
 }
 
+const waitForEvent = (event, optTimeout) =>
+  new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      clearTimeout(timeout)
+      return reject(new Error('Timeout waiting for event'))
+    }, optTimeout || 20000)
+    // eslint-disable-next-line security/detect-non-literal-fs-filename
+    event.watch((err, res) => {
+      clearTimeout(timeout)
+      if (err) {
+        return reject(err)
+      }
+
+      event.stopWatching()
+      resolve(res)
+    })
+  })
+
 module.exports = {
   addressZero,
   areInRange,
@@ -235,5 +253,6 @@ module.exports = {
   testIsInRange,
   testWillThrow,
   timeTravel,
-  warpBlocks
+  warpBlocks,
+  waitForEvent
 }

@@ -13,13 +13,13 @@ const assert = require('assert')
 const {
   areInRange,
   bigZero,
-  checkForEvent,
   gasPrice,
   getEtherBalance,
   getGasUsed,
   sendTransaction,
   testWillThrow,
-  timeTravel
+  timeTravel,
+  waitForEvent
 } = require('./general')
 const { finalizedBBK } = require('./bbk')
 const { testApproveAndLockMany } = require('./act')
@@ -129,7 +129,8 @@ const setupEcosystem = async () => {
     exp,
     fmr,
     wht,
-    pmr
+    pmr,
+    log
   }
 }
 
@@ -197,7 +198,7 @@ const setupPoaAndEcosystem = async () => {
 }
 
 const setupPoaProxyAndEcosystem = async () => {
-  const { reg, act, bbk, exr, exp, fmr, wht, pmr } = await setupEcosystem()
+  const { reg, act, bbk, exr, exp, fmr, wht, pmr, log } = await setupEcosystem()
 
   await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
     from: owner,
@@ -245,7 +246,8 @@ const setupPoaProxyAndEcosystem = async () => {
     wht,
     pmr,
     poa,
-    poam
+    poam,
+    log
   }
 }
 
@@ -595,8 +597,9 @@ const testBuyTokens = async (poa, config) => {
   const preTokenBalance = await poa.balanceOf(buyer)
   const preFundedAmount = await poa.fundedAmountInWei()
   const preUserWeiInvested = await poa.investmentAmountPerUserInWei(buyer)
-
+  const BuyEvent = poa.BuyEvent()
   const tx = await poa.buy(config)
+  const { args: triggeredEvent } = await waitForEvent(BuyEvent)
   const gasUsed = await getGasUsed(tx)
   const gasCost = new BigNumber(gasUsed).mul(config.gasPrice)
 
@@ -607,15 +610,16 @@ const testBuyTokens = async (poa, config) => {
 
   const expectedPostEthBalance = preEthBalance.sub(weiBuyAmount).sub(gasCost)
 
-  checkForEvent(
-    'BuyEvent',
-    {
-      buyer: config.from,
-      amount: config.value
-    },
-    tx
+  assert.equal(
+    triggeredEvent.buyer,
+    config.from,
+    'buy event buyer should be equal to config.from'
   )
-
+  assert.equal(
+    triggeredEvent.amount.toString(),
+    config.value.toString(),
+    'buy event amount should be equal to config.value'
+  )
   assert.equal(
     expectedPostEthBalance.toString(),
     postEthBalance.toString(),

@@ -7,6 +7,7 @@ import "./interfaces/ExchangeRatesInterface.sol";
 import "./interfaces/PoaManagerInterface.sol";
 
 /* solium-disable security/no-block-members */
+/* solium-disable security/no-low-level-calls */
 
 
 contract PoaToken is PausableToken {
@@ -152,7 +153,7 @@ contract PoaToken is PausableToken {
     require(bytes(_ipfsHash).length == 46);
     require(bytes(_ipfsHash)[0] == 0x51);
     require(bytes(_ipfsHash)[1] == 0x6D);
-    require(keccak256(_ipfsHash) != keccak256(proofOfCustody));
+    require(keccak256(bytes(_ipfsHash)) != keccak256(bytes(proofOfCustody)));
     _;
   }
 
@@ -355,6 +356,10 @@ contract PoaToken is PausableToken {
   {
     stage = _stage;
     emit StageEvent(_stage);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logStageEvent(uint256)")),
+      _stage
+    );
   }
 
   // start lifecycle functions
@@ -420,9 +425,12 @@ contract PoaToken is PausableToken {
     fundedAmountInWei = fundedAmountInWei.add(_payAmount);
 
     emit BuyEvent(msg.sender, _payAmount);
+    // solium-disable security/no-low-level-calls
+    // we want to send this over without worrying about fails
     getContractAddress("Logger").call(
-      bytes4(sha3("logBuyEvent(address,uint256)")), msg.sender, _payAmount
+      bytes4(keccak256("logBuyEvent(address,uint256)")), msg.sender, _payAmount
     );
+    // solium-disable security/no-low-level-calls
 
     return true;
   }
@@ -491,6 +499,10 @@ contract PoaToken is PausableToken {
     proofOfCustody = _ipfsHash;
     // event showing that proofOfCustody has been updated.
     emit ProofOfCustodyUpdatedEvent(_ipfsHash);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logProofOfCustodyUpdatedEvent(string)")),
+      _ipfsHash
+    );
     // balance of contract (fundingGoalInCents) set to claimable by broker.
     // can now be claimed by broker via claim function
     // should only be buy()s - fee. this ensures buy() dust is cleared
@@ -663,6 +675,10 @@ contract PoaToken is PausableToken {
   {
     proofOfCustody = _ipfsHash;
     emit ProofOfCustodyUpdatedEvent(_ipfsHash);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logProofOfCustodyUpdatedEvent(string)")),
+      _ipfsHash
+    );
     return true;
   }
 
