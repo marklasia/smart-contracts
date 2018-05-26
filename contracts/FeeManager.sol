@@ -7,8 +7,8 @@ import "./interfaces/IExchangeRates.sol";
 
 
 contract FeeManager {
-
   using SafeMath for uint256;
+
   uint8 public constant version = 1;
 
   IRegistry private registry;

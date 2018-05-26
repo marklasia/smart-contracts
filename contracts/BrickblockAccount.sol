@@ -8,7 +8,6 @@ import "./interfaces/IAccessToken.sol";
 
 
 contract BrickblockAccount is Ownable {
-
   uint8 public constant version = 1;
   uint256 public fundsReleaseBlock;
   IRegistry private registry;

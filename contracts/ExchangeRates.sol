@@ -29,6 +29,7 @@ erroring which we parse as a uint256 which turns to 0.
 
 // main contract
 contract ExchangeRates is Ownable {
+  uint8 public constant version = 1;
   // instance of Registry to be used for getting other contract addresses
   IRegistry private registry;
   // flag used to tell recursive rate fetching to stop

@@ -9,6 +9,7 @@ import "./interfaces/IExchangeRates.sol";
 
 
 contract PoaToken is PausableToken {
+  uint8 public constant version = 1;
   // instance of registry to call other contracts
   address public registry;
   // ERC20 name of the token

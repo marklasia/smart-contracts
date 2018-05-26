@@ -5,56 +5,52 @@ import "./interfaces/IRegistry.sol";
 import "./interfaces/IBrickblockToken.sol";
 
 
+/*
+  glossary:
+    dividendParadigm: the way of handling dividends, and the per token data structures
+      * totalLockedBBK * (totalMintedPerToken - distributedPerBBK) / 1e18
+      * this is the typical way of handling dividends.
+      * per token data structures are stored * 1e18 (for more accuracy)
+      * this works fine until BBK is locked or unlocked.
+        * need to still know the amount they HAD locked before a change.
+        * securedFundsParadigm solves this (read below)
+      * when BBK is locked or unlocked, current funds for the relevant
+        account are bumped to a new paradigm for balance tracking.
+      * when bumped to new paradigm, dividendParadigm is essentially zeroed out
+        by setting distributedPerBBK to totalMintedPerToken
+          * (100 * (100 - 100) === 0)
+      * all minting activity related balance increments are tracked through this
+
+    securedFundsParadigm: funds that are bumped out of dividends during lock / unlock
+      * securedTokenDistributions (mapping)
+      * needed in order to track ACT balance after lock/unlockBBK
+      * tracks funds that have been bumped from dividendParadigm
+      * works as a regular balance (not per token)
+
+    doubleEntryParadigm: taking care of transfer and transferFroms
+      * receivedBalances[adr] - spentBalances[adr]
+      * needed in order to track correct balance after transfer/transferFrom
+      * receivedBalances used to increment any transfers to an account
+        * increments balanceOf
+        * needed to accurately track balanceOf after transfers and transferFroms
+      * spentBalances
+        * decrements balanceOf
+        * needed to accurately track balanceOf after transfers and transferFroms
+
+    dividendParadigm, securedFundsParadigm, doubleEntryParadigm combined
+      * when all combined, should correctly:
+        * show balance using balanceOf
+          * balances is set to private (cannot guarantee accuracy of this)
+          * balances not updated to correct values unless a
+            transfer/transferFrom happens
+      * dividendParadigm + securedFundsParadigm + doubleEntryParadigm
+        * totalLockedBBK * (totalMintedPerToken - distributedPerBBK[adr]) / 1e18
+          + securedTokenDistributions[adr]
+          + receivedBalances[adr] - spentBalances[adr]
+*/
 contract AccessToken is PausableToken {
-
-  /*
-    glossary:
-      dividendParadigm: the way of handling dividends, and the per token data structures
-        * totalLockedBBK * (totalMintedPerToken - distributedPerBBK) / 1e18
-        * this is the typical way of handling dividends.
-        * per token data structures are stored * 1e18 (for more accuracy)
-        * this works fine until BBK is locked or unlocked.
-          * need to still know the amount they HAD locked before a change.
-          * securedFundsParadigm solves this (read below)
-        * when BBK is locked or unlocked, current funds for the relevant
-          account are bumped to a new paradigm for balance tracking.
-        * when bumped to new paradigm, dividendParadigm is essentially zeroed out
-          by setting distributedPerBBK to totalMintedPerToken
-            * (100 * (100 - 100) === 0)
-        * all minting activity related balance increments are tracked through this
-
-      securedFundsParadigm: funds that are bumped out of dividends during lock / unlock
-        * securedTokenDistributions (mapping)
-        * needed in order to track ACT balance after lock/unlockBBK
-        * tracks funds that have been bumped from dividendParadigm
-        * works as a regular balance (not per token)
-
-      doubleEntryParadigm: taking care of transfer and transferFroms
-        * receivedBalances[adr] - spentBalances[adr]
-        * needed in order to track correct balance after transfer/transferFrom
-        * receivedBalances used to increment any transfers to an account
-          * increments balanceOf
-          * needed to accurately track balanceOf after transfers and transferFroms
-        * spentBalances
-          * decrements balanceOf
-          * needed to accurately track balanceOf after transfers and transferFroms
-
-      dividendParadigm, securedFundsParadigm, doubleEntryParadigm combined
-        * when all combined, should correctly:
-          * show balance using balanceOf
-            * balances is set to private (cannot guarantee accuracy of this)
-            * balances not updated to correct values unless a
-              transfer/transferFrom happens
-        * dividendParadigm + securedFundsParadigm + doubleEntryParadigm
-          * totalLockedBBK * (totalMintedPerToken - distributedPerBBK[adr]) / 1e18
-            + securedTokenDistributions[adr]
-            + receivedBalances[adr] - spentBalances[adr]
-  */
-
-  // instance of registry contract to get contract addresses
-
   uint8 public constant version = 1;
-
+  // instance of registry contract to get contract addresses
   IRegistry private registry;
   string public constant name = "AccessToken";
   string public constant symbol = "ACT";

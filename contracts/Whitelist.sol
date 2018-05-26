@@ -4,7 +4,6 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
 contract Whitelist is Ownable {
-
   uint8 public constant version = 1;
 
   mapping (address => bool) public whitelisted;

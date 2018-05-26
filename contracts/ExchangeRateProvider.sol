@@ -6,7 +6,6 @@ import "./interfaces/IExchangeRates.sol";
 
 
 contract ExchangeRateProvider is usingOraclize {
-
   uint8 public constant version = 1;
 
   IRegistry private registry;
