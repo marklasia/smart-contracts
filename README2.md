@@ -85,30 +85,45 @@ Standalone Contract:
 ## ContractRegistry
 `ContractRegistry` is a rather simple yet integral part of the ecosystem. It allows all of the other contracts to talk to each other in the ecosystem. It also allows for swapping out non-`PoaToken` contracts for newer versions. This will allow for the smart contracts to evolve and improve over time along with the needs of the project.
 
-It uses a single private mapping which maps `bytes32` to addresses. A given `string` converted to bytes32 will return a corresponding address.
+It uses a single private mapping which maps `bytes32` to addresses. A given `string` converted to bytes32 by hashing the string using `keccak256` will return a corresponding address.
 
 There are several getters: one allows usage of `string`s and the other allows direct usage of `bytes32` (useful for some required assembly in other contracts).
 
 There is a single setter which is restricted using OpenZeppelin's `Ownable` contract.
 
-### Limitations
-Due to the nature of converting `string`s to `bytes32`s
-
 ## BrickblockToken
-BrickblockToken is an ERC20 Token with added features enabling the Brickblock contract to:
+BrickblockToken is an ERC20 `PausableToken` (from OpenZeppelin) with added features enabling the Brickblock contract to:
 
 * send out tokens from the token sale
 * finalise the token sale according to previously agreed up terms
-* approve the fountain contract to transfer tokens
+* approve the `BrickblockAccount` contract to transfer company tokens
 * change the stored address for the fountain contract
 * be tradable amongst users
 * be tradable on exchanges
-* be upgradeable
+* be pausable
 
-Company tokens are locked in by assigning the value to the contract itself. The owner never starts with any token balance. This way there is no way to move the tokens without predetermined functions. The tokens are approved to be locked into the `AccessToken` contract when `finalizeTokenSale` is called. Once when the tokens are locked into the `AccessToken`, there will be no way to move them until November 30, 2020.
+Finalize token sale is the most noteworthy function which finalizes balances once when the token sale has finished. There are three main groups where percentages are allocated:
+1. `contributorsShare`
+    * 51%
+1. `companyTokens`
+    * 35%
+1. `bonusTokens`
+    * 14%
 
-The `AccessToken` contract will later be called to lock the company funds into the fountain. See below for more details.
+When the sale is finalized, any unsold tokens are burnt from the `contributorsShare`. 
 
+Company tokens are held as the contract's token balance (`balanceOf(address(this))`). When finalize is called it sets approval for a given contract to run `trasnferFrom`. The contract to get this approval `BrickblockAccount`.
+
+Company tokens can be used like other users' tokens other than being able to move tokens outside of the ecosystem until November 30, 2020. More details on these functions will be covered in the `BrickblockAccount` section.
+
+The `AccessToken` contract will later be called to lock the company funds into the fountain. See below for more details. This is the same process for any other users wanting to benefit from `BrickblockToken` ownership.
+
+### Important Note
+In early development there was a contract called `BrickblockFountain`. The address value on the current `BrickblockToken` on mainnet is `fountainContractAddress`. This is actually the `BrickblockAccount` contract. Concepts and methods of handling company tokens have changed since deployment of the `BrickblockToken` contract. The end result is exactly the same as originally intended. Only the execution and variable names are different.
+
+`BrickblockAccount` was essentially meant to be part of the functionality of `AccessToken`. It was later found to be a better idea to seperate these contracts for clarity and cleaner code.
+
+There is also a `toggleDead` function which does not do anything other than set a cosmentic `bool` variable. It is only meant to be a flag to set should the worst happen...
 
 ## AccessToken
 
