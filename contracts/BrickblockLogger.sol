@@ -1,30 +1,13 @@
 pragma solidity ^0.4.23;
 
-interface IContractRegistry {
-  function getContractAddress(string _name)
-    external
-    view
-    returns (address);
-}
-
-interface IPoaManager {
-  function getTokenStatus(address _tokenAddress)
-    external
-    view
-    returns(bool);
-}
-
-interface IPoaToken {
-  function proofOfCustody()
-    external
-    view
-    returns (string);
-}
+import "./interfaces/BrickblockContractRegistryInterface.sol";
+import "./interfaces/PoaManagerInterface.sol";
+import "./interfaces/PoaTokenInterface.sol";
 
 
 contract BrickblockLogger {
-  // TODO: is this cheaper when we store as an address and cast to Registry when we need it?
-  IContractRegistry public registry;
+  // registry instance to get other contract addresses
+  RegistryInterface public registry;
 
   constructor(
     address _registryAddress
@@ -32,12 +15,13 @@ contract BrickblockLogger {
     public
   {
     require(_registryAddress != address(0));
-    registry = IContractRegistry(_registryAddress);
+    registry = RegistryInterface(_registryAddress);
   }
-
+  
+  // only allow listed poa tokens to trigger events
   modifier onlyActivePoaToken() {
     require(
-      IPoaManager(
+      PoaManagerInterface(
         registry.getContractAddress("PoaManager")
       ).getTokenStatus(msg.sender)
     );
@@ -101,14 +85,12 @@ contract BrickblockLogger {
     emit BuyEvent(msg.sender, buyer, amount);
   }
 
-  function logProofOfCustodyUpdatedEvent(
-    string _ipfsHash
-  )
+  function logProofOfCustodyUpdatedEvent()
     external
     onlyActivePoaToken
   {
-    // probably more simple and cleaner in code to do this way... poa already too cluttered...
-    string memory _realIpfsHash = IPoaToken(msg.sender).proofOfCustody();
+    // easier to get the set ipfsHash from contract rather than send over string
+    string memory _realIpfsHash = PoaTokenInterface(msg.sender).proofOfCustody();
 
     emit ProofOfCustodyUpdatedEvent(
       msg.sender,
@@ -175,5 +157,13 @@ contract BrickblockLogger {
       _reclaimer,
       _amount
     );
+  }
+
+  // keep money from entering this contract, unless selfdestruct of course :)
+  function()
+    public
+    payable
+  {
+    revert();
   }
 }

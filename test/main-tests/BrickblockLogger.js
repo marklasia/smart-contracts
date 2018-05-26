@@ -63,15 +63,3 @@ describe('when using Brickblock logger to log PoaToken events', () => {
     })
   })
 })
-
-/*
-need to test following events:
-  StageEvent
-  BuyEvent
-  PayoutEvent
-  ClaimEvent
-  TerminatedEvent
-  ProofOfCustodyUpdatedEvent
-  ReclaimEvent
-  CustodianChangedEvent
-*/
