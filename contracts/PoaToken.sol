@@ -589,7 +589,7 @@ contract PoaToken is PausableToken {
     // event showing that proofOfCustody has been updated.
     emit ProofOfCustodyUpdatedEvent(_ipfsHash);
     getContractAddress("Logger")
-      .call(bytes4(keccak256("logProofOfCustodyUpdatedEvent(string)")));
+      .call(bytes4(keccak256("logProofOfCustodyUpdatedEvent()")));
     // balance of contract (fundingGoalInCents) set to claimable by broker.
     // can now be claimed by broker via claim function
     // should only be buy()s - fee. this ensures buy() dust is cleared
