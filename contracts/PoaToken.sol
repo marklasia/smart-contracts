@@ -3,8 +3,7 @@ pragma solidity ^0.4.23;
 import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
 import "./interfaces/BrickblockFeeManagerInterface.sol";
 import "./interfaces/BrickblockWhitelistInterface.sol";
-import "./interfaces/ExchangeRatesInterface.sol";
-//import "./interfaces/PoaManagerInterface.sol";
+//import "./interfaces/ExchangeRatesInterface.sol";
 
 /* solium-disable security/no-block-members */
 /* solium-disable security/no-low-level-calls */
@@ -223,8 +222,6 @@ contract PoaToken is PausableToken {
     paused = true;
     whitelistTransfers = false;
 
-    owner = getContractAddress("PoaManager");
-
     // get registry address from PoaManager which should be msg.sender
     // assembly call because of gas limits...
     address _tempReg;
@@ -254,6 +251,8 @@ contract PoaToken is PausableToken {
 
     // assign _tempReg gotten from assembly call to PoaManager.registry() to registry
     registry = _tempReg;
+
+    owner = getContractAddress("PoaManager");
 
     // run getRate once in order to see if rate is initialized, throws if not
     ExchangeRatesInterface(getContractAddress("ExchangeRates"))
@@ -453,12 +452,10 @@ contract PoaToken is PausableToken {
     fundedAmountInWei = fundedAmountInWei.add(_payAmount);
 
     emit BuyEvent(msg.sender, _payAmount);
-    // solium-disable security/no-low-level-calls
     // we want to send this over without worrying about fails
     getContractAddress("Logger").call(
       bytes4(keccak256("logBuyEvent(address,uint256)")), msg.sender, _payAmount
     );
-    // solium-disable security/no-low-level-calls
 
     return true;
   }
@@ -637,6 +634,12 @@ contract PoaToken is PausableToken {
     require(_refundAmount > 0);
     fundedAmountInWei = fundedAmountInWei.sub(_refundAmount);
     msg.sender.transfer(_refundAmount);
+    emit ReclaimEvent(msg.sender, _refundAmount);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logReclaimEvent(address,uint256)")),
+      msg.sender,
+      _refundAmount
+    );
     return true;
   }
 
@@ -698,6 +701,8 @@ contract PoaToken is PausableToken {
     claimedPerTokenPayouts[msg.sender] = totalPerTokenPayout;
     // 0 out unclaimedPayoutTotals for user
     unclaimedPayoutTotals[msg.sender] = 0;
+    // transfer Ξ payable amount to sender
+    msg.sender.transfer(_payoutAmount);
     // let the world know that a payout for sender has been claimed
     emit ClaimEvent(msg.sender, _payoutAmount);
     getContractAddress("Logger").call(
@@ -705,8 +710,6 @@ contract PoaToken is PausableToken {
       msg.sender,
       _payoutAmount
     );
-    // transfer Ξ payable amount to sender
-    msg.sender.transfer(_payoutAmount);
     return _payoutAmount;
   }
 

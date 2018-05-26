@@ -14,7 +14,10 @@ const {
   testPayout,
   testClaim,
   testTerminate,
-  testChangeCustodianAddress
+  testChangeCustodianAddress,
+  setupPoaProxyAndEcosystem,
+  fundingTimeoutContract,
+  testReclaim
 } = require('./poa')
 
 // change PoaManager reg entry to owner for easier testing...
@@ -330,8 +333,6 @@ const testChangeCustodianEvents = async (poa, reg, pmr, log) => {
   const { args: triggeredLoggerEvent } = await waitForEvent(
     LoggerCustodianChangedEvent
   )
-  // there are no arguments for regular CustodianChanged event...
-  // the fact that this does not timeout is proof it was logged
   const { args: triggeredEvent } = await waitForEvent(CustodianChangedEvent)
 
   // change back so that other testing functions will work with owner...
@@ -364,6 +365,53 @@ const testChangeCustodianEvents = async (poa, reg, pmr, log) => {
   )
 }
 
+const testReclaimEvents = async () => {
+  const tokenBuyAmount = new BigNumber(1e18)
+  const from = whitelistedPoaBuyers[0]
+
+  // need a whole new instance in order to test this...
+  const { poa, reg, log, pmr } = await setupPoaProxyAndEcosystem()
+  // move into Funding
+  const neededTime = await determineNeededTimeTravel(poa)
+  await timeTravel(neededTime)
+  await testStartSale(poa)
+  // purchase tokens to reclaim when failed
+  await testBuyTokens(poa, {
+    from: whitelistedPoaBuyers[0],
+    value: tokenBuyAmount,
+    gasPrice
+  })
+  // change to actual PoaManager contract so that logger validation works...
+  await poaManagerToPoaManager(reg, pmr.address)
+  await fundingTimeoutContract(poa)
+
+  const LoggerStageEvent = log.StageEvent()
+  const StageEvent = poa.StageEvent()
+  const LoggerReclaimEvent = log.ReclaimEvent()
+  const ReclaimEvent = log.ReclaimEvent()
+
+  await testReclaim(poa, from, true)
+
+  const { args: triggeredLoggerStageEvent } = await waitForEvent(
+    LoggerStageEvent
+  )
+  const { args: triggeredLoggerReclaimEvent } = await waitForEvent(
+    LoggerReclaimEvent
+  )
+  const { args: triggeredStageEvent } = await waitForEvent(StageEvent)
+  const { args: triggeredReclaimEvent } = await waitForEvent(ReclaimEvent)
+
+  // change back so that other testing functions will work with owner...
+  await poaManagerToOwner(reg)
+
+  console.log(
+        triggeredLoggerStageEvent,
+        triggeredStageEvent,
+    triggeredLoggerReclaimEvent,
+    triggeredReclaimEvent
+  )
+}
+
 module.exports = {
   poaManagerToOwner,
   poaManagerToPoaManager,
@@ -374,5 +422,6 @@ module.exports = {
   testPayoutEvents,
   testClaimEvents,
   testTerminateEvents,
-  testChangeCustodianEvents
+  testChangeCustodianEvents,
+  testReclaimEvents
 }

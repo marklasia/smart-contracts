@@ -6,7 +6,8 @@ const {
   testPayoutEvents,
   testClaimEvents,
   testTerminateEvents,
-  testChangeCustodianEvents
+  testChangeCustodianEvents,
+  testReclaimEvents
 } = require('../helpers/log')
 const { setupPoaProxyAndEcosystem } = require('../helpers/poa')
 
@@ -55,7 +56,9 @@ describe('when using Brickblock logger to log PoaToken events', () => {
       await testChangeCustodianEvents(poa, reg, pmr, log)
     })
 
-    it('should log reclaim events', async () => {})
+    it('should log reclaim events', async () => {
+      await testReclaimEvents()
+    })
   })
 })
 

@@ -70,15 +70,15 @@ contract BrickblockLogger {
   event TerminatedEvent(
     address indexed tokenAddress
   );
-  event ReclaimEvent(
-    address indexed tokenAddress, 
-    address indexed reclaimer, 
-    uint256 amount
-  );
   event CustodianChangedEvent(
     address indexed tokenAddress,
     address oldAddress,
     address newAddress
+  );
+  event ReclaimEvent(
+    address indexed tokenAddress, 
+    address indexed reclaimer, 
+    uint256 amount
   );
 
   // event triggers for each event
@@ -107,7 +107,6 @@ contract BrickblockLogger {
     external
     onlyActivePoaToken
   {
-    // there is a better way to do this... need to investigate more...
     // probably more simple and cleaner in code to do this way... poa already too cluttered...
     string memory _realIpfsHash = IPoaToken(msg.sender).proofOfCustody();
 
@@ -161,6 +160,20 @@ contract BrickblockLogger {
       msg.sender,
       _oldAddress,
       _newAddress
+    );
+  }
+
+  function logReclaimEvent(
+    address _reclaimer,
+    uint256 _amount
+  )
+    external
+    onlyActivePoaToken
+  {
+    emit ReclaimEvent(
+      msg.sender,
+      _reclaimer,
+      _amount
     );
   }
 }
