@@ -1,6 +1,6 @@
 pragma solidity 0.4.23;
 
-// limited BrickblockContractRegistry definition
+// limited ContractRegistry definition
 interface IRegistry {
   function owner() 
     external 

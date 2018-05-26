@@ -5,7 +5,7 @@ import "./interfaces/IRegistry.sol";
 import "./interfaces/IBrickblockToken.sol";
 
 
-contract BrickblockAccessToken is PausableToken {
+contract AccessToken is PausableToken {
 
   /*
     glossary:
@@ -56,7 +56,7 @@ contract BrickblockAccessToken is PausableToken {
   uint8 public constant version = 1;
 
   IRegistry private registry;
-  string public constant name = "BrickblockAccessToken";
+  string public constant name = "AccessToken";
   string public constant symbol = "ACT";
   uint8 public constant decimals = 18;
 

@@ -1,13 +1,13 @@
-const AccessToken = artifacts.require('BrickblockAccessToken')
-const ContractRegistry = artifacts.require('BrickblockContractRegistry')
+const AccessToken = artifacts.require('AccessToken')
+const ContractRegistry = artifacts.require('ContractRegistry')
 const ExchangeRateProvider = artifacts.require('ExchangeRateProviderStub')
 const ExchangeRates = artifacts.require('ExchangeRates')
-const FeeManager = artifacts.require('BrickblockFeeManager')
-const Logger = artifacts.require('BrickblockLogger')
+const FeeManager = artifacts.require('FeeManager')
+const Logger = artifacts.require('CentralLogger')
 const PoaManager = artifacts.require('PoaManager')
 const PoaManagerStub = artifacts.require('PoaManagerStub')
 const PoaToken = artifacts.require('PoaToken')
-const Whitelist = artifacts.require('BrickblockWhitelist')
+const Whitelist = artifacts.require('Whitelist')
 
 const assert = require('assert')
 const {

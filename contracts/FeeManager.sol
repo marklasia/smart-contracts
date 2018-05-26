@@ -6,7 +6,7 @@ import "./interfaces/IRegistry.sol";
 import "./interfaces/IExchangeRates.sol";
 
 
-contract BrickblockFeeManager {
+contract FeeManager {
 
   using SafeMath for uint256;
   uint8 public constant version = 1;

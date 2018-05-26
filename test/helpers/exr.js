@@ -4,7 +4,7 @@ const ExchangeRates = artifacts.require('ExchangeRates')
 const ExchangeRateProvider = artifacts.require(
   './stubs/ExchangeRateProviderStub'
 )
-const Registry = artifacts.require('BrickblockContractRegistry')
+const Registry = artifacts.require('ContractRegistry')
 const { sendTransaction, getEtherBalance, getGasUsed } = require('./general')
 
 const trimBytes = string => string.replace(/\0/g, '')

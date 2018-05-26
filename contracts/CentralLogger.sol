@@ -5,7 +5,7 @@ import "./interfaces/IPoaManager.sol";
 import "./interfaces/IPoaToken.sol";
 
 
-contract BrickblockLogger {
+contract CentralLogger {
   // registry instance to get other contract addresses
   IRegistry public registry;
 

@@ -3,7 +3,7 @@ pragma solidity 0.4.23;
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
-contract BrickblockWhitelist is Ownable {
+contract Whitelist is Ownable {
 
   uint8 public constant version = 1;
 

@@ -100,7 +100,7 @@ contract ExchangeRateProvider is usingOraclize {
   {
     // make sure that the caller is oraclize
     require(msg.sender == oraclize_cbAddress());
-    // get currency address of BrickblockContractRegistry
+    // get currency address of ContractRegistry
     IExchangeRates _exchangeRates = IExchangeRates(
       registry.getContractAddress("ExchangeRates")
     );
