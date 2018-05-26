@@ -2,7 +2,11 @@ const {
   testPreFundingToFundingEvent,
   testBuyTokensEvents,
   testBuyRemainingTokensEvents,
-  testActivateEvents
+  testActivateEvents,
+  testPayoutEvents,
+  testClaimEvents,
+  testTerminateEvents,
+  testChangeCustodianEvents
 } = require('../helpers/log')
 const { setupPoaProxyAndEcosystem } = require('../helpers/poa')
 
@@ -31,19 +35,27 @@ describe('when using Brickblock logger to log PoaToken events', () => {
       await testBuyRemainingTokensEvents(poa, reg, pmr, log)
     })
 
-    it('should log proof of custody updated event', async () => {
+    it('should log proof of custody updated events', async () => {
       await testActivateEvents(poa, reg, pmr, fmr, log)
     })
 
-    it('should log payout events', async () => {})
+    it('should log payout events', async () => {
+      await testPayoutEvents(poa, reg, pmr, fmr, log)
+    })
 
-    it('should log claim events', async () => {})
+    it('should log claim events', async () => {
+      await testClaimEvents(poa, reg, pmr, log)
+    })
 
-    it('should log terminated events', async () => {})
+    it('should log terminated events', async () => {
+      await testTerminateEvents(poa, reg, pmr, log)
+    })
 
-    it('should log reclaim event', async () => {})
+    it('should log custodian changed events', async () => {
+      await testChangeCustodianEvents(poa, reg, pmr, log)
+    })
 
-    it('should log custodian changed event', async () => {})
+    it('should log reclaim events', async () => {})
   })
 })
 

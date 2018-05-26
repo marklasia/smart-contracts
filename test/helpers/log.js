@@ -1,5 +1,3 @@
-const ContractRegistry = artifacts.require('BrickblockContractRegistry')
-const BrickblockLogger = artifacts.require('BrickblockLogger')
 const BigNumber = require('bignumber.js')
 const { waitForEvent, gasPrice } = require('./general')
 const {
@@ -12,17 +10,19 @@ const {
   testBuyRemainingTokens,
   testActivate,
   custodian,
-  defaultIpfsHash
+  defaultIpfsHash,
+  testPayout,
+  testClaim,
+  testTerminate,
+  testChangeCustodianAddress
 } = require('./poa')
 
-// used in order to avoid rewriting a ton of tests...
-const getLogger = async poa => {
-  const regAddress = await poa.registry()
-  const reg = await ContractRegistry.at(regAddress)
-  const loggerAddress = await reg.getContractAddress('Logger')
-  const log = await BrickblockLogger.at(loggerAddress)
-  return log
-}
+// change PoaManager reg entry to owner for easier testing...
+const poaManagerToOwner = reg => reg.updateContractAddress('PoaManager', owner)
+
+// change PoaManager reg entry back to correct contract
+const poaManagerToPoaManager = (reg, addr) =>
+  reg.updateContractAddress('PoaManager', addr)
 
 // only meant to be used for transition from stage 0 to stage 1
 const testPreFundingToFundingEvent = async (poa, reg, pmr, log) => {
@@ -70,24 +70,24 @@ const testBuyTokensEvents = async (poa, reg, pmr, log) => {
     gasPrice
   })
 
-  const { args: triggeredLogEvent } = await waitForEvent(LoggerBuyEvent)
+  const { args: triggeredLoggerEvent } = await waitForEvent(LoggerBuyEvent)
   const { args: triggeredEvent } = await waitForEvent(BuyEvent)
 
   // change back so that other testing functions will work with owner...
   await poaManagerToOwner(reg)
 
   assert.equal(
-    triggeredLogEvent.tokenAddress,
+    triggeredLoggerEvent.tokenAddress,
     poa.address,
     'logger buy event tokenAddress should match poa.address'
   )
   assert.equal(
-    triggeredLogEvent.buyer,
+    triggeredLoggerEvent.buyer,
     from,
     'logger buy event buyer should match from'
   )
   assert.equal(
-    triggeredLogEvent.amount.toString(),
+    triggeredLoggerEvent.amount.toString(),
     value.toString(),
     'logger buy event amount should match value'
   )
@@ -113,24 +113,24 @@ const testBuyRemainingTokensEvents = async (poa, reg, pmr, log) => {
     gasPrice
   })
 
-  const { args: triggeredLogEvent } = await waitForEvent(LoggerBuyEvent)
+  const { args: triggeredLoggerEvent } = await waitForEvent(LoggerBuyEvent)
   const { args: triggeredEvent } = await waitForEvent(BuyEvent)
 
   // change back so that other testing functions will work with owner...
   await poaManagerToOwner(reg)
 
   assert.equal(
-    triggeredLogEvent.tokenAddress,
+    triggeredLoggerEvent.tokenAddress,
     poa.address,
     'logger buy event tokenAddress should match poa.address'
   )
   assert.equal(
-    triggeredLogEvent.buyer,
+    triggeredLoggerEvent.buyer,
     from,
     'logger buy event buyer should match from'
   )
   assert.equal(
-    triggeredLogEvent.amount.toString(),
+    triggeredLoggerEvent.amount.toString(),
     value.toString(),
     'logger buy event amount should match value'
   )
@@ -199,23 +199,180 @@ const testActivateEvents = async (poa, reg, pmr, fmr, log) => {
   assert.equal(
     triggeredProofEvent.ipfsHash,
     defaultIpfsHash,
-    'logger proof of custody updated even ipfs hash should match defaultIpfsHash'
+    'proof of custody updated even ipfs hash should match defaultIpfsHash'
   )
 }
 
-// changen PoaManager reg entry to owner for easier testing...
-const poaManagerToOwner = reg => reg.updateContractAddress('PoaManager', owner)
+const testPayoutEvents = async (poa, reg, pmr, fmr, log) => {
+  const from = custodian
+  const value = new BigNumber(1e18)
+  // change to actual PoaManager contract so that logger validation works...
+  await poaManagerToPoaManager(reg, pmr.address)
 
-// change PoaManager reg entry back to correct contract
-const poaManagerToPoaManager = (reg, addr) =>
-  reg.updateContractAddress('PoaManager', addr)
+  const LoggerPayoutEvent = log.PayoutEvent()
+  const PayoutEvent = poa.PayoutEvent()
+
+  await testPayout(poa, fmr, {
+    from,
+    value,
+    gasPrice
+  })
+
+  const { args: triggeredLoggerEvent } = await waitForEvent(LoggerPayoutEvent)
+  const { args: triggeredEvent } = await waitForEvent(PayoutEvent)
+
+  // change back so that other testing functions will work with owner...
+  await poaManagerToOwner(reg)
+
+  assert.equal(
+    triggeredLoggerEvent.tokenAddress,
+    poa.address,
+    'logger payout event token address should match poa.address'
+  )
+  assert(
+    triggeredLoggerEvent.amount.greaterThan(0),
+    'logger payout event amount should be more than 0'
+  )
+  assert(
+    triggeredEvent.amount.greaterThan(0),
+    'payout event amount should be more than 0'
+  )
+}
+
+const testClaimEvents = async (poa, reg, pmr, log) => {
+  const from = whitelistedPoaBuyers[0]
+  // change to actual PoaManager contract so that logger validation works...
+  await poaManagerToPoaManager(reg, pmr.address)
+
+  const LoggerClaimEvent = log.ClaimEvent()
+  const ClaimEvent = poa.ClaimEvent()
+
+  await testClaim(poa, {
+    from,
+    gasPrice
+  })
+
+  const { args: triggeredLoggerEvent } = await waitForEvent(LoggerClaimEvent)
+  const { args: triggeredEvent } = await waitForEvent(ClaimEvent)
+
+  // change back so that other testing functions will work with owner...
+  await poaManagerToOwner(reg)
+
+  assert.equal(
+    triggeredLoggerEvent.tokenAddress,
+    poa.address,
+    'logger claim event token address should match poa.address'
+  )
+  assert.equal(
+    triggeredLoggerEvent.claimer,
+    from,
+    'logger claim event claimer should match from address'
+  )
+  assert(
+    triggeredLoggerEvent.payout.greaterThan(0),
+    'logger claim event amount should be more than 0'
+  )
+  assert.equal(
+    triggeredEvent.claimer,
+    from,
+    'claim event claimer should match from address'
+  )
+  assert(
+    triggeredEvent.payout.greaterThan(0),
+    'claim event amount should be more than 0'
+  )
+}
+
+const testTerminateEvents = async (poa, reg, pmr, log) => {
+  const from = custodian
+  // change to actual PoaManager contract so that logger validation works...
+  await poaManagerToPoaManager(reg, pmr.address)
+
+  const LoggerTerminatedEvent = log.TerminatedEvent()
+  const TerminatedEvent = poa.TerminatedEvent()
+
+  await testTerminate(poa, {
+    from,
+    gasPrice
+  })
+
+  const { args: triggeredLoggerEvent } = await waitForEvent(
+    LoggerTerminatedEvent
+  )
+  // there are no arguments for regular Terminated event...
+  // the fact that this does not timeout is proof it was logged
+  await waitForEvent(TerminatedEvent)
+
+  // change back so that other testing functions will work with owner...
+  await poaManagerToOwner(reg)
+
+  assert.equal(
+    triggeredLoggerEvent.tokenAddress,
+    poa.address,
+    'logger claim event token address should match poa.address'
+  )
+}
+
+const testChangeCustodianEvents = async (poa, reg, pmr, log) => {
+  const from = custodian
+  const newCustodian = web3.eth.accounts[9]
+  // change to actual PoaManager contract so that logger validation works...
+  await poaManagerToPoaManager(reg, pmr.address)
+
+  const LoggerCustodianChangedEvent = log.CustodianChangedEvent()
+  const CustodianChangedEvent = poa.CustodianChangedEvent()
+
+  await testChangeCustodianAddress(poa, newCustodian, {
+    from,
+    gasPrice
+  })
+
+  const { args: triggeredLoggerEvent } = await waitForEvent(
+    LoggerCustodianChangedEvent
+  )
+  // there are no arguments for regular CustodianChanged event...
+  // the fact that this does not timeout is proof it was logged
+  const { args: triggeredEvent } = await waitForEvent(CustodianChangedEvent)
+
+  // change back so that other testing functions will work with owner...
+  await poaManagerToOwner(reg)
+
+  assert.equal(
+    triggeredLoggerEvent.tokenAddress,
+    poa.address,
+    'logger custodian changed event token address should match poa.address'
+  )
+  assert.equal(
+    triggeredLoggerEvent.oldAddress,
+    custodian,
+    'logger custodian changed event old custodian should match custodian'
+  )
+  assert.equal(
+    triggeredLoggerEvent.newAddress,
+    newCustodian,
+    'logger custodian changed event new custodian should match newCustodian'
+  )
+  assert.equal(
+    triggeredEvent.oldAddress,
+    custodian,
+    'custodian changed event old custodian should match custodian'
+  )
+  assert.equal(
+    triggeredEvent.newAddress,
+    newCustodian,
+    'custodian changed event new custodian should match newCustodian'
+  )
+}
 
 module.exports = {
-  getLogger,
-  testPreFundingToFundingEvent,
   poaManagerToOwner,
   poaManagerToPoaManager,
+  testPreFundingToFundingEvent,
   testBuyTokensEvents,
   testBuyRemainingTokensEvents,
-  testActivateEvents
+  testActivateEvents,
+  testPayoutEvents,
+  testClaimEvents,
+  testTerminateEvents,
+  testChangeCustodianEvents
 }

@@ -4,7 +4,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
 import "./interfaces/BrickblockFeeManagerInterface.sol";
 import "./interfaces/BrickblockWhitelistInterface.sol";
 import "./interfaces/ExchangeRatesInterface.sol";
-import "./interfaces/PoaManagerInterface.sol";
+//import "./interfaces/PoaManagerInterface.sol";
 
 /* solium-disable security/no-block-members */
 /* solium-disable security/no-low-level-calls */
@@ -78,7 +78,7 @@ contract PoaToken is PausableToken {
   event TerminatedEvent();
   event ProofOfCustodyUpdatedEvent(string ipfsHash);
   event ReclaimEvent(address indexed reclaimer, uint256 amount);
-  event CustodianChangedEvent(address newAddress);
+  event CustodianChangedEvent(address indexed oldAddress, address indexed newAddress);
 
   modifier eitherCustodianOrOwner() {
     owner = getContractAddress("PoaManager");
@@ -223,10 +223,38 @@ contract PoaToken is PausableToken {
     paused = true;
     whitelistTransfers = false;
 
-    // get registry address from PoaManager which should be msg.sender
-    registry = PoaManagerInterface(msg.sender).registry();
-
     owner = getContractAddress("PoaManager");
+
+    // get registry address from PoaManager which should be msg.sender
+    // assembly call because of gas limits...
+    address _tempReg;
+    bytes4 _sig = bytes4(keccak256("registry()"));
+    assembly {
+      let _call := mload(0x40)
+      mstore(_call, _sig)
+      let success := staticcall(
+        gas,
+        caller,
+        _call,
+        0x04,
+        0xf0,
+        0x20
+      )
+
+      if iszero(success) {
+        revert(
+          0xf0,
+          0x20
+        )
+      }
+
+      _tempReg := mload(0xf0)
+      mstore(0x40, 0x100)
+    }
+
+    // assign _tempReg gotten from assembly call to PoaManager.registry() to registry
+    registry = _tempReg;
+
     // run getRate once in order to see if rate is initialized, throws if not
     ExchangeRatesInterface(getContractAddress("ExchangeRates"))
       .getRate(fiatCurrency);
@@ -476,8 +504,14 @@ contract PoaToken is PausableToken {
   {
     require(_newCustodian != address(0));
     require(_newCustodian != custodian);
+    address _oldCustodian = custodian;
     custodian = _newCustodian;
-    emit CustodianChangedEvent(_newCustodian);
+    emit CustodianChangedEvent(_oldCustodian, _newCustodian);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logCustodianChangedEvent(address,address)")),
+      _oldCustodian,
+      _newCustodian
+    );
     return true;
   }
 
@@ -530,6 +564,8 @@ contract PoaToken is PausableToken {
     paused = true;
     // let the world know this token is in Terminated Stage
     emit TerminatedEvent();
+    getContractAddress("Logger")
+      .call(bytes4(keccak256("logTerminatedEvent()")));
     return true;
   }
 
@@ -636,6 +672,10 @@ contract PoaToken is PausableToken {
     payFee(_fee.add(_delta));
     // let the world know that a payout has happened for this token
     emit PayoutEvent(_payoutAmount.sub(_delta));
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logPayoutEvent(uint256)")),
+      _payoutAmount.sub(_delta)
+    );
     return true;
   }
 
@@ -660,6 +700,11 @@ contract PoaToken is PausableToken {
     unclaimedPayoutTotals[msg.sender] = 0;
     // let the world know that a payout for sender has been claimed
     emit ClaimEvent(msg.sender, _payoutAmount);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logClaimEvent(address,uint256)")),
+      msg.sender,
+      _payoutAmount
+    );
     // transfer Ξ payable amount to sender
     msg.sender.transfer(_payoutAmount);
     return _payoutAmount;

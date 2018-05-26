@@ -76,30 +76,37 @@ contract BrickblockLogger {
     uint256 amount
   );
   event CustodianChangedEvent(
-    address indexed tokenAddress, 
+    address indexed tokenAddress,
+    address oldAddress,
     address newAddress
   );
 
   // event triggers for each event
-  function logStageEvent(uint256 stage)
+  function logStageEvent(
+    uint256 stage
+  )
     external
     onlyActivePoaToken
   {
     emit StageEvent(msg.sender, stage);
   }
 
-  function logBuyEvent(address buyer, uint256 amount)
+  function logBuyEvent(
+    address buyer, 
+    uint256 amount
+  )
     external
     onlyActivePoaToken
   {
     emit BuyEvent(msg.sender, buyer, amount);
   }
 
-  function logProofOfCustodyUpdatedEvent(string _ipfsHash)
+  function logProofOfCustodyUpdatedEvent(
+    string _ipfsHash
+  )
     external
     onlyActivePoaToken
   {
-
     // there is a better way to do this... need to investigate more...
     // probably more simple and cleaner in code to do this way... poa already too cluttered...
     string memory _realIpfsHash = IPoaToken(msg.sender).proofOfCustody();
@@ -107,6 +114,53 @@ contract BrickblockLogger {
     emit ProofOfCustodyUpdatedEvent(
       msg.sender,
       _realIpfsHash
+    );
+  }
+
+  function logPayoutEvent(
+    uint256 _amount
+  )
+    external
+    onlyActivePoaToken
+  {
+    emit PayoutEvent(
+      msg.sender,
+      _amount
+    );
+  }
+
+  function logClaimEvent(
+    address _claimer,
+    uint256 _payout
+    )
+    external
+    onlyActivePoaToken
+  {
+    emit ClaimEvent(
+      msg.sender,
+      _claimer,
+      _payout
+    );
+  }
+
+  function logTerminatedEvent()
+    external
+    onlyActivePoaToken
+  {
+    emit TerminatedEvent(msg.sender);
+  }
+
+  function logCustodianChangedEvent(
+    address _oldAddress, 
+    address _newAddress
+  )
+    external
+    onlyActivePoaToken
+  {
+    emit CustodianChangedEvent(
+      msg.sender,
+      _oldAddress,
+      _newAddress
     );
   }
 }
