@@ -1,13 +1,13 @@
 pragma solidity ^0.4.23;
 
-import "./interfaces/BrickblockContractRegistryInterface.sol";
-import "./interfaces/PoaManagerInterface.sol";
-import "./interfaces/PoaTokenInterface.sol";
+import "./interfaces/IRegistry.sol";
+import "./interfaces/IPoaManager.sol";
+import "./interfaces/IPoaToken.sol";
 
 
 contract BrickblockLogger {
   // registry instance to get other contract addresses
-  RegistryInterface public registry;
+  IRegistry public registry;
 
   constructor(
     address _registryAddress
@@ -15,13 +15,13 @@ contract BrickblockLogger {
     public
   {
     require(_registryAddress != address(0));
-    registry = RegistryInterface(_registryAddress);
+    registry = IRegistry(_registryAddress);
   }
   
   // only allow listed poa tokens to trigger events
   modifier onlyActivePoaToken() {
     require(
-      PoaManagerInterface(
+      IPoaManager(
         registry.getContractAddress("PoaManager")
       ).getTokenStatus(msg.sender)
     );
@@ -90,7 +90,7 @@ contract BrickblockLogger {
     onlyActivePoaToken
   {
     // easier to get the set ipfsHash from contract rather than send over string
-    string memory _realIpfsHash = PoaTokenInterface(msg.sender).proofOfCustody();
+    string memory _realIpfsHash = IPoaToken(msg.sender).proofOfCustody();
 
     emit ProofOfCustodyUpdatedEvent(
       msg.sender,

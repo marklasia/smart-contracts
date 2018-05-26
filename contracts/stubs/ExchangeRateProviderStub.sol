@@ -1,12 +1,12 @@
 pragma solidity ^0.4.23;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "../interfaces/BrickblockContractRegistryInterface.sol";
-import "../interfaces/ExchangeRatesInterface.sol";
+import "../interfaces/IRegistry.sol";
+import "../interfaces/IExchangeRates.sol";
 
 
 contract ExchangeRateProviderStub {
-  RegistryInterface private registry;
+  IRegistry private registry;
   // used to check on if the contract has self destructed
   bool public isAlive = true;
   // used for testing simulated pending query
@@ -42,7 +42,7 @@ contract ExchangeRateProviderStub {
     public
   {
     require(_registryAddress != address(0));
-    registry = RegistryInterface(_registryAddress);
+    registry = IRegistry(_registryAddress);
   }
 
   // SIMULATE: set callbackGasPrice
@@ -89,7 +89,7 @@ contract ExchangeRateProviderStub {
     returns (bool)
   {
     // get current address of ExchangeRates
-    ExchangeRatesInterface _exchangeRates = ExchangeRatesInterface(
+    IExchangeRates _exchangeRates = IExchangeRates(
       registry.getContractAddress("ExchangeRates")
     );
     pendingTestQueryId = _identifier;
@@ -103,7 +103,7 @@ contract ExchangeRateProviderStub {
     public
   {
     // make sure that the caller is oraclize
-    ExchangeRatesInterface _exchangeRates = ExchangeRatesInterface(
+    IExchangeRates _exchangeRates = IExchangeRates(
       registry.getContractAddress("ExchangeRates")
     );
 

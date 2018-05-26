@@ -1,6 +1,6 @@
 pragma solidity ^0.4.23;
 
-interface ExchangeRatesInterface {
+interface IExchangeRates {
   function queryTypes(
     bytes32
   ) 

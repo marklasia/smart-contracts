@@ -1,15 +1,15 @@
 pragma solidity ^0.4.23;
 
 import "./OraclizeAPI.sol";
-import "./interfaces/BrickblockContractRegistryInterface.sol";
-import "./interfaces/ExchangeRatesInterface.sol";
+import "./interfaces/IRegistry.sol";
+import "./interfaces/IExchangeRates.sol";
 
 
 contract ExchangeRateProvider is usingOraclize {
 
   uint8 public constant version = 1;
 
-  RegistryInterface private registry;
+  IRegistry private registry;
   // used to check on if the contract has self destructed
   bool public isAlive = true;
 
@@ -35,7 +35,7 @@ contract ExchangeRateProvider is usingOraclize {
     public
   {
     require(_registryAddress != address(0));
-    registry = RegistryInterface(_registryAddress);
+    registry = IRegistry(_registryAddress);
   }
 
   // set gas price used for oraclize callbacks
@@ -86,7 +86,7 @@ contract ExchangeRateProvider is usingOraclize {
     returns (bool)
   {
     // get current address of ExchangeRates
-    ExchangeRatesInterface _exchangeRates = ExchangeRatesInterface(
+    IExchangeRates _exchangeRates = IExchangeRates(
       registry.getContractAddress("ExchangeRates")
     );
     // run setQueryId on ExchangeRates
@@ -101,7 +101,7 @@ contract ExchangeRateProvider is usingOraclize {
     // make sure that the caller is oraclize
     require(msg.sender == oraclize_cbAddress());
     // get currency address of BrickblockContractRegistry
-    ExchangeRatesInterface _exchangeRates = ExchangeRatesInterface(
+    IExchangeRates _exchangeRates = IExchangeRates(
       registry.getContractAddress("ExchangeRates")
     );
     // get settings data from ExchangeRates

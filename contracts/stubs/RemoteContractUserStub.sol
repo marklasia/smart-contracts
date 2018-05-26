@@ -2,7 +2,7 @@ pragma solidity ^0.4.23;
 
 
 // shortened version of actual contract in order to save on costs
-contract BrickblockContractRegistryInterface {
+contract IRegistry {
 
   function getContractAddress(string _name)
     public
@@ -37,13 +37,13 @@ contract RemoteContractStubInterface {
 
 contract RemoteContractUserStub {
 
-  BrickblockContractRegistryInterface private registry;
+  IRegistry private registry;
 
   function RemoteContractUserStub(address _registryAddress)
     public
   {
     require(_registryAddress != address(0));
-    registry = BrickblockContractRegistryInterface(_registryAddress);
+    registry = IRegistry(_registryAddress);
   }
 
   function getRemoteContractStub()

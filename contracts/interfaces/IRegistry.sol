@@ -1,7 +1,7 @@
 pragma solidity ^0.4.23;
 
 // limited BrickblockContractRegistry definition
-interface RegistryInterface {
+interface IRegistry {
   function owner() 
     external 
     returns(address);

@@ -1,6 +1,6 @@
 pragma solidity ^0.4.23;
 
-interface PoaTokenInterface {
+interface IPoaToken {
   function setupContract
   (
     string _name,

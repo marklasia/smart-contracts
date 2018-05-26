@@ -1,11 +1,6 @@
 pragma solidity ^0.4.23;
 
-interface PoaManagerInterface {
-  function registry()
-    external
-    view
-    returns (address);
-  
+interface IPoaManager {
   function getTokenStatus(
     address _tokenAddress
   )

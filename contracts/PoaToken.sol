@@ -1,8 +1,8 @@
 pragma solidity ^0.4.23;
 
 import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
-import "./interfaces/BrickblockFeeManagerInterface.sol";
-import "./interfaces/ExchangeRatesInterface.sol";
+import "./interfaces/IFeeManager.sol";
+import "./interfaces/IExchangeRates.sol";
 
 /* solium-disable security/no-block-members */
 /* solium-disable security/no-low-level-calls */
@@ -249,7 +249,7 @@ contract PoaToken is PausableToken {
     owner = getContractAddress("PoaManager");
 
     // run getRate once in order to see if rate is initialized, throws if not
-    ExchangeRatesInterface(getContractAddress("ExchangeRates"))
+    IExchangeRates(getContractAddress("ExchangeRates"))
       .getRate(fiatCurrency);
 
     return true;
@@ -344,7 +344,7 @@ contract PoaToken is PausableToken {
     // get eth to fiat rate in cents from ExchangeRates
     return _wei
       .mul(
-        ExchangeRatesInterface(getContractAddress("ExchangeRates"))
+        IExchangeRates(getContractAddress("ExchangeRates"))
           .getRate(fiatCurrency)
       )
       .div(1e18);
@@ -359,7 +359,7 @@ contract PoaToken is PausableToken {
     return _cents
       .mul(1e18)
       .div(
-        ExchangeRatesInterface(getContractAddress("ExchangeRates"))
+        IExchangeRates(getContractAddress("ExchangeRates"))
           .getRate(fiatCurrency)
       );
   }
@@ -397,7 +397,7 @@ contract PoaToken is PausableToken {
     private
     returns (bool)
   {
-    FeeManagerInterface feeManager = FeeManagerInterface(
+    IFeeManager feeManager = IFeeManager(
       getContractAddress("FeeManager")
     );
     require(feeManager.payFee.value(_value)());

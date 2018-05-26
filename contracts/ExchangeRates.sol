@@ -1,8 +1,8 @@
 pragma solidity ^0.4.23;
 
 import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
-import "./interfaces/BrickblockContractRegistryInterface.sol";
-import "./interfaces/ExchangeRateProviderInterface.sol";
+import "./interfaces/IRegistry.sol";
+import "./interfaces/IExchangeRateProvider.sol";
 
 
 
@@ -30,7 +30,7 @@ erroring which we parse as a uint256 which turns to 0.
 // main contract
 contract ExchangeRates is Ownable {
   // instance of Registry to be used for getting other contract addresses
-  RegistryInterface private registry;
+  IRegistry private registry;
   // flag used to tell recursive rate fetching to stop
   bool public ratesActive = true;
   // flag used to clear out each rate interval one by one when fetching rates
@@ -75,7 +75,7 @@ contract ExchangeRates is Ownable {
     payable
   {
     require(_registryAddress != address(0));
-    registry = RegistryInterface(_registryAddress);
+    registry = IRegistry(_registryAddress);
     owner = msg.sender;
   }
 
@@ -92,7 +92,7 @@ contract ExchangeRates is Ownable {
     returns (bool)
   {
     // get the ExchangeRateProvider from registry
-    ExchangeRateProviderInterface provider = ExchangeRateProviderInterface(
+    IExchangeRateProvider provider = IExchangeRateProvider(
       registry.getContractAddress("ExchangeRateProvider")
     );
 
@@ -278,7 +278,7 @@ contract ExchangeRates is Ownable {
     returns (bool)
   {
     // get the ExchangeRateProvider from registry
-    ExchangeRateProviderInterface provider = ExchangeRateProviderInterface(
+    IExchangeRateProvider provider = IExchangeRateProvider(
       registry.getContractAddress("ExchangeRateProvider")
     );
     provider.setCallbackGasPrice(_gasPrice);
@@ -369,7 +369,7 @@ contract ExchangeRates is Ownable {
     onlyOwner
   {
     // get the ExchangeRateProvider from registry
-    ExchangeRateProviderInterface provider = ExchangeRateProviderInterface(
+    IExchangeRateProvider provider = IExchangeRateProvider(
       registry.getContractAddress("ExchangeRateProvider")
     );
     provider.selfDestruct(_address);

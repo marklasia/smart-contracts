@@ -1,8 +1,8 @@
 pragma solidity ^0.4.23;
 
 import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
-import "./interfaces/BrickblockContractRegistryInterface.sol";
-import "./interfaces/BrickblockTokenInterface.sol";
+import "./interfaces/IRegistry.sol";
+import "./interfaces/IBrickblockToken.sol";
 
 
 contract BrickblockAccessToken is PausableToken {
@@ -56,7 +56,7 @@ contract BrickblockAccessToken is PausableToken {
 
   uint8 public constant version = 1;
 
-  RegistryInterface private registry;
+  IRegistry private registry;
   string public constant name = "BrickblockAccessToken";
   string public constant symbol = "ACT";
   uint8 public constant decimals = 18;
@@ -103,7 +103,7 @@ contract BrickblockAccessToken is PausableToken {
     public
   {
     require(_registryAddress != address(0));
-    registry = RegistryInterface(_registryAddress);
+    registry = IRegistry(_registryAddress);
   }
 
   // check an address for amount of currently locked BBK
@@ -127,7 +127,7 @@ contract BrickblockAccessToken is PausableToken {
     external
     returns (bool)
   {
-    BrickblockTokenInterface _bbk = BrickblockTokenInterface(
+    IBrickblockToken _bbk = IBrickblockToken(
       registry.getContractAddress("BrickblockToken")
     );
 
@@ -147,7 +147,7 @@ contract BrickblockAccessToken is PausableToken {
     external
     returns (bool)
   {
-    BrickblockTokenInterface _bbk = BrickblockTokenInterface(
+    IBrickblockToken _bbk = IBrickblockToken(
       registry.getContractAddress("BrickblockToken")
     );
     require(_amount <= lockedBBK[msg.sender]);
