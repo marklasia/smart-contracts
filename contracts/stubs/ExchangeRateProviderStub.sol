@@ -37,8 +37,9 @@ contract ExchangeRateProviderStub {
     _;
   }
 
-  // constructor: set registry address
-  function ExchangeRateProviderStub(address _registryAddress)
+  constructor(
+    address _registryAddress
+  )
     public
   {
     require(_registryAddress != address(0));
@@ -77,7 +78,7 @@ contract ExchangeRateProviderStub {
       return false;
     } else {
       // simulate _queryId by hashing first element of bytes32 array
-      pendingTestQueryId = keccak256(_queryString);
+      pendingTestQueryId = keccak256(bytes(_queryString));
       setQueryId(pendingTestQueryId, _queryType);
       return true;
     }
@@ -122,7 +123,7 @@ contract ExchangeRateProviderStub {
     _exchangeRates.setRate(_queryId, parseInt(_result));
 
     if (_callInterval > 0 && _ratesActive) {
-      pendingTestQueryId = keccak256(_result);
+      pendingTestQueryId = keccak256(bytes(_result));
       pendingQueryType = _queryType;
       shouldCallAgainWithQuery = _queryString;
       shouldCallAgainIn = _callInterval;

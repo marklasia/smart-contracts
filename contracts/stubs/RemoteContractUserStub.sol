@@ -1,37 +1,27 @@
 pragma solidity ^0.4.23;
 
+import "../interfaces/IRegistry.sol";
 
 // shortened version of actual contract in order to save on costs
-contract IRegistry {
-
-  function getContractAddress(string _name)
-    public
-    view
-    returns (address)
-  {}
-}
-
-
-// shortened version of actual contract in order to save on costs
-contract RemoteContractStubInterface {
-
+interface RemoteContractStubInterface {
   function testNumber()
-    public
+    external
     view
-    returns (uint256)
-  {}
+    returns (uint256);
 
-  function add(uint256 _num1, uint256 _num2)
-    public
+  function add(
+    uint256 _num1, 
+    uint256 _num2
+  )
+    external
     pure
-    returns (uint256)
-  {}
+    returns (uint256);
 
-  function setTestNumber(uint256 _number)
-    public
-    returns (bool)
-  {}
-
+  function setTestNumber(
+    uint256 _number
+  )
+    external
+    returns (bool);
 }
 
 
@@ -39,7 +29,9 @@ contract RemoteContractUserStub {
 
   IRegistry private registry;
 
-  function RemoteContractUserStub(address _registryAddress)
+  constructor(
+    address _registryAddress
+  )
     public
   {
     require(_registryAddress != address(0));

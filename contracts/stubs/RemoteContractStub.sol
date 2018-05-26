@@ -5,7 +5,7 @@ contract RemoteContractStub {
   uint256 public testNumber;
   address public testAddress;
 
-  function RemoteContractStub(
+  constructor(
     uint256 _testNumber
   )
     public

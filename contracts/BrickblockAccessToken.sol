@@ -23,8 +23,7 @@ contract BrickblockAccessToken is PausableToken {
             * (100 * (100 - 100) === 0)
         * all minting activity related balance increments are tracked through this
 
-      TODO: clarify this phrase somehow
-      securedFundsParadigm: the funds that are bumped dividends out during lock / unlock
+      securedFundsParadigm: funds that are bumped out of dividends during lock / unlock
         * securedTokenDistributions (mapping)
         * needed in order to track ACT balance after lock/unlockBBK
         * tracks funds that have been bumped from dividendParadigm
@@ -202,7 +201,9 @@ contract BrickblockAccessToken is PausableToken {
     return true;
   }
 
+  //
   // start ERC20 overrides
+  //
 
   // combines dividendParadigm, securedFundsParadigm, and doubleEntryParadigm
   // in order to give a correct balance
@@ -283,7 +284,9 @@ contract BrickblockAccessToken is PausableToken {
     return true;
   }
 
+  //
   // end ERC20 overrides
+  //
 
   // callable only by FeeManager contract
   // burns tokens through incrementing spentBalances[adr] and decrements totalSupply

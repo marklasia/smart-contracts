@@ -25,7 +25,9 @@ contract BrickblockFountainStub is Ownable {
   event CompanyTokensReleased(address _owner, uint256 _tokenAmount);
   event Placeholder(address _address, uint256 _value);
 
-  function BrickblockFountainStub(address _brickBlockTokenAddress)
+  constructor(
+    address _brickBlockTokenAddress
+  )
     public
   {
     require(_brickBlockTokenAddress != address(0));

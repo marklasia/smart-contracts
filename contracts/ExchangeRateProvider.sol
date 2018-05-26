@@ -118,7 +118,6 @@ contract ExchangeRateProvider is usingOraclize {
 
     // set rate on ExchangeRates contract giving queryId for validation
     // rate is set in cents api returns float string which is parsed as int
-    /* TODO: make sure that tests are all fine with this */
     require(_exchangeRates.setRate(_queryId, parseInt(_result, 2)));
 
     // check if call interval has been set and that _ratesActive is still true

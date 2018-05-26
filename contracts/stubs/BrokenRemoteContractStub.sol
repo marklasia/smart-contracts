@@ -4,7 +4,9 @@ pragma solidity ^0.4.23;
 contract BrokenRemoteContractStub {
   uint256 public testNumber;
 
-  function BrokenRemoteContractStub(uint256 _testNumber)
+  constructor(
+    uint256 _testNumber
+  )
     public
   {
     testNumber = _testNumber;
