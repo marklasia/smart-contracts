@@ -16,7 +16,7 @@ contract ContractRegistry is Ownable {
     onlyOwner
     returns (address)
   {
-    contractAddresses[stringToBytes32(_name)] = _address;
+    contractAddresses[keccak256(bytes(_name))] = _address;
     emit UpdateContractEvent(_name, _address);
   }
 
@@ -25,8 +25,8 @@ contract ContractRegistry is Ownable {
     view
     returns (address)
   {
-    require(contractAddresses[stringToBytes32(_name)] != address(0));
-    return contractAddresses[stringToBytes32(_name)];
+    require(contractAddresses[keccak256(bytes(_name))] != address(0));
+    return contractAddresses[keccak256(bytes(_name))];
   }
 
   function getContractAddress32(bytes32 _name32)
@@ -36,15 +36,5 @@ contract ContractRegistry is Ownable {
   {
     require(contractAddresses[_name32] != address(0));
     return contractAddresses[_name32];
-  }
-
-  function stringToBytes32(string _string)
-    public
-    pure
-    returns (bytes32 _bytes32)
-  {
-    assembly {
-      _bytes32 := mload(add(_string, 0x20))
-    }
   }
 }
