@@ -211,7 +211,7 @@ contract CustomPOAToken is PausableToken {
   // public utility function to allow checking of required fee for a given amount
   function calculateFee(uint256 _value)
     public
-    view
+    pure
     returns (uint256)
   {
     return feeRate.mul(_value).div(1000);
