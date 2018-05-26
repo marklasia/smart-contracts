@@ -94,6 +94,7 @@ contract ExchangeRateProvider is usingOraclize {
   }
 
   // callback function for returned results of oraclize call
+  // solium-disable-next-line mixedcase
   function __callback(bytes32 _queryId, string _result)
     public
   {

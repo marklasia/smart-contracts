@@ -98,6 +98,7 @@ contract ExchangeRateProviderStub {
   }
 
   // SIMULATE: callback function to get results of oraclize call
+  // solium-disable-next-line mixedcase
   function simulate__callback(bytes32 _queryId, string _result)
     public
   {
