@@ -110,9 +110,7 @@
     "table": "^4.0.3",
     "truffle": "4.1.8",
     "truffle-contract": "^3.0.1",
-    "web3": "^0.18.4"
-  },
-  "dependencies": {
-    "solc": "^0.4.24"
+    "web3": "^0.18.4",
+    "solc": "0.4.23"
   }
 }
