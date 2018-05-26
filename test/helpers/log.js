@@ -366,31 +366,33 @@ const testChangeCustodianEvents = async (poa, reg, pmr, log) => {
 }
 
 const testReclaimEvents = async () => {
-  const tokenBuyAmount = new BigNumber(1e18)
+  const value = new BigNumber(1e18)
   const from = whitelistedPoaBuyers[0]
 
   // need a whole new instance in order to test this...
   const { poa, reg, log, pmr } = await setupPoaProxyAndEcosystem()
+  await pmr.listToken(poa.address)
   // move into Funding
   const neededTime = await determineNeededTimeTravel(poa)
   await timeTravel(neededTime)
   await testStartSale(poa)
   // purchase tokens to reclaim when failed
   await testBuyTokens(poa, {
-    from: whitelistedPoaBuyers[0],
-    value: tokenBuyAmount,
+    from,
+    value,
     gasPrice
   })
+  await fundingTimeoutContract(poa)
+
   // change to actual PoaManager contract so that logger validation works...
   await poaManagerToPoaManager(reg, pmr.address)
-  await fundingTimeoutContract(poa)
 
   const LoggerStageEvent = log.StageEvent()
   const StageEvent = poa.StageEvent()
   const LoggerReclaimEvent = log.ReclaimEvent()
   const ReclaimEvent = log.ReclaimEvent()
 
-  await testReclaim(poa, from, true)
+  await testReclaim(poa, { from }, true)
 
   const { args: triggeredLoggerStageEvent } = await waitForEvent(
     LoggerStageEvent
@@ -404,11 +406,43 @@ const testReclaimEvents = async () => {
   // change back so that other testing functions will work with owner...
   await poaManagerToOwner(reg)
 
-  console.log(
-        triggeredLoggerStageEvent,
-        triggeredStageEvent,
-    triggeredLoggerReclaimEvent,
-    triggeredReclaimEvent
+  assert.equal(
+    triggeredLoggerStageEvent.tokenAddress,
+    poa.address,
+    'logger stage event token address should match poa.address'
+  )
+  assert.equal(
+    triggeredLoggerStageEvent.stage.toString(),
+    new BigNumber(3).toString(),
+    'logger stage event stage should match 3, Failed'
+  )
+  assert.equal(
+    triggeredStageEvent.stage.toString(),
+    new BigNumber(3).toString(),
+    'stage event stage should match 3, Failed'
+  )
+  assert.equal(
+    triggeredLoggerReclaimEvent.tokenAddress,
+    poa.address,
+    'logger reclaim event token address should match poa.address'
+  )
+  assert.equal(
+    triggeredLoggerReclaimEvent.reclaimer,
+    from,
+    'logger reclaim event reclaimer should match from address'
+  )
+  assert(
+    triggeredLoggerReclaimEvent.amount.greaterThan(0),
+    'logger reclaim event amount should be greater than 0'
+  )
+  assert.equal(
+    triggeredReclaimEvent.reclaimer,
+    from,
+    'reclaim event reclaimer should match from address'
+  )
+  assert(
+    triggeredReclaimEvent.amount.greaterThan(0),
+    'reclaim event amount should be greater than 0'
   )
 }
 

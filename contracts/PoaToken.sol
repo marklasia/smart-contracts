@@ -2,8 +2,7 @@ pragma solidity ^0.4.23;
 
 import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
 import "./interfaces/BrickblockFeeManagerInterface.sol";
-import "./interfaces/BrickblockWhitelistInterface.sol";
-//import "./interfaces/ExchangeRatesInterface.sol";
+import "./interfaces/ExchangeRatesInterface.sol";
 
 /* solium-disable security/no-block-members */
 /* solium-disable security/no-low-level-calls */
@@ -110,20 +109,13 @@ contract PoaToken is PausableToken {
   }
 
   modifier isBuyWhitelisted() {
-    require(
-      WhitelistInterface(getContractAddress("Whitelist"))
-        .whitelisted(msg.sender)
-    );
-
+    require(checkIsWhitelisted(msg.sender));
     _;
   }
 
   modifier isTransferWhitelisted(address _to) {
     if (whitelistTransfers) {
-      require(
-        WhitelistInterface(getContractAddress("Whitelist"))
-          .whitelisted(_to)
-      );
+      require(checkIsWhitelisted(_to));
     }
 
     _;
@@ -296,6 +288,47 @@ contract PoaToken is PausableToken {
 
       mstore(0x40, 0x100) // clear out the free memory pointer
       _contractAddress := mload(0xf0) // assign result to return value
+    }
+  }
+
+  /*
+          WhitelistInterface(getContractAddress("Whitelist"))
+          .whitelisted(_to)
+  */
+  function checkIsWhitelisted(address _address)
+    private
+    view
+    returns (bool _isWhitelisted)
+  {
+    bytes4 _sig = bytes4(keccak256("whitelisted(address)"));
+    address _whitelistContract = getContractAddress("Whitelist");
+    address _arg = _address;
+
+    assembly {
+      let _call := mload(0x40) // set _call to free memory pointer
+      mstore(_call, _sig) // store _sig at _call pointer
+      mstore(add(_call, 0x04), _arg) // store _arg at _call offset by 4 bytes for pre-existing _sig
+
+      // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
+      let success := staticcall(
+        gas,    // g = gas: whatever was passed already
+        _whitelistContract,  // a = address: address is already on stack
+        _call,  // in = mem in  mem[in..(in+insize): set to free memory pointer
+        0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
+        0xf0,   // out = mem out  mem[out..(out+outsize): output assigned to this storage address
+        0x20    // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (address size = 0x14 <  slot size 0x20)
+      )
+
+      // revert if not successful
+      if iszero(success) {
+        revert(
+          0xf0,
+          0x20
+        )
+      }
+
+      mstore(0x40, 0x100) // clear out the free memory pointer
+      _isWhitelisted := mload(0xf0) // assign result to return value
     }
   }
 

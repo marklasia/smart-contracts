@@ -249,7 +249,7 @@ contract PoaManager is Ownable {
     tokenMap[_tokenAddress] = addEntity(
       _tokenAddress,
       tokenAddressList,
-      true
+      false
     );
 
     emit TokenAddedEvent(_tokenAddress);

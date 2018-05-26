@@ -337,6 +337,16 @@ contract ExchangeRates is Ownable {
     return _rate;
   }
 
+  // function getRate(bytes32 _queryType)
+  //   external
+  //   view
+  //   returns (uint256)
+  // {
+  //   uint256 _rate = rates[toUpperCase(_)];
+  //   require(_rate > 0, "Fiat rate should be higher than zero");
+  //   return _rate;
+  // }
+
   // UTILITY FUNCTIONS:
 
   // convert string to uppercase to ensure that there are not multiple

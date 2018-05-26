@@ -25,6 +25,8 @@ describe('when using Brickblock logger to log PoaToken events', () => {
       pmr = contracts.pmr
       reg = contracts.reg
       fmr = contracts.fmr
+
+      await pmr.listToken(poa.address)
     })
 
     it('should log stage events', async () => {
