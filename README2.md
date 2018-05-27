@@ -287,13 +287,23 @@ The single public mapping named `whitelisted` maps `address`es to `bool`s. The m
 Where required, other contracts will check if an address is whitelisted on this contract.
 
 ## ExchangeRates
+`ExchngeRates` is used as a central loction to retrieve off-chain fiat:eth prices and put them on chain. Calls can be made recursively for an indefinite period of time. This means that this contract can self-update at a given interval. It can also handle any number of fiat currencies. 
+
+Given the above information, this contract allows for any number of contracts to use any number of fiat prices around the globe on-chain.
+
+Prices are currently retrieved from [cryptocompare](https://www.cryptocompare.com/), but this can be easily changed through changing the settings of the given currency.
+
+`ExchangeRates` and `ExchangeRateProvider` could be considered a binary system of contracts. Neither do much without the other and their main goal is the same: on-chain exchange rates.
+
+They are seperate in order to better test them. Oraclize has some testing tooling... but the node requirements are <= node v6. With this in mind it was though to be a better idea to create a stub for testing which can be used in place of `ExchangeRatesProvider` while keeping `ExchangeRates` the same.
+
 
 
 ## ExchangeRateProvider
 
 
 ## OraclizeAPI
-
+This is a contract from [Oraclize](https://github.com/oraclize/ethereum-api/blob/aeea37a5232c981884e6f4c5be55d58a252a01f6/oraclizeAPI_0.5.sol). To learn more about Oraclize check the [documentation](http://docs.oraclize.it/)
 
 ## CentralLogger
 `CentralLogger` mirrors events from each `PoaToken` listed by `PoaManager` (more on that in `PoaManager` section). One additional event parameter named `tokenAddress` is added for each event in order to keep track of different token's events. Having a central contract to log an undefined number of `PoaToken`s makes for easier tracking of events. This will be linked up to email notifications using the KYC data previously mentioned.
