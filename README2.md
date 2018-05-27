@@ -250,8 +250,34 @@ Ether redemption is done through the `FeeManager` contract which has the power t
 There is `AccessToken` allows for locking BBK through `transferFrom` and allows distributions of ACT to be triggered from `FeeManager`. Distributions are handled through manipulating the `balanceOf()` function as well as some neat dividend tricks. ETH redemption is done through burning ACT on the `FeeManager` contract.
 
 ## FeeManager
+`FeeManager` is the link between `PoaToken`s where fees are paid and `AccessToken` where the actual fee is distributed in ACT.
 
+It has only two main functions and two supporting utility functions. It does not store anything other than the location of the `ContractRegistry`.
 
+### `payFee()`
+`payFee()` is a payable function which calls the `AccessToken` contract to `distribute()` which mints and distributes ACT at a ratio corresponding to the ACT:WEI rate:
+*1e3ACT: 1ETH = 1e3ACT: 1E18ETH*
+
+This is how locked BBK holders receive ACT.
+
+This function can be called by anyone. Meaning anyone can pay a fee if they really wanted to. For the purposes of the ecosystem, it is used by `PoaTokens` when a fee must be paid. 
+
+Ether is held on this contract which can be redeemed later using `claimFee()`.
+
+### `claimFee()`
+`claimFee()` can be called by a user with a given amount of ACT to claim. The claim amount must be equal to or less than the user's ACT balance. Ether is sent to the user based on the ACT:WEI rate (1000: 1e18). The ACT tokens used to claim are burnt using the `AccessToken` `burn()` function. Only `FeeManager` can call `burn()`.
+
+### Utility functions
+There are several utility functions which simply retrieve the currennt ACT:WEI rate from the `ExchangeRates` contract. This will be covered in more detail in the `ExchangeRates` contract. The ACT:WEI rate is taken from `ExchangeRates` in case the rate needs to change. At the time of writing this it has been decided that the rate is 1000ACT:1ETH. Though this could change. Regardless, the end amount of ether retrieved per locked BBK token should remain the same. It is mostly just a matter of presentation
+
+### Interfaces
+The following interfaces are used:
+1. `IAccessToken`
+    * used in order to call `distribute()` and `burn()` functions previously described.
+1. `IRegistry`
+    * used in order to dynamically access `AccessToken` and `ExchangeRates`
+1. `IExchangeRates`
+    * used in order to get ACT:WEI rate
 
 ## Whitelist
 `Whitelist` is very similar to `ContractRegistry`; it is a very simple contract with a single mapping and ownership. `Ownable` from OpenZeppelin is used for ownership.
@@ -294,7 +320,6 @@ There is a modifier for each `log` function which checks if the sender is a `Poa
 
 
 ## BrickblockAccount
-
 
 
 ## Built With
