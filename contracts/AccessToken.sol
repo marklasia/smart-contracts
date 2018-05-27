@@ -221,22 +221,6 @@ contract AccessToken is PausableToken {
       .sub(spentBalances[_address]);
   }
 
-  // used to set balances[adr] to correct value
-  // balances is not really used anywhere... might be best to just let them be
-  // inaccurate?
-  // this at least keeps them accurate when a transfer happens. Is not accurate
-  // after a distribution or transfer... this is why balanceOf is used and
-  // balances[adr] is private
-  function injectCustomBalances(
-    address _address,
-    address  _address2
-  )
-    private
-  {
-    balances[_address] = balanceOf(_address);
-    balances[_address2] = balanceOf(_address2);
-  }
-
   // does the same thing as ERC20 transfer but...
   // uses balanceOf rather than balances[adr] (balances is inaccurate see above)
   // sets correct values for doubleEntryParadigm (see glossary)
@@ -252,7 +236,6 @@ contract AccessToken is PausableToken {
     require(_value <= balanceOf(msg.sender));
     spentBalances[msg.sender] = spentBalances[msg.sender].add(_value);
     receivedBalances[_to] = receivedBalances[_to].add(_value);
-    injectCustomBalances(msg.sender, _to);
     emit Transfer(msg.sender, _to, _value);
     return true;
   }
@@ -275,7 +258,6 @@ contract AccessToken is PausableToken {
     spentBalances[_from] = spentBalances[_from].add(_value);
     receivedBalances[_to] = receivedBalances[_to].add(_value);
     allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
-    injectCustomBalances(_from, _to);
     emit Transfer(_from, _to, _value);
     return true;
   }
