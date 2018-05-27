@@ -366,12 +366,26 @@ contract PoaManager is Ownable {
     return true;
   }
 
-  function upgradeToken(address _proxyTokenAddress, address _masterUpgrade)
+  function upgradeToken(
+    address _proxyTokenAddress, 
+    address _masterUpgrade
+  )
     public
     onlyOwner
     returns (bool)
   {
     Proxy(_proxyTokenAddress).proxyChangeMaster(_masterUpgrade);
+  }
+
+  // toggle whitelisting required on transfer & transferFrom for a token
+  function toggleTokenWhitelistTransfers(
+    address _tokenAddress
+  )
+    public
+    onlyOwner
+    returns (bool)
+  {
+    return IPoaToken(_tokenAddress).toggleWhitelistTransfers();
   }
 
   //
