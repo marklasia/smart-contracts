@@ -287,7 +287,7 @@ The single public mapping named `whitelisted` maps `address`es to `bool`s. The m
 Where required, other contracts will check if an address is whitelisted on this contract.
 
 ## ExchangeRates
-`ExchngeRates` is used as a central loction to retrieve off-chain fiat:eth prices and put them on chain. Calls can be made recursively for an indefinite period of time. This means that this contract can self-update at a given interval. It can also handle any number of fiat currencies. 
+`ExchangeRates` is used as a central loction to retrieve off-chain fiat:eth prices and put them on chain. Calls can be made recursively for an indefinite period of time. This means that this contract can self-update at a given interval. It can also handle any number of fiat currencies. 
 
 Given the above information, this contract allows for any number of contracts to use any number of fiat prices around the globe on-chain.
 
@@ -297,10 +297,95 @@ Prices are currently retrieved from [cryptocompare](https://www.cryptocompare.co
 
 They are seperate in order to better test them. Oraclize has some testing tooling... but the node requirements are <= node v6. With this in mind it was though to be a better idea to create a stub for testing which can be used in place of `ExchangeRatesProvider` while keeping `ExchangeRates` the same.
 
+`ExchangeRates` job is to hold the settings data for each currency as well as the actual rates.
 
+All rates are given in cent amounts. 
+*ex: 1ETH = 50000 USD cents NOT 500USD*
+
+### Settings
+Oraclize provides different options for making calls. Most of them changeable for each currency in order to provide maximum flexibility, preventing the need to constantly redeploy. Each currency (`queryType`) has the following settings:
+1. `queryString`
+    * api endpoint to get data from
+    * ex: `"json(https://min-api.cryptocompare.com/data/price?fsym=ETH&tsyms=EUR).EUR"`
+1. `callInterval`
+    * amount of time in seconds to wait before making recursive call to fetch rate again
+    * for one time only query: use 0
+    * anything over 0 will run the query again every x seconds
+1. `callbackGasLimit`
+    * how much gas to provide Oraclize
+    * typically is around 100k gas as of this writing
+
+### Other Storage Explained
+1. `ratesActive`
+    * every callback with data checks for this
+    * if false: stop recursive calls
+    * if true: continue as normal with recursive calls
+    * used in order to stop querying all rates
+    * only changeable by `owner`
+1. `rates`
+    * `mapping` that maps ` bytes32 keccak256(string)` to a `uint256` rate in cents
+    * ex: `keccak256("EUR") => 50000`
+    * is set to `private` in order to force users to use getter functions which will fail when 0
+    * 0 is safe because failed queries will also return 0
+    * only changeable by `ExchangeRateProvider`
+        * with the exception of ACT entry (`onlyOwner`)
+1. `querytypes`
+    * mapping which maps pending `queryId`s from Oraclize to currency strings.
+    * used in order to set rate in `rates` when query completes
+    * only changeable by `ExchangeRateProvider`
+1. `currencySettings`
+    * holds settings mentioned in above section for a given currency.
+    * checked every time query completes, allowing for:
+        * changing query strings to new source without redeploying
+        * changing query intervals allowing for fine tuning.
+        * change callbackGasLimit, in case original is too high or low
+    * only changeable by `owner`
+
+### Events
+Events allow for a cheap way to record historical changes in events and other important things such as `Settings` changes.
+
+####RateUpdatedEvent
+This is emitted when a rate has been returned from a query and set in the `rates` mapping. `currency` and `rate` are the parameters.
+
+####QueryNoMinBalanceEvent
+Emitted when there is no minimum balance needed for query. Remedy this by sending ether to the `ExchangeRatesProvider` contract. No parameters are given.
+
+####QuerySentEvent
+Emitted upon query execution. Does not mean query was successful. Includes `currency` parameter.
+
+####SettingsUpdatedEvent
+Emitted every time settings have been changed for any currency. Includes `currency` parameter.
+
+### `setActRate`
+This is a special currency setter function. It is callable by `owner` unlike any of the other rates which are only retreivable through Oraclize. 
+
+This works in this way because ACT is an internal mechanism in the Brickblock ecosystem.
+
+### Setters
+There are setters for setting all of a given currency's `Settings` at once, setting one `Settings` at a time, toggling `ratesActive`, and one for globally setting the callback gas price. These all should be pretty self explanatory.
+
+### Getters
+There are getters for a given currency's `Settings` as well as two different getters for getting rates.
+
+`getRate()` allows for getting a `rate` by a string. This will hash the string and retrieve rate by this `bytes32` hash.
+
+`getRate32()` gets a rate by directly using the hash. This makes for some required assembly functions in other contracts easier.
+
+Both of these getters will `revert()` if the `rate` is 0.
 
 ## ExchangeRateProvider
+Where `ExchangeRates` job is to hold the rates and the `Settings`, `ExchangeRateProvider` is meant to be exactly that, a provider. It inherits from the [OraclizeAPI](https://github.com/oraclize/ethereum-api/blob/aeea37a5232c981884e6f4c5be55d58a252a01f6/oraclizeAPI_0.5.sol) contract and makes use of the Oraclize API. To be clear, this is the contract actually interacting with Oraclize and getting the off-chain data. It sets this data in `ExchangeRates` when it receives a successful callback. Queries are triggered by `ExchangeRates` and cannot be started any other way.
 
+As mentioned earlier, `ExchangeRatesProvider` does not really store any data itself. It only makes the calls and gets the callback.
+
+### `sendQuery()`
+This function kicks of the query using the `Settings` from `ExchangeRates`. It is only callable by `ExchangeRates`. It will use the helper `private` function called `setQueryId` to set the `queryId` on the `ExchangeRates`. This is used as a safeguard to prevent multiple calls from executing. For more information on why this is needed please see the [Oraclize documentation](http://docs.oraclize.it/).
+
+### `__callback()`
+This function is pretty standard for most Oraclize related contracts. The difference here is that it is using `ExchangeRates` to store the data and check to see if it should call again recursively. If it is recursive, then it will call `sendQuery()` again with the newest `Settings` from `ExchangeRates`.
+
+### `selfDestruct()`
+This is for the inevitable day when an upgrade will be needed. This will destroy the contract and send the funds back to the designated address. It can only be called through `killProvider()` on `ExchangeRates` which is only callable by `owner`.
 
 ## OraclizeAPI
 This is a contract from [Oraclize](https://github.com/oraclize/ethereum-api/blob/aeea37a5232c981884e6f4c5be55d58a252a01f6/oraclizeAPI_0.5.sol). To learn more about Oraclize check the [documentation](http://docs.oraclize.it/)
