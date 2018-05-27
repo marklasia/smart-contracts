@@ -220,7 +220,7 @@ const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK + 
 
 For further reading please see the commented glossary at the top of the `AccessToken.sol` file.
 
-#### `balanceOf()` Override & Additional ERCO Overrides
+#### `balanceOf()` Override & Additional ERC20 Overrides
 It is almost never a great idea to run a huge for loop in solidity. But we need a way to distribute all of these access tokens to locked BBK holders. How is that done? Enter balanceOf as an algorithm.
 
 The easiest way to understand this is through a more pure version of this concept. [NoobCoin](https://github.com/TovarishFin/NoobCoin) is a project which implements this and only this. It is a good starting point for understanding this concept.
