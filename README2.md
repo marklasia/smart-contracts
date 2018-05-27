@@ -133,9 +133,124 @@ In early development there was a contract called `BrickblockFountain`. The addre
 There is also a `toggleDead` function which does not do anything other than set a cosmentic `bool` variable. It is only meant to be a flag to set should the worst happen...
 
 ## AccessToken
+### General Overview
+`AccessToken` (ACT) is an ERC20 compliant token which is redeemable for ether at a 1000ACT:1ETH ratio. This redemption happens on the `FeeManager` contract (explained more in `FeeManager` contract). ACT can only be aquired through locking in `BrickblockToken`s (BBK).
 
+Locking in BBK is means:
+
+*transferring a given amount of BBK to the `AccessToken` contract through the `lockBBK()` function. Transferred balances are essentially owned by the `AccessToken` contract at this point. A record of the sender's balance is kept in order to redeem (unlock) at any given time after locking.*
+
+Unlocking BBK means:
+
+*calling the `AccessToken` contract function `unlockBBK()` with a given amount that is less than or equal to originally locked balance. This will return the given amount of tokens to the original owners control.*
+
+Every time a fee is paid in the ecosystem, ACT is distributed through the `AccessToken` contract by `FeeManager`. Only `FeeManagr` can distribute ACT and only addresses which have locked in BBK before the fee payment receive ACT. If a user's BBK are not locked they do not get any ACT.
+
+Locking tokens will put the user into the distribution pool for ACT when they are distributed during fee payments that arise in the ecosystem. Tokens must be locked before a fee is paid in the ecosystem in order to receive ACT during the given distribution.
+
+The amount of ACT a user gets is a proportion of user locked BBK to total locked BBK. Ether is redeemed for ACT through the `FeeManager` contract which burns the given amount of ACT on your behalf for ETH.
+
+### Technical
+There are a few key concepts here that need to be explained in order to fully understand the `AccessToken` contract.
+
+#### Locking & Unlocking BBK
+This was mostly covered above... but there are a few things worth mentioning. In order to `lockBBK()`, a user must `approve()` the `AccessToken` for at least the amount the user wants to lock. The user must then call `lockBBK()` AFTER the `allowance` has been set. `lockBBK()` essentially is just running a `transferFrom()` on the `BrickblockToken` contract (along with recording ownership in `lockedBBK`).
+
+`unlockBBK()` simply transfers the given amount back.
+
+Using [ERC223](https://github.com/Dexaran/ERC223-token-standard) would have been great here. But it was not known about at the time of deploying `BrickblockToken`.
+
+#### ACT distributions
+There is a somewhat unique way of handling dividends in this contract. 
+
+Imagine that there are 5 BBK tokens locked into the contract; you own 2 of the 5 locked in. Now imagine that there are 10 ACT tokens being distributed to the contract. What `AccessToken` does is simply take the amount and divide that by the total locked tokens (5). This will result in 2. This is `uint256 totalMintedPerToken` in the contract. You would be entitled to 4 ACT at this point.
+
+```js
+// js pseudo code
+const yourLockedBBk = 2
+const totalMintedPerToken = 10ACT / 5BBK = 2
+const yourBalance = totalMintedPerToken * yourLockedBBK = 4
+```
+
+Now what happens if there are multiple distributions? Perhaps another distribution of 10 ACT? `totalMintedPerToken` is now 4
+
+```js
+// js pseudo code
+const yourLockedBBk = 2
+const totalMintedPerToken = 10ACT / 5BBK = 2
+const yourBalance = totalMintedPerToken * yourLockedBBK = 4
+// distribution 2
+const yourLockedBBk = 2
+const totalMintedPerToken = (10 + 10)ACT / 5BBK = 4
+const yourBalance = totalMintedPerToken * yourLockedBBK = 8
+```
+
+But what happens if you want to claim some of these tokens and move them? We need to account for that. That is what `distributedPerBBK` handles. We deduct the distributed amount per user in order to get the real amount of ACT readily available. When a user transfers or redeems ACT.
+
+```js
+// js pseudo code
+const yourLockedBBk = 2
+const totalMintedPerToken = 20ACT / 5BBK = 2
+const yourBalance = totalMintedPerToken * yourLockedBBK = 4
+// transfer redeem for ether
+const yourLockedBBk = 2
+const totalMintedPerToken = 20ACT / 5BBK = 2
+const distributedPerBBK = 6
+const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 2
+```
+
+There is one last piece to the puzzle that is missing. What happens when you transfer BBK to another address? Won't you have an inaccurate balance when its based on tokens? We handle that by setting a user's `distributedPerBBK` to max and using another variable to store the rest the balance that was there before the transfer. This is done for both the receiver and the sender. This is called `securedTokenDistributions` in the `AccessToken` contract.
+```js
+// js pseudo code
+const yourLockedBBk = 2
+const totalMintedPerToken = 20ACT / 5BBK = 2
+const yourBalance = totalMintedPerToken * yourLockedBBK = 4
+// transfer redeem for ether
+const yourLockedBBk = 2
+const totalMintedPerToken = 20ACT / 5BBK = 2
+const distributedPerBBK = 6
+const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 2
+// transfer 6 ACT token away
+const yourLockedBBk = 2
+const totalMintedPerToken = 20ACT / 5BBK = 2
+const distributedPerBBK = 20ACT
+const securedTokenDistributions = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 2
+const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK + securedTokenDistributions = 2
+```
+
+For further reading please see the commented glossary at the top of the `AccessToken.sol` file.
+
+#### `balanceOf()` Override & Additional ERCO Overrides
+It is almost never a great idea to run a huge for loop in solidity. But we need a way to distribute all of these access tokens to locked BBK holders. How is that done? Enter balanceOf as an algorithm.
+
+The easiest way to understand this is through a more pure version of this concept. [NoobCoin](https://github.com/TovarishFin/NoobCoin) is a project which implements this and only this. It is a good starting point for understanding this concept.
+
+Essentially what is happening here is that instead of just giving back a number, we are giving a starting balance plus received amounts minus sent amounts. What this boils down to in `AccessToken` is the ACT distribution value mentioned in the section above plus received balances minus sent balances.
+```sol
+// pseudo code
+
+// how much BBK you have locked in
+totalMintedPerToken = lockedBBK[_address]
+    // multiplying by totalPerToken and deducting by
+    .mul(totalMintedPerToken.sub(distributedPerBBK[_address])) 
+    // variable that holds any balances bumped during transfers
+    .add(securedTokenDistributions[_address])
+    // deduct anything you spent (from transfers/transferFroms)
+    .add(receivedBalances[_address])
+    // add anythinng you received (from transfers/transferFroms)
+    .sub(spentBalances[_address]); 
+```
+
+With this algorithm we can distribute ACT to users without actually distributing. Using this means that we need to make the `balances` mapping private in the ERC20 standard in order to ensure that the correct balances are being returned rather than the `balances` mapping which is no longer accurate or used. `transfer` and `transferFrom` are modified to use `balanceOf()` function rather than `balances` mapping.
+
+#### Ether redemption for ACT
+Ether redemption is done through the `FeeManager` contract which has the power to `burn` a given users balances. When `burn`ed, `AccessToken` simply increments the `spentBalances` of the user and decrements the totalSupply.
+
+#### TLDR
+There is `AccessToken` allows for locking BBK through `transferFrom` and allows distributions of ACT to be triggered from `FeeManager`. Distributions are handled through manipulating the `balanceOf()` function as well as some neat dividend tricks. ETH redemption is done through burning ACT on the `FeeManager` contract.
 
 ## FeeManager
+
 
 
 ## Whitelist
