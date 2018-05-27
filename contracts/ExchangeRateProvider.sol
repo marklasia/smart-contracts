@@ -9,8 +9,6 @@ contract ExchangeRateProvider is usingOraclize {
   uint8 public constant version = 1;
 
   IRegistry private registry;
-  // used to check on if the contract has self destructed
-  bool public isAlive = true;
 
   // ensure that only the oracle or ExchangeRates contract are allowed
   modifier onlyAllowed()

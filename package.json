@@ -47,6 +47,7 @@
     "test:coverage": "( yarn solidity-coverage || true ) && open coverage/contracts/index.html",
     "test:mythril:comment": "ConsenSys' security vulnerability scanner for smart contracts",
     "test:mythril": "yarn truffle compile && myth --truffle",
+    "test:exr-gas": "yarn truffle test test/misc/ExchangeRateGasCosts.js",
     "---SECTION:LINT---": "-------------------- HOW TO LINT --------------------",
     "lint": "yarn lint:sol && yarn lint:js",
     "lint:sol": "solium --dir ./contracts",

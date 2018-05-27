@@ -34,8 +34,6 @@ contract ExchangeRates is Ownable {
   IRegistry private registry;
   // flag used to tell recursive rate fetching to stop
   bool public ratesActive = true;
-  // flag used to clear out each rate interval one by one when fetching rates
-  bool public shouldClearRateIntervals = false;
 
   struct Settings {
     string queryString;
@@ -80,14 +78,10 @@ contract ExchangeRates is Ownable {
     owner = msg.sender;
   }
 
-  /* this doesn't work with external. I think because it is internally calling
-  getCurrencySettings? Though it seems that accessing the struct directly
-  doesn't work either */
-
   // start rate fetching for a specific currency. Kicks off the first of
   // possibly many recursive query calls on ExchangeRateProvider to get rates.
   function fetchRate(string _queryType)
-    public
+    external
     onlyOwner
     payable
     returns (bool)
@@ -168,19 +162,11 @@ contract ExchangeRates is Ownable {
     delete queryTypes[_queryId];
     // set currency rate depending on _queryType (USD, EUR, etc.)
     rates[keccak256(_queryType)] = _result;
-    // get the settings for a specific currency
-    Settings storage _settings = currencySettings[_queryType];
     // event for particular rate that was updated
     emit RateUpdatedEvent(
       _queryType,
       _result
     );
-
-    // check on if should clear rate intervals
-    // this is used as a way to clear out intervals for all active rates
-    if (shouldClearRateIntervals) {
-      _settings.callInterval = 0;
-    }
 
     return true;
   }
@@ -235,7 +221,7 @@ contract ExchangeRates is Ownable {
     return true;
   }
 
-  // set only query string in settings
+  // set only query string in settings for a given currency
   function setCurrencySettingQueryString(
     string _currencyName,
     string _queryString
@@ -250,7 +236,7 @@ contract ExchangeRates is Ownable {
     return true;
   }
 
-  // set only callInterval in settings
+  // set only callInterval in settings for a given currency
   function setCurrencySettingCallInterval(
     string _currencyName,
     uint256 _callInterval
@@ -265,7 +251,7 @@ contract ExchangeRates is Ownable {
     return true;
   }
 
-  // set only callbackGasLimit in settings
+  // set only callbackGasLimit in settings for a given currency
   function setCurrencySettingCallbackGasLimit(
     string _currencyName,
     uint256 _callbackGasLimit
@@ -307,19 +293,6 @@ contract ExchangeRates is Ownable {
     return true;
   }
 
-  // set rate intervals to 0, effectively stopping rate fetching
-  // AND clearing intervals
-  // needs to be fetched once for settings to take effect on a rate
-  function toggleClearRateIntervals()
-    external
-    onlyOwner
-    returns (bool)
-  {
-    shouldClearRateIntervals = !shouldClearRateIntervals;
-    emit SettingsUpdatedEvent("ALL");
-    return true;
-  }
-
   //
   // end setter functions
   //
@@ -328,6 +301,7 @@ contract ExchangeRates is Ownable {
   // start getter functions
   //
 
+  // retrieve settings for a given currency (queryType)
   function getCurrencySettings(string _queryTypeString)
     public
     view
@@ -353,6 +327,7 @@ contract ExchangeRates is Ownable {
   }
 
   // get rate with bytes32 for easier assembly calls
+  // uppercase protection not provided...
   function getRate32(bytes32 _queryType32)
     external
     view
@@ -400,6 +375,8 @@ contract ExchangeRates is Ownable {
   // end utility functions
   //
 
+  // used for selfdestructing the provider in order to get back any unused ether
+  // useful for upgrades where we want to get money back from contract
   function killProvider(address _address)
     public
     onlyOwner
@@ -412,7 +389,6 @@ contract ExchangeRates is Ownable {
   }
 
   // we don't need to send money to this contract.
-  // we do need to send to ExchangeRateProvider
   function()
     payable
     public
