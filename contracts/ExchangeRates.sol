@@ -14,12 +14,6 @@ bridge requires node v6... With that in mind, it was decided that the best way
 to move forward was to isolate the oraclize functionality and replace with
 a stub in order to facilitate effective tests.
 
-Q: Why are there so many crazy string and bytes functions?
-A: This is needed in order for the two contracts to talk to each other. Strings
-cannot be sent from one contract to another because this cannot be done with
-dynamically sized types, which is what a string is in
-solidity (dynamic bytes array).
-
 Q: Why are rates private?
 A: So that they can be returned through custom getters getRate and
 getRateReadable. This is so that we can revert when a rate has not been
