@@ -78,7 +78,7 @@ contract ExchangeRateProviderStub {
       return false;
     } else {
       // simulate _queryId by hashing first element of bytes32 array
-      pendingTestQueryId = keccak256(bytes(_queryString));
+      pendingTestQueryId = keccak256(_queryString);
       setQueryId(pendingTestQueryId, _queryType);
       return true;
     }
@@ -123,7 +123,7 @@ contract ExchangeRateProviderStub {
     _exchangeRates.setRate(_queryId, parseInt(_result));
 
     if (_callInterval > 0 && _ratesActive) {
-      pendingTestQueryId = keccak256(bytes(_result));
+      pendingTestQueryId = keccak256(_result);
       pendingQueryType = _queryType;
       shouldCallAgainWithQuery = _queryString;
       shouldCallAgainIn = _callInterval;

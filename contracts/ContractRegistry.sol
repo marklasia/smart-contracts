@@ -16,7 +16,7 @@ contract ContractRegistry is Ownable {
     onlyOwner
     returns (address)
   {
-    contractAddresses[keccak256(bytes(_name))] = _address;
+    contractAddresses[keccak256(_name)] = _address;
     emit UpdateContractEvent(_name, _address);
   }
 
@@ -25,8 +25,8 @@ contract ContractRegistry is Ownable {
     view
     returns (address)
   {
-    require(contractAddresses[keccak256(bytes(_name))] != address(0));
-    return contractAddresses[keccak256(bytes(_name))];
+    require(contractAddresses[keccak256(_name)] != address(0));
+    return contractAddresses[keccak256(_name)];
   }
 
   function getContractAddress32(bytes32 _name32)

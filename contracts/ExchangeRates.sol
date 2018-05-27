@@ -46,7 +46,7 @@ contract ExchangeRates is Ownable {
   // the actual exchange rate for each currency
   // private so that when rate is 0 (error or unset) we can revert through
   // getter functions getRate and getRateReadable
-  mapping (string => uint256) private rates;
+  mapping (bytes32 => uint256) private rates;
   // points to currencySettings from callback
   // is used to validate queryIds from ExchangeRateProvider
   mapping (bytes32 => string) public queryTypes;
@@ -68,7 +68,7 @@ contract ExchangeRates is Ownable {
     _;
   }
 
-  // constructor: sets registry for talking to ExchangeRateProvider
+  // sets registry for talking to ExchangeRateProvider
   constructor(
     address _registryAddress
   )
@@ -124,7 +124,9 @@ contract ExchangeRates is Ownable {
     return true;
   }
 
-  // ExchangeRateProvider ONLY FUNCTIONS:
+  //
+  // start exchange rate provider only functions
+  //
 
   // set a pending queryId callable only by ExchangeRateProvider
   // set from sendQuery on ExchangeRateProvider
@@ -165,7 +167,7 @@ contract ExchangeRates is Ownable {
     // set _queryId to empty (uninitialized, to prevent from being called again)
     delete queryTypes[_queryId];
     // set currency rate depending on _queryType (USD, EUR, etc.)
-    rates[_queryType] = _result;
+    rates[keccak256(_queryType)] = _result;
     // get the settings for a specific currency
     Settings storage _settings = currencySettings[_queryType];
     // event for particular rate that was updated
@@ -182,8 +184,14 @@ contract ExchangeRates is Ownable {
 
     return true;
   }
+  
+  //
+  // end exchange rate provider only settings
+  //
 
-  // SETTERS:
+  //
+  // start setter functions
+  //
 
   // special function to set ACT price for use with FeeManager
   function setActRate(uint256 _actRate)
@@ -192,8 +200,8 @@ contract ExchangeRates is Ownable {
     returns (bool)
   {
     require(_actRate > 0);
-
-    rates["ACT"] = _actRate;
+    string memory _act = "ACT";
+    rates[keccak256(_act)] = _actRate;
     emit RateUpdatedEvent("ACT", _actRate);
 
     return true;
@@ -312,7 +320,13 @@ contract ExchangeRates is Ownable {
     return true;
   }
 
-  // GETTERS:
+  //
+  // end setter functions
+  //
+
+  //
+  // start getter functions
+  //
 
   function getCurrencySettings(string _queryTypeString)
     public
@@ -327,18 +341,35 @@ contract ExchangeRates is Ownable {
     );
   }
 
-  // same as getRate but uses string for easy use by regular accounts
+  // get rate with string for easy use by regular accounts
   function getRate(string _queryTypeString)
     external
     view
     returns (uint256)
   {
-    uint256 _rate = rates[toUpperCase(_queryTypeString)];
+    uint256 _rate = rates[keccak256(toUpperCase(_queryTypeString))];
     require(_rate > 0, "Fiat rate should be higher than zero");
     return _rate;
   }
 
-  // UTILITY FUNCTIONS:
+  // get rate with bytes32 for easier assembly calls
+  function getRate32(bytes32 _queryType32)
+    external
+    view
+    returns (uint256)
+  {
+    uint256 _rate = rates[_queryType32];
+    require(_rate > 0, "Fiat rate should be higher than zero");
+    return _rate;
+  }
+
+  //
+  // end getter functions
+  //
+
+  // 
+  // start utility functions
+  //
 
   // convert string to uppercase to ensure that there are not multiple
   // instances of same currencies
@@ -364,6 +395,10 @@ contract ExchangeRates is Ownable {
     }
     return string(_stringBytes);
   }
+
+  //
+  // end utility functions
+  //
 
   function killProvider(address _address)
     public
