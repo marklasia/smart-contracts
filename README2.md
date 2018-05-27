@@ -406,10 +406,109 @@ There is a modifier for each `log` function which checks if the sender is a `Poa
     * Used to retrieve `string ProofOfCustody` in order to avoid some messy assembly involving strings.
 
 ## PoaManager
+`PoaManager` is a central contract which is meant to keep track of and manage `broker`s and `PoaToken`s. This is needed due to the fact that multiple `PoaToken`s will be deployed and need to be kept track of.
 
+`PoaManager`'s job is to:
+1. deploy new `PoaToken`s
+1. remove `PoaToken`s
+1. list `PoaToken`s
+1. delist `PoaToken`s
+1. add new `broker`s
+1. remove `broker`s
+1. list `broker`s
+1. delist `broker`s
+1. pause `PoaToken`s
+1. unpause `PoaToken`s
+1. terminate `PoaToken`s
+1. setup `PoaToken` master contracts
+1. upgrade deployed `PoaToken`s
+1. display information on `broker`s & `PoaToken`s
+
+### Important Note
+In order to fully understand `PoaManager`s role a quick introduction to upgradeable contracts must be given. 
+
+`PoaToken`s deployed from PoaManager are not actually `PoaToken`s: 
+
+*"They look like a PoaToken and talk like a PoaToken, but they are not actually PoaTokens."*
+
+We use the [delegate proxy factory pattern](https://blog.zeppelin.solutions/proxy-libraries-in-solidity-79fbe4b970fd). What this means is that we have a `Proxy` that is deployed everytime you would expect a normal `PoaToken` to be deployed. This `Proxy` talks to a single instance of `PoaToken` which has been deployed. It uses `delegatecall` in the fallback function to catch all functions that you would normally use with a `PoaToken`. Those functions are called on the deployed master and act on the storage of the `Proxy` NOT the single deployed master `PoaToken`. This leads to some interesting possibilities, such as upgradeable contracts. This helps to futureproof each deployed `Proxy` against future requirement changes, whether they be legal or company related. This will be explained more in the Proxy and PoaToken sections of this README.
+
+From here on, this concept will be expressed as `PoaProxy`. Even though this actual contract is not found anywhere in the repository, it express this concept: a `Proxy` which is mirroring the functionality of a `PoaToken`. The master code which `PoaProxy`s use will be referred to as `PoaMaster`.
+
+### Broker Functions
+A `broker` is a person with an address who has passed requirements to be able to list new properties on the Brickblock platform. Once when this screening process has passed, the `broker` is added through `addBroker()`. The broker starts off as `active` and is able to add `PoaProxy`s through `addToken()`.
+
+A `broker can be removed or delisted by the `owner`. Information a `broker`'s status can also be retrieved.
+
+### Token Functions
+A new `PoaProxy` can be deployed through `addToken()` by a `broker` as long as they are `active`. A token requires the following parameters:
+```
+// ER20 name
+string _name,
+// ERC20 symbol
+string _symbol,
+// fiat symbol used in ExchangeRates to get rates
+string _fiatCurrency,
+// address of the custodian... more on this in PoaTokenSection
+address _custodian,
+// ERC20 totalSupply
+uint256 _totalSupply,
+// given as unix time (seconds since 01.01.1970)
+uint256 _startTime,
+// given as seconds offset from startTime
+uint256 _fundingTimeout,
+// given as seconds offset from fundingTimeout
+uint256 _activationTimeout,
+// given as fiat cents
+uint256 _fundingGoalInCents
+```
+
+As long as these parameters pass validation, a new `PoaProxy` will be deployed and added to the `tokenAddressList` array.
+
+There are similar functions to `broker` functions for modifying and viewing. These are only able to be run by the `owner` as well. To repeat, this functionality includes things such as: removing, listing, delisting, and viewing, a `PoaProxy`.
+
+There are additional functions which are special for `PoaProxy`s.
+
+#### Pause Token
+`PoaProxy` is an ERC20 `PausableToken` from OpenZeppelin. The noteworthy thing here is that `PoaManager` is the `owner` for all `PoaProxy`s and `PoaToken`s.
+
+#### Unpause Token
+Same as above but for unpausing.
+
+#### Terminate Token
+This puts the `PoaProxy` into a special stage where the token is irreversibly paused buy payouts are still allowed. See the PoaToken section for more details.
+
+#### Setup PoaToken
+This is a special step that is needed in order to accomodate the delegate proxy factory pattern implemented for `PoaProxy` and `PoaMaster`. A constructor cannot be used to initialize storage. This needs to be run instead. Consider it as a delayed constructor function for now. We will go into more detail in the PoaToken and Proxy sections.
+
+#### Upgrade Token
+This is allows for upgrading an individual `PoaProxy` by pointing it to a different instance of `PoaMaster`.
 
 ## Proxy
+This is the contract which produces the concept of `PoaProxy`, a `Proxy` contract using code via `delegatecall` on `PoaMaster`. This pattern is beyond the scope of this README, but here are some useful links to learn more:
+1. [A great presentation on upgradeable contracts in general from **jackandtheblockstalk**](https://docs.google.com/presentation/d/1AlxKIAEfX5vKRkNQqUsZxtZh1ZQ9omNxvud073IDUNw/edit#slide=id.g32f581369c_0_198)
+1. [A nice Example from ZeppelinOS](https://github.com/zeppelinos/zos-lib/blob/2cf0aad3e4fb4d97e694b74fa73e9de680214657/contracts/upgradeability/OwnedUpgradeabilityProxy.sol)
 
+`Proxy` is a closer implementation to the ZeppelinOS version. It keep no sequential storage itself. This is done through using `bytes32` hashes as slots which will never collide with any master code it calls to unless intentionally done.
+
+### Important Note
+All functions and variables (technically constants are not stored in storage but in code) are prepended with `proxy`. As a general rule, when upgrading NEVER use/set/create any variable, storage, or function with this prefix. This will result in very unpredictable and dangerous behavior.
+
+When upgrading it is also very important to note that you cannot change the order of ANY variables in the `PoaMaster` upgrade or you will have storage set in incorrect slots when making use of the upgraded `PoaProxy`. Chaos will ensue.
+
+This can be very easily avoided by simply inheriting from the original `PoaMaster` and add/change the functionality on top of it. There is some really great [research on what can and cannot be upgraded](https://github.com/jackandtheblockstalk/upgradeable-proxy). As always extensive testing is your best should be done before any sort of upgrade is even considered.
+
+### Proxy Storage
+`Proxy` keeps, in non-sequential storage, a masterContract and a registry address. These are acessed through the getter functions `proxyMasterContract()` and `proxyRegistry()`
+
+### Owner
+There is no explicit `owner` but there is a single function, `proxyChangeMaster()` which requires that the caller is `PoaManager`. `PoaManager` can be considered the owner in this case.
+
+### Upgrading
+`proxyChangeMaster()` is the method used to upgrade a `PoaProxy`. This simply points the `Proxy` to a new `PoaMaster` which has already been deployed. New functionality and/or bugfixes would be in the new `PoaMaster`. Care must be taken to correctly preserve the storage from the previous version of `PoaMaster`. In order to upgrade, the new address must be a contract and the method must be called from `PoaManager`.
+
+### Fallback Function
+This is where the magic happens. This is where `delegatecall` is used to take code from `PoaMaster` and use it on the `Proxy`'s `storage`. This forms the concept of a `PoaProxy`. For more information on how this works, see the links previously listed above.
 
 ## PoaToken
 
