@@ -909,7 +909,7 @@ contract PoaToken is PausableToken {
   //
 
 
-  // dont allow any money to come into the contract other than through buy/payout
+  // prevent any money to come into the contract other than through buy/payout
   function()
     public
     payable

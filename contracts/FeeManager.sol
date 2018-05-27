@@ -72,6 +72,7 @@ contract FeeManager {
     return true;
   }
 
+  // prevent anyone from sending funds other than selfdestructs of course :)
   function()
     public
     payable

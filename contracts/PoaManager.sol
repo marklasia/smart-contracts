@@ -378,10 +378,11 @@ contract PoaManager is Ownable {
   // Fallback
   //
 
+  // prevent anyone from sending funds other than selfdestructs of course :)
   function()
     public
+    payable
   {
     revert();
   }
-
 }

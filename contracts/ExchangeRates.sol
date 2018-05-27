@@ -382,10 +382,10 @@ contract ExchangeRates is Ownable {
     provider.selfDestruct(_address);
   }
 
-  // we don't need to send money to this contract.
+  // prevent anyone from sending funds other than selfdestructs of course :)
   function()
-    payable
     public
+    payable
   {
     revert();
   }

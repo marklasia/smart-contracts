@@ -284,4 +284,11 @@ contract AccessToken is PausableToken {
     return true;
   }
 
+  // prevent anyone from sending funds other than selfdestructs of course :)
+  function()
+    public
+    payable
+  {
+    revert();
+  }
 }
