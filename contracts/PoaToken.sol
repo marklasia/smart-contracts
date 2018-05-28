@@ -143,7 +143,7 @@ contract PoaToken is PausableToken {
     require(bytes(_ipfsHash).length == 46);
     require(bytes(_ipfsHash)[0] == 0x51);
     require(bytes(_ipfsHash)[1] == 0x6D);
-    require(keccak256(_ipfsHash) != keccak256(proofOfCustody));
+    require(keccak256(bytes(_ipfsHash)) != keccak256(bytes(proofOfCustody)));
     _;
   }
 
@@ -204,11 +204,11 @@ contract PoaToken is PausableToken {
     fundingTimeout = _fundingTimeout;
     activationTimeout = _activationTimeout;
 
-    // set uints
+
     fundingGoalInCents = _fundingGoalInCents;
     totalSupply_ = _totalSupply;
 
-    // start bools
+    // assign bools
     paused = true;
     whitelistTransfers = false;
 

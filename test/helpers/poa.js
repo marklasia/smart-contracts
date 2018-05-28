@@ -156,8 +156,6 @@ const testSetCurrencyRate = async (exr, exp, currencyType, rate, config) => {
 const setupPoaAndEcosystem = async () => {
   const { reg, act, bbk, exr, exp, fmr, wht, pmr, log } = await setupEcosystem()
 
-  //  const poa = await PoaToken.new()
-
   await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
     from: owner,
     value: 1e18
