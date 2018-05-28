@@ -14,8 +14,8 @@ const ExchangeRateProviderStub = artifacts.require(
   'stubs/ExchangeRateProviderStub'
 )
 
-const { localMigration } = require('./helpers/localMigration')
-const { rinkebyMigration } = require('./helpers/rinkebyMigration')
+const { localMigration } = require('./networks/localMigration')
+const { rinkebyMigration } = require('./networks/rinkebyMigration')
 
 // artifacts is not available in other files...
 const contracts = {

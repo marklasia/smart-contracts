@@ -26,6 +26,20 @@ module.exports = {
       network_id: 4,
       gas: 7e6,
       gasPrice: 1e9
+    },
+    bbkFinalized: {
+      host: 'localhost',
+      port: 8545,
+      network_id: '*',
+      gas: 7e6,
+      gasPrice: 1e9
+    },
+    bbkFinalizedWithPoa: {
+      host: 'localhost',
+      port: 8545,
+      network_id: '*',
+      gas: 7e6,
+      gasPrice: 1e9
     }
   },
   mocha: {
