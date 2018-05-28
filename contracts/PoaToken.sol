@@ -205,11 +205,11 @@ contract PoaToken is PausableToken {
     fundingTimeout = _fundingTimeout;
     activationTimeout = _activationTimeout;
 
-    // set uints
+
     fundingGoalInCents = _fundingGoalInCents;
     totalSupply_ = _totalSupply;
 
-    // start bools
+    // assign bools
     paused = true;
     whitelistTransfers = false;
 
