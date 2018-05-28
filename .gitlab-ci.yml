@@ -30,12 +30,26 @@ lint:
   script:
     - yarn lint
 
-# test:
-#   stage: test
-#   cache:
-#     policy: pull
-#   script:
-#     - yarn test
+test:
+  stage: test
+  cache:
+    policy: pull
+  script:
+    - yarn test
+
+test-poa:
+  stage: test
+  cache:
+    policy: pull
+  script:
+    - yarn test:poa
+
+test-poa-proxy:
+  stage: test
+  cache:
+    policy: pull
+  script:
+    - yarn test:poa-proxy
 
 # test-frozen:
 #   stage: test
