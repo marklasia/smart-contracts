@@ -109,10 +109,10 @@ contract ExchangeRateProviderStub {
     );
 
     bool _ratesActive = _exchangeRates.ratesActive();
-    string memory _queryType = _exchangeRates.queryTypes(_queryId);
     uint256 _callInterval;
     uint256 _callbackGasLimit;
     string memory _queryString;
+    string memory _queryType = _exchangeRates.queryTypes(_queryId);
     (
       _callInterval,
       _callbackGasLimit,

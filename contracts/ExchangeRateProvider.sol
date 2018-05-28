@@ -47,6 +47,7 @@ contract ExchangeRateProvider is usingOraclize {
 
   // send query to oraclize, results sent to __callback
   // money can be forwarded on from ExchangeRates
+  // current implementation requires > 1e5 & < 2e5 callbackGasLimit
   function sendQuery(
     string _queryString,
     uint256 _callInterval,
@@ -105,13 +106,13 @@ contract ExchangeRateProvider is usingOraclize {
     bool _ratesActive = _exchangeRates.ratesActive();
     uint256 _callInterval;
     uint256 _callbackGasLimit;
-    string memory queryType = _exchangeRates.queryTypes(_queryId);
     string memory _queryString;
+    string memory _queryType = _exchangeRates.queryTypes(_queryId);
     (
       _callInterval,
       _callbackGasLimit,
       _queryString
-    ) = _exchangeRates.getCurrencySettings(queryType);
+    ) = _exchangeRates.getCurrencySettings(_queryType);
 
     // set rate on ExchangeRates contract giving queryId for validation
     // rate is set in cents api returns float string which is parsed as int
@@ -124,7 +125,7 @@ contract ExchangeRateProvider is usingOraclize {
         _queryString,
         _callInterval,
         _callbackGasLimit,
-        queryType
+        _queryType
       );
     }
   }
