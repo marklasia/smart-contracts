@@ -1,8 +1,8 @@
 pragma solidity ^0.4.23;
 
-import "./interfaces/BrickblockContractRegistryInterface.sol";
-import "./interfaces/PoaManagerInterface.sol";
-import "./interfaces/PoaTokenInterface.sol";
+import "./interfaces/IRegistry.sol";
+import "./interfaces/IPoaManager.sol";
+import "./interfaces/IPoaToken.sol";
 
 
 contract BrickblockLogger {
