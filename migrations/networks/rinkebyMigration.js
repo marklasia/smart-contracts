@@ -5,8 +5,7 @@ const BigNumber = require('bignumber.js')
 
 const {
   deployContracts,
-  addContractsToRegistry,
-  setFiatRate
+  addContractsToRegistry
 } = require('../helpers/general')
 
 const rinkebyMigration = async (deployer, accounts, contracts) => {
@@ -22,12 +21,6 @@ const rinkebyMigration = async (deployer, accounts, contracts) => {
   console.log(chalk.yellow('setting ACT rate to 1e3...'))
   await instances.exr.setActRate(1e3)
   console.log(chalk.cyan('ACT rate update successful!'))
-
-  console.log('setting EUR rate')
-  await setFiatRate(instances.exr, instances.exp, 'EUR', 5e4, {
-    from: owner,
-    value: 2e18
-  })
 
   await bbk.finalizeBbk(
     instances.bbk,

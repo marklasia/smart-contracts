@@ -15,7 +15,6 @@ const finalizeBbk = async (
   await distributeBbkToMany(bbk, contributors, tokenDistAmount)
   await bbk.finalizeTokenSale({ from: owner })
   await bbk.unpause({ from: owner })
-  return bbk
 }
 
 module.exports = {

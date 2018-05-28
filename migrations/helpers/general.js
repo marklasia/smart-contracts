@@ -155,33 +155,35 @@ const addContractsToRegistry = async config => {
   await reg.updateContractAddress('BrickblockToken', bbk.address, {
     from: owner
   })
-  await reg.updateContractAddress('AccessToken', act.address, {
-    from: owner
-  })
-  await reg.updateContractAddress('ExchangeRates', exr.address, {
-    from: owner
-  })
-  await reg.updateContractAddress('ExchangeRateProvider', exp.address, {
-    from: owner
-  })
-  await reg.updateContractAddress('FeeManager', fmr.address, {
-    from: owner
-  })
-  await reg.updateContractAddress('BrickblockAccount', bat.address, {
-    from: owner
-  })
-  await reg.updateContractAddress('Whitelist', wht.address, {
-    from: owner
-  })
-  await reg.updateContractAddress('PoaManager', pmr.address, {
-    from: owner
-  })
-  await reg.updateContractAddress('PoaTokenMaster', poa.address, {
-    from: owner
-  })
-  await reg.updateContractAddress('Logger', log.address, {
-    from: owner
-  })
+  await Promise.all([
+    reg.updateContractAddress('AccessToken', act.address, {
+      from: owner
+    }),
+    reg.updateContractAddress('ExchangeRates', exr.address, {
+      from: owner
+    }),
+    reg.updateContractAddress('ExchangeRateProvider', exp.address, {
+      from: owner
+    }),
+    reg.updateContractAddress('FeeManager', fmr.address, {
+      from: owner
+    }),
+    reg.updateContractAddress('BrickblockAccount', bat.address, {
+      from: owner
+    }),
+    reg.updateContractAddress('Whitelist', wht.address, {
+      from: owner
+    }),
+    reg.updateContractAddress('PoaManager', pmr.address, {
+      from: owner
+    }),
+    reg.updateContractAddress('PoaTokenMaster', poa.address, {
+      from: owner
+    }),
+    reg.updateContractAddress('Logger', log.address, {
+      from: owner
+    })
+  ])
 
   console.log(chalk.cyan('registry update successful!'))
 }
@@ -189,14 +191,13 @@ const addContractsToRegistry = async config => {
 const setFiatRate = async (exr, exp, queryType, rate, config) => {
   await exr.setCurrencySettings(
     queryType,
-    'https://domain.com?currency=ETH',
+    'https://min-api.cryptocompare.com/data/price?fsym=ETH',
     30,
     1.5e5,
     {
       from: config.from
     }
   )
-  console.log(await exr.getCurrencySettings(queryType))
   await exr.fetchRate(queryType, config)
   const pendingQueryId = await exp.pendingTestQueryId()
   await exp.simulate__callback(pendingQueryId, '50000', {
