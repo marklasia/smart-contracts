@@ -334,7 +334,7 @@ contract PoaToken is PausableToken {
     }
   }
 
-  // use assembly in order to avoid gas gas usage which is too high
+  // use assembly in order to avoid gas usage which is too high
   // used to check if whitelisted at Whitelist contract
   function checkIsWhitelisted(address _address)
     public
