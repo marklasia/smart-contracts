@@ -44,7 +44,7 @@ test-poa:
     policy: pull
   script:
     - cp .env.example .env
-    - yarn test:poa
+    - yarn test:ci:poa
 
 test-poa-proxy:
   stage: test
@@ -52,7 +52,7 @@ test-poa-proxy:
     policy: pull
   script:
     - cp .env.example .env
-    - yarn test:poa-proxy
+    - yarn test:ci:poa-proxy
 
 # test-frozen:
 #   stage: test
