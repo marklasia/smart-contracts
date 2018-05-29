@@ -1,3 +1,21 @@
+/*
+ * Our CI runners often run multiple smart contract test jobs in parallel which can lead
+ * to port conflicts. That's why we're defining a range of 100 ports here that the CI
+ * runners can choose from, depending on which ports are already in use
+ */
+const FIRST_PORT = 8545
+const LAST_PORT = 8645
+
+const ciNetworks = {}
+for (let portCounter = FIRST_PORT; portCounter < LAST_PORT; portCounter++) {
+  ciNetworks[`ci${portCounter}`] = {
+    host: 'localhost',
+    port: portCounter,
+    network_id: '*',
+    gasPrice: 1e9
+  }
+}
+
 module.exports = {
   networks: {
     dev: {
@@ -6,24 +24,7 @@ module.exports = {
       network_id: 4447,
       gasPrice: 1e9
     },
-    ci1: {
-      host: 'localhost',
-      port: 8545,
-      network_id: '*',
-      gasPrice: 1e9
-    },
-    ci2: {
-      host: 'localhost',
-      port: 8546,
-      network_id: '*',
-      gasPrice: 1e9
-    },
-    ci3: {
-      host: 'localhost',
-      port: 8547,
-      network_id: '*',
-      gasPrice: 1e9
-    },
+    ...ciNetworks,
     ropsten: {
       host: 'localhost',
       port: 8545,

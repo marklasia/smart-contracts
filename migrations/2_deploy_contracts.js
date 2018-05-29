@@ -45,9 +45,8 @@ module.exports = (deployer, network, accounts) => {
         case 'test':
           await localMigration(deployer, accounts, contracts)
           return true
-        case 'ci1':
-        case 'ci2':
-        case 'ci3':
+        // matches all CI test networks with syntax "ci${portNumber}"
+        case String(network.match(/ci\d*/)):
           await localMigration(deployer, accounts, contracts)
           return true
         case 'rinkeby':
