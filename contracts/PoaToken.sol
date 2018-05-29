@@ -143,7 +143,7 @@ contract PoaToken is PausableToken {
     require(bytes(_ipfsHash).length == 46);
     require(bytes(_ipfsHash)[0] == 0x51);
     require(bytes(_ipfsHash)[1] == 0x6D);
-    require(keccak256(_ipfsHash) != keccak256(proofOfCustody));
+    require(keccak256(bytes(_ipfsHash)) != keccak256(bytes(proofOfCustody)));
     _;
   }
 
@@ -204,11 +204,11 @@ contract PoaToken is PausableToken {
     fundingTimeout = _fundingTimeout;
     activationTimeout = _activationTimeout;
 
-    // set uints
+
     fundingGoalInCents = _fundingGoalInCents;
     totalSupply_ = _totalSupply;
 
-    // start bools
+    // assign bools
     paused = true;
     whitelistTransfers = false;
 
@@ -239,7 +239,7 @@ contract PoaToken is PausableToken {
       }
 
       _tempReg := mload(_call) // assign result in mem pointer to previously declared _tempReg
-      mstore(0x40, add(_call, 0x24)) // clear out free memory pointer
+      mstore(0x40, add(_call, 0x20)) // advance free memory pointer by largest _call size
     }
 
     // assign _tempReg gotten from assembly call to PoaManager.registry() to registry
@@ -292,7 +292,7 @@ contract PoaToken is PausableToken {
       }
 
       _contractAddress := mload(_call) // assign result to return value
-      mstore(0x40, add(_call, 0x30)) // clear out the free memory pointer
+      mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
     }
   }
 
@@ -318,7 +318,7 @@ contract PoaToken is PausableToken {
         _call,           // in = mem in  mem[in..(in+insize): set to free memory pointer
         0x24,            // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
         _call,           // out = mem out  mem[out..(out+outsize): output assigned to this storage address
-        0x40             // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (uint256 size = 0x20 = slot size 0x20)
+        0x20             // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (uint256 size = 0x20 = slot size 0x20)
       )
 
       // revert if not successful
@@ -330,11 +330,11 @@ contract PoaToken is PausableToken {
       }
 
       _fiatRate := mload(_call) // assign result to return value
-      mstore(0x40, add(_call, 0x30)) // clear out the free memory pointer
+      mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
     }
   }
 
-  // use assembly in order to avoid gas gas usage which is too high
+  // use assembly in order to avoid gas usage which is too high
   // used to check if whitelisted at Whitelist contract
   function checkIsWhitelisted(address _address)
     public
@@ -369,7 +369,7 @@ contract PoaToken is PausableToken {
       }
 
       _isWhitelisted := mload(_call) // assign result to returned value
-      mstore(0x40, add(_call, 0x30)) // clear out the free memory pointer
+      mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
     }
   }
 
@@ -909,7 +909,7 @@ contract PoaToken is PausableToken {
   //
 
 
-  // prevent any money to come into the contract other than through buy/payout
+  // prevent anyone from sending funds other than selfdestructs of course :)
   function()
     public
     payable

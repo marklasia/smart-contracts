@@ -31,7 +31,8 @@ const poaManagerToPoaManager = (reg, addr) =>
 const testPreFundingToFundingEvent = async (poa, reg, pmr, log) => {
   // change to actual PoaManager contract so that logger validation works...
   await poaManagerToPoaManager(reg, pmr.address)
-  const StageEvent = log.StageEvent()
+  const LoggerStageEvent = log.StageEvent()
+  const StageEvent = poa.StageEvent()
 
   const neededTime = await determineNeededTimeTravel(
     poa,
@@ -40,21 +41,28 @@ const testPreFundingToFundingEvent = async (poa, reg, pmr, log) => {
   await timeTravel(neededTime)
   await testStartSale(poa)
 
+  const { args: triggeredLoggerEvent } = await waitForEvent(LoggerStageEvent)
   const { args: triggeredEvent } = await waitForEvent(StageEvent)
 
   // change back so that other testing functions will work with owner...
   await poaManagerToOwner(reg)
 
   assert.equal(
-    triggeredEvent.tokenAddress,
+    triggeredLoggerEvent.tokenAddress,
     poa.address,
     'stage event tokenAddress should match poa.address'
+  )
+  assert.equal(
+    triggeredLoggerEvent.stage.toString(),
+    new BigNumber(1).toString(),
+    'stage event stage should be 1 (Funding)'
   )
   assert.equal(
     triggeredEvent.stage.toString(),
     new BigNumber(1).toString(),
     'stage event stage should be 1 (Funding)'
   )
+  checkLoggerEventsEqualsPoaEvents(triggeredLoggerEvent, triggeredEvent)
 }
 
 const testBuyTokensEvents = async (poa, reg, pmr, log) => {
@@ -100,6 +108,7 @@ const testBuyTokensEvents = async (poa, reg, pmr, log) => {
     value.toString(),
     'buy event amount should match value'
   )
+  checkLoggerEventsEqualsPoaEvents(triggeredLoggerEvent, triggeredEvent)
 }
 
 const testBuyRemainingTokensEvents = async (poa, reg, pmr, log) => {
@@ -143,6 +152,7 @@ const testBuyRemainingTokensEvents = async (poa, reg, pmr, log) => {
     value.toString(),
     'buy event amount should match value'
   )
+  checkLoggerEventsEqualsPoaEvents(triggeredLoggerEvent, triggeredEvent)
 }
 
 const testActivateEvents = async (poa, reg, pmr, fmr, log) => {
@@ -204,6 +214,14 @@ const testActivateEvents = async (poa, reg, pmr, fmr, log) => {
     defaultIpfsHash,
     'proof of custody updated even ipfs hash should match defaultIpfsHash'
   )
+  checkLoggerEventsEqualsPoaEvents(
+    triggeredLoggerStageEvent,
+    triggeredStageEvent
+  )
+  checkLoggerEventsEqualsPoaEvents(
+    triggeredLoggerProofEvent,
+    triggeredProofEvent
+  )
 }
 
 const testPayoutEvents = async (poa, reg, pmr, fmr, log) => {
@@ -240,6 +258,7 @@ const testPayoutEvents = async (poa, reg, pmr, fmr, log) => {
     triggeredEvent.amount.greaterThan(0),
     'payout event amount should be more than 0'
   )
+  checkLoggerEventsEqualsPoaEvents(triggeredLoggerEvent, triggeredEvent)
 }
 
 const testClaimEvents = async (poa, reg, pmr, log) => {
@@ -284,6 +303,7 @@ const testClaimEvents = async (poa, reg, pmr, log) => {
     triggeredEvent.payout.greaterThan(0),
     'claim event amount should be more than 0'
   )
+  checkLoggerEventsEqualsPoaEvents(triggeredLoggerEvent, triggeredEvent)
 }
 
 const testTerminateEvents = async (poa, reg, pmr, log) => {
@@ -363,6 +383,7 @@ const testChangeCustodianEvents = async (poa, reg, pmr, log) => {
     newCustodian,
     'custodian changed event new custodian should match newCustodian'
   )
+  checkLoggerEventsEqualsPoaEvents(triggeredLoggerEvent, triggeredEvent)
 }
 
 const testReclaimEvents = async () => {
@@ -390,7 +411,7 @@ const testReclaimEvents = async () => {
   const LoggerStageEvent = log.StageEvent()
   const StageEvent = poa.StageEvent()
   const LoggerReclaimEvent = log.ReclaimEvent()
-  const ReclaimEvent = log.ReclaimEvent()
+  const ReclaimEvent = poa.ReclaimEvent()
 
   await testReclaim(poa, { from }, true)
 
@@ -443,6 +464,25 @@ const testReclaimEvents = async () => {
   assert(
     triggeredReclaimEvent.amount.greaterThan(0),
     'reclaim event amount should be greater than 0'
+  )
+  checkLoggerEventsEqualsPoaEvents(
+    triggeredLoggerReclaimEvent,
+    triggeredReclaimEvent
+  )
+  checkLoggerEventsEqualsPoaEvents(
+    triggeredLoggerStageEvent,
+    triggeredStageEvent
+  )
+}
+
+const checkLoggerEventsEqualsPoaEvents = (loggerArgs, poaArgs) => {
+  // eslint-disable-next-line no-unused-vars
+  const { tokenAddress, ...loggerArgsWithoutTokenAddress } = loggerArgs
+
+  assert.deepEqual(
+    loggerArgsWithoutTokenAddress,
+    poaArgs,
+    'loggerArgs without tokenAddress should match poaArgs'
   )
 }
 

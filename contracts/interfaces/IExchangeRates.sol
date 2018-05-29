@@ -2,7 +2,7 @@ pragma solidity 0.4.23;
 
 interface IExchangeRates {
   function queryTypes(
-    bytes32
+    bytes32 _queryId
   ) 
     external 
     returns (string);

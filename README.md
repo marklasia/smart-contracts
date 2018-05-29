@@ -77,8 +77,16 @@ Ecosystem Contracts:
 1. `PoaToken`
 1. `BrickblockAccount`
 
+<<<<<<< HEAD
 Standalone Contract:
 1. `CustomPoaToken`
+=======
+1. BrickblockToken
+1. AccessToken
+1. BrickblockFountain
+1. Brickblock
+1. POAToken
+>>>>>>> master
 
 [Brickblock Ecosystem Chart](https://www.draw.io/?lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&title=Untitled%20Diagram.xml#R7Vzfc5s4EP5r%2FJgMSObXo%2B02vZu7znnazrV9VLCMmWDkA5w4%2FetPAgmDJBpsA3Y7%2BCVmJYTQftpvtbvOBC62hw8J2m0%2BkhWOJsBYHSbw3QQAcwoN%2BodJXguJA6eFIEjCFe90FHwOf2Au5PcF%2B3CF01rHjJAoC3d1oU%2FiGPtZTYaShLzUu61JVH%2FqDgVYEXz2UaRKv4arbMOlpmEcG%2F7AYbDhj3Yt3vCI%2FKcgIfuYP28C4Dr%2FFM1bJMbi%2FdMNWpGXigi%2Bn8BFQkhWfNseFjhiayuWrbjvoaG1nHeC46zVDRhB03E8YwV85Lnwjo%2FwjKI9X4uZ7%2BM0%2FUKecDwBdkSHnT8mbOrZK18u%2B789m%2B98TeLsLs2VOaMdTLCjgJgf2%2Bm3oPgLavcDOieqWXoxf9mEGf68Qz5reaHgorJNto3olUm%2F5iuL2dwNelUuHmvyyTb0eUOEHnE0L1WxIBFJaFNMYvaMNEvoywgh1ZCRf8oWoXE26jqMokrPh%2FzDX%2FUBbcOIAfxfnKxQjLiYo9kE%2FFr3IBSFQUxlPlUTTsolqepNKAInGT5URFyPHzDZ4ix5pV14KxQY5HvOcvn1yxHBHhdtKth1uAzxPROUIx9xQ79w6LSEka3ASGAn3aH4IvR8ZRCJwjQTI9LJFYOO6OoPXVPbqqHL9iwFXaV5rMLL7gNeTn%2FwWpLZCKwBgWXDt82WFli92C1XAdaSoI90lQL6vqP%2Be9C%2FByT9O869aloGIy5PAcADxiMAegSAZdyQ3yIOIH0wyzwJ%2FafHiPhP1KWm%2Bh0dmCFhZk5lmAGNnTGBzoWx%2BkCaetLqDGnvD%2F4GxQH%2BhDJ6ih5RNqA3A0pUlY6yxp8xrZ4cZR2oZD3HqxkLkbA3j1CaMoXRRUdJpoorWseHMPvGVEvfr7j6LlpiOstKE7v8zkHQUkWNK5%2BSfeKLoEzDKYBOPcBZQx%2BxInhVi%2FioCqyox9LYACFLcISy8LkeJ9KpjD9hSUJm6Et8NJGdGKJ4YX5XNXAjDeTY9YFsUzJSxaooA%2BUIKl%2B7HaiA6hOFiM1F2Bn6lZsaCWt012SS8cDUfqHHvAMDyI5NMJ%2ByNZ9Y73Tbku2%2B0EfRjDdsw9WK3d9kYY4xt0vw17T1y6Ajf4lJNXCnMwnGvWFMzZqy7kAnYLK0g4r7yXqd4ot1b%2FXtD%2BUOUS26OBLVAEQFoUxUDtQQFdARVRfukC5A2BFRlXRUI6OStr5VCE1QWK80Jc4UNZ6yboqW3DqZTI0zWcmUgjllTLoHVlJjgFvyzKhoQbbUfLDFm8%2F%2F%2Bp0oSeyZLijJ8WqKMi%2BDUbecowbhGEfQ2%2FZx8YW%2B789UPJDhKFo2JAl%2FUN2haAiXV2tLGnJ4N2pbXIk%2BzrUtU9ibxyvIqGpbirnMFl%2FawU13cqpip4o3czLkqcn75RAE5MymdyY9Aavuh1sW7A1CUIEQBUe4paI11pyU3gSR1jiZDaapf5%2BmBYi8mwLRnRT%2Fc8C5Po508Jbj0B1iaKpgaIdez0aQzgwdIzaqIdLTW6Prc%2FVQz4i3S%2FGmHvb9Dc4drhdRdEGP0127Wwr9yRDLyO4W8GWP%2BLoQX%2Bqh308wytihbZeQw%2BuSoAuYsY316hVErgoi2PacL7Rq3JuG4dY0Isj2Orhy4Zm48qSBbNDO2aLKzklOdOPHce2jOj13AjWiIJ87ezltDpw10blutxWNurM6giCUi9bkbEuHtk0tHOklnbtMyHO4YrUoY7D8lGC5JmimbJzmrK5RPzc6upyu5aoboosaFQH%2BPpD1T4L8iHabLf8cAXVFQHnGkIDqsUiggdROjkdITPQmy4FWUa2rsprlyBk399w0i1pl4vSXaJmq9mdXkBBbb8KUdSwDSIoyAJaQyKhtyRRg%2FVrpl9apljpA4c93v3Fv2LZT05%2Fwym4iAQOBonE6LtVxyNhmXdR%2B7JLQz1VNYt7SvwnR1yCd7DGfalwEA1eNS2FwrlZG5Eke8tmWRBrI6e%2F0D9WIeGd%2BzILBBEV%2FkyAYXeNBPRlXKmjTljv29fMNqAYslyyONP5O8YYR40gJ4SHr%2FaEa4tmnzG%2FJf%2FVFuZ05NR3zmCYs2ZyKuSxgeTKxWSqx6UPjVysekKv2p2dWDzhStaQtM2aHRKfWr3RHdPs0I9slQZ2ZuJErB7N8ENYx6BmD%2FgQFqiHKiATMbDxjEWG%2FvCTh54WWHaT2TjVybXJ9hW96w1kZ04Csjty2TcNxHdcz7Lo1A%2FDe8DzPNF3LNm1TyrS0TtnIRhK0K7G6WspmqoayFjzy8AkHYSp2SBXWRwtlvm3OLo0WtDcO5bYX5W22xi3SmobT%2FSJ6efwXI8WyH%2F%2BPC3z%2FPw%3D%3D)
 
@@ -120,6 +128,7 @@ Company tokens are held as the contract's token balance (`balanceOf(address(this
 
 Company tokens can be used like other users' tokens other than being able to move tokens outside of the ecosystem until November 30, 2020. More details on these functions will be covered in the `BrickblockAccount` section.
 
+<<<<<<< HEAD
 The `AccessToken` contract will later be called to lock the company funds into the fountain. See below for more details. This is the same process for any other users wanting to benefit from `BrickblockToken` ownership.
 
 ### Important Notes
@@ -137,6 +146,20 @@ There is also a `toggleDead` function which does not do anything other than set 
 `AccessToken` (ACT) is an ERC20 compliant token which is redeemable for ether at a 1000ACT:1ETH ratio. This redemption happens on the `FeeManager` contract (explained more in `FeeManager` contract). ACT can only be aquired through locking in `BrickblockToken`s (BBK).
 
 Locking in BBK is means:
+=======
+Company tokens are locked in by assigning the value to the contract itself. The owner never starts with any token balance. This way there is no way to move the tokens without predetermined functions. The tokens are approved to be locked into the `AccessToken` contract when `finalizeTokenSale` is called. Once when the tokens are locked into the `AccessToken`, there will be no way to move them until November 30, 2020.
+
+The `AccessToken` contract will later be called to lock the company funds into the fountain. See below for more details.
+
+## AccessToken
+`AccessToken` allows for `BrickblockToken` holders to lock in their BBK in order to receive ACT whenever a fee is paid on the Brickblock network. When a fee is paid (as Ethereum), the contract gets the ACT-ETH rate from `ExchangeRates` contract and produces new `AccessTokens` by the given Eth value according to the rate. Users who have locked in their BBK receive an ACT reward  proportional to their locked tokens relative to the entire locked BBK balance of the contract.
+
+`AccessToken` is an ERC20 compliant token contract.
+
+## FeeManager
+
+`FeeManager` allows for other smart contracts or accounts to pay a fee to the contract. When a fee is paid, ACT (AccessTokens) are created and given proportionally to lockedBBK holders.
+>>>>>>> master
 
 *transferring a given amount of BBK to the `AccessToken` contract through the `lockBBK()` function. Transferred balances are essentially owned by the `AccessToken` contract at this point. A record of the sender's balance is kept in order to redeem (unlock) at any given time after locking.*
 
@@ -293,9 +316,16 @@ Given the above information, this contract allows for any number of contracts to
 
 Prices are currently retrieved from [cryptocompare](https://www.cryptocompare.com/), but this can be easily changed through changing the settings of the given currency.
 
+<<<<<<< HEAD
 `ExchangeRates` and `ExchangeRateProvider` could be considered a binary system of contracts. Neither do much without the other and their main goal is the same: on-chain exchange rates.
 
 They are seperate in order to better test them. Oraclize has some testing tooling... but the node requirements are <= node v6. With this in mind it was though to be a better idea to create a stub for testing which can be used in place of `ExchangeRatesProvider` while keeping `ExchangeRates` the same.
+=======
+## ContractRegistry
+This contract allows for the communication between other smart contracts in our ecosystem. Contracts can be registered via `updateContractAddress()` function.
+
+## Whitelist
+>>>>>>> master
 
 `ExchangeRates` job is to hold the settings data for each currency as well as the actual rates.
 

@@ -1,60 +1,116 @@
 /* eslint-disable no-console */
+
 const AccessToken = artifacts.require('AccessToken')
 const BrickblockAccount = artifacts.require('BrickblockAccount')
-const BrickblockToken = artifacts.require('BrickblockToken')
-const CentralLogger = artifacts.require('CentralLogger')
 const ContractRegistry = artifacts.require('ContractRegistry')
-const ExchangeRateProvider = artifacts.require('ExchangeRateProvider')
+const BrickblockToken = artifacts.require('BrickblockToken')
 const ExchangeRates = artifacts.require('ExchangeRates')
 const FeeManager = artifacts.require('FeeManager')
+const Logger = artifacts.require('CentralLogger')
 const PoaManager = artifacts.require('PoaManager')
 const PoaToken = artifacts.require('PoaToken')
 const Whitelist = artifacts.require('Whitelist')
-const ExchangeRateProviderStub = artifacts.require(
-  'stubs/ExchangeRateProviderStub'
-)
+let ExchangeRateProvider
 
-const { localMigration } = require('./networks/localMigration')
-const { rinkebyMigration } = require('./networks/rinkebyMigration')
-
-// artifacts is not available in other files...
-const contracts = {
-  AccessToken,
-  BrickblockAccount,
-  ContractRegistry,
-  BrickblockToken,
-  ExchangeRates,
-  FeeManager,
-  CentralLogger,
-  PoaManager,
-  PoaToken,
-  Whitelist,
-  ExchangeRateProvider,
-  ExchangeRateProviderStub
-}
+const { addContractsToRegistry, setFiatRate } = require('./helpers/general')
 
 module.exports = (deployer, network, accounts) => {
   console.log(`deploying on ${network} network`)
 
+  if (network === 'dev' || network == 'test') {
+    ExchangeRateProvider = artifacts.require('stubs/ExchangeRateProviderStub')
+  } else {
+    ExchangeRateProvider = artifacts.require('ExchangeRateProvider')
+  }
+
   deployer
     .then(async () => {
-      switch (network) {
-        case 'dev':
-          await localMigration(deployer, accounts, contracts)
-          return true
-        case 'test':
-          await localMigration(deployer, accounts, contracts)
-          return true
-        // matches all CI test networks with syntax "ci${portNumber}"
-        case String(network.match(/ci\d*/)):
-          await localMigration(deployer, accounts, contracts)
-          return true
-        case 'rinkeby':
-          await rinkebyMigration(deployer, accounts, contracts)
-          return true
-        default:
-          throw new Error('unsupported network')
-      }
+      const owner = accounts[0]
+      const bonusAddress = accounts[1]
+
+      await deployer.deploy(ContractRegistry, { from: owner })
+      const reg = await ContractRegistry.deployed()
+
+      //Brickblock Token
+      await deployer.deploy(BrickblockToken, bonusAddress, {
+        from: owner
+      })
+      const bbk = await BrickblockToken.deployed()
+
+      //AccessToken
+      await deployer.deploy(AccessToken, reg.address, {
+        from: owner
+      })
+      const act = await AccessToken.deployed()
+
+      //BrickblockAccount
+      await deployer.deploy(BrickblockAccount, reg.address, 100, {
+        from: owner
+      })
+      const bat = await BrickblockAccount.deployed()
+
+      //FeeManager
+      await deployer.deploy(FeeManager, reg.address, {
+        from: owner
+      })
+      const fmr = await FeeManager.deployed()
+
+      //WhiteList
+      await deployer.deploy(Whitelist, {
+        from: owner
+      })
+      const wht = await FeeManager.deployed()
+
+      // PoaManager
+      await deployer.deploy(PoaManager, reg.address, {
+        from: owner
+      })
+      const pmr = await PoaManager.deployed()
+
+      // ExchangeRates
+      await deployer.deploy(ExchangeRates, reg.address, { from: owner })
+      const exr = await ExchangeRates.deployed()
+
+      // ExchangeRateProvider
+      await deployer.deploy(ExchangeRateProvider, reg.address, {
+        from: owner
+      })
+      const exp = await ExchangeRateProvider.deployed()
+
+      // PoaToken master
+      const poa = await deployer.deploy(PoaToken)
+
+      // Logger
+      await deployer.deploy(Logger, reg.address, { from: owner })
+      const log = await Logger.deployed()
+
+      // eslint-disable-next-line no-console
+      console.log('adding contracts to the registry')
+      await addContractsToRegistry({
+        act,
+        bat,
+        bbk,
+        exp,
+        exr,
+        fmr,
+        log,
+        owner,
+        pmr,
+        poa,
+        reg,
+        wht
+      })
+
+      console.log('setting ACT rate')
+      await exr.setActRate(1e3)
+
+      console.log('setting EUR rate')
+      await setFiatRate(exr, exp, 'EUR', 5e4, {
+        from: owner,
+        value: 1e18
+      })
+
+      return true
     })
     .catch(err => {
       // eslint-disable-next-line no-console
