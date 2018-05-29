@@ -45,6 +45,12 @@ module.exports = (deployer, network, accounts) => {
         case 'test':
           await localMigration(deployer, accounts, contracts)
           return true
+        case 'ci1':
+          await localMigration(deployer, accounts, contracts)
+          return true
+        case 'ci2':
+          await localMigration(deployer, accounts, contracts)
+          return true
         case 'rinkeby':
           await rinkebyMigration(deployer, accounts, contracts)
           return true

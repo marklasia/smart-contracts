@@ -6,6 +6,18 @@ module.exports = {
       network_id: 4447,
       gasPrice: 1e9
     },
+    ci1: {
+      host: 'localhost',
+      port: 8546,
+      network_id: '*',
+      gasPrice: 1e9
+    },
+    ci2: {
+      host: 'localhost',
+      port: 8547,
+      network_id: '*',
+      gasPrice: 1e9
+    },
     ropsten: {
       host: 'localhost',
       port: 8545,
