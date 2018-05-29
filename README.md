@@ -1,208 +1,4 @@
 # Brickblock Smart Contracts
-
-## Installing
-
-1. Install dependencies using:
-
-    ```sh
-    yarn
-    ```
-
-1. Install [mythril](https://github.com/ConsenSys/mythril), a security analysis tool for Ethereum smart contracts
-
-    ```sh
-    # You will need python3 and pip3 for this to work
-    pip3 install mythril
-    ```
-
-## Running the tests
-
-### Unit Tests
-```
-yarn test
-```
-
-### Stress Tests
-Since running all the stress tests at once is not recommended (local testrpc can crash), it can run via:
-
-```
-yarn test:stress-test
-```
-
-To run them separately (recommended):
-```
-yarn truffle test test/stress-tests/[testname].js
-```
-
-### Security Analysis
-
-```sh
-yarn test:mythril
-```
-
-## Running the linter
-
-```
-yarn lint
-```
-
-## Development with testrpc and MetaMask
-If you would like to use MetaMask in your dev environment then
-
-* Copy the HD wallet mnemonic that testrpc logs during its initialization when running `yarn start:dev`
-* Open the MetaMask extension in your browser, use the "lock" action from top right menu and click "I forgot my password"
-* Use the copied mnemonic as the wallet seed
-* set metamask network to `localhost:8545`
-* This should give you some ETH and several accounts to work with
-* If MetaMask gets out of sync (which can happen as it caches some state about the network it is connected to) then connect to another network and then back to your local testrpc on `localhost:8545`
-
-## Deployment
-
-Deployment is carried out through truffle in a `package.json` script:
-```
-yarn migrate:dev
-```
-
-### Deploy to Ropsten Test Net
-If you want to deploy the contracts to ropsten (or mainnet in theory, but wouldn't be advisable and requires reconfiguration of truffle.js) then
-* Go to MetaMask using an development wallet (maybe create a new one or use a shared Brickblock mnemonic)
-* choose Ropsten Test Net
-* click Buy -> Ropsten Test Faucet
-* get some test ether (will take about 5min)
-* go to  ≡ -> Settings -> Reveal Seed Words
-* save them to a file
-* set the env var HDWALLET_PATH
-```sh
-HDWALLET_PATH=/path/to/your/MetaMask\ Seed\ Words yarn migrate:ropsten
-```
-* open a shell and migrate via `yarn migrate:ropsten`
-
-These are the smart contracts which will power the Ethereum side of our platform. The following are included:
-
-1. BrickblockToken
-1. AccessToken
-1. BrickblockFountain
-1. Brickblock
-1. POAToken
-
-Initial drafts of each of these contracts have already been developed and will be released in the near future.
-
-## BrickblockToken
-BrickblockToken is an ERC20 Token with added features enabling the Brickblock contract to:
-
-* send out tokens from the token sale
-* finalise the token sale according to previously agreed up terms
-* approve the fountain contract to transfer tokens
-* change the stored address for the fountain contract
-* be tradable amongst users
-* be tradable on exchanges
-* be upgradeable
-
-Company tokens are locked in by assigning the value to the contract itself. The owner never starts with any token balance. This way there is no way to move the tokens without predetermined functions. The tokens are approved to be locked into the `AccessToken` contract when `finalizeTokenSale` is called. Once when the tokens are locked into the `AccessToken`, there will be no way to move them until November 30, 2020.
-
-The `AccessToken` contract will later be called to lock the company funds into the fountain. See below for more details.
-
-## AccessToken
-`AccessToken` allows for `BrickblockToken` holders to lock in their BBK in order to receive ACT whenever a fee is paid on the Brickblock network. When a fee is paid (as Ethereum), the contract gets the ACT-ETH rate from `ExchangeRates` contract and produces new `AccessTokens` by the given Eth value according to the rate. Users who have locked in their BBK receive an ACT reward  proportional to their locked tokens relative to the entire locked BBK balance of the contract.
-
-`AccessToken` is an ERC20 compliant token contract.
-
-## FeeManager
-
-`FeeManager` allows for other smart contracts or accounts to pay a fee to the contract. When a fee is paid, ACT (AccessTokens) are created and given proportionally to lockedBBK holders.
-
-Owners of ACT can claim Ether by running `claimFee`. When claiming, ACT is burnt in return for Ether.
-
-## BrickblockAccount (Work in Progress)
-
-`BrickblockAccount` is the sole means of the company to interact with the company tokens before the token release date of November 30, 2020. The code preventing token withdrawal is here:
-
-```
-function withdrawBbkFunds(
-    address _address,
-    uint256 _value
-  )
-    external
-    onlyOwner
-    returns (bool)
-  {
-    require(fundsReleaseBlock < block.number);
-    BrickblockToken bbk = BrickblockToken(
-      registry.getContractAddress("BrickblockToken")
-    );
-    return bbk.transfer(_address, _value);
-  }
-```
-
-The rest of this functionality allows Brickblock to interact with the ecosystem as any other participant.
-
-## ContractRegistry
-This contract allows for the communication between other smart contracts in our ecosystem. Contracts can be registered via `updateContractAddress()` function.
-
-## Whitelist
-
-This contract stores whitelisted addresses. This will allow users to buy POA tokens after being whitelisted.
-
-## ExchangeRates, Provider & OraclizeAPI
-ExchangeRate ecosystem is based on 3 smart contracts:
-
-### ExchangeRates
-This contract is used to store and access exchange rates for FIAT to ETH and Access Token(ACT) to ETH. It uses ExchangeRateProvider to fetch rates. Using `setCurrencySettings()` function, owner can add as many FIAT currencies as needed. When adding a new FIAT currency through, if interval property is set higher than 0 second, it automatically fetches the new rate on every interval amount. 
-
-### ExchangeRatesProvider (inherits OraclizeAPI)
-The purpose of this contract is to create a bridge between ExchangeRates and Oraclize. The reason behind separating this from `ExchangeRates` is to make testing possible. Note that test suite uses `/contracts/stubs/ExchangeRateProviderStub.sol` contract to mock requests.   
-**Note: This contract needs ethereum to execute fetching.**
-
-### OraclizeAPI
-The Oracle provider for `ExchageRates` ecosystem.
-[click here for details](https://github.com/oraclize/ethereum-api)
-
-## POA Manager (Work in Progress)
-POA Manager contract will allow brokers to be added and removed. It is also responsible for deploying new POATokens on behalf of the brokers. It will be able to:
-
-* add/remove broker
-* list/delist broker
-* deploy new POA tokens
-
-## POAToken (Proof of Asset Token) (Work in Progress)
-
-The POAToken is the token that represents an asset in the real world. The primary example at the moment is real estate. A broker will go through a vetting process and provide legal proof that they hold the asset in question.
-
-Once when this process is complete they will be able to have a token added by the owner.
-
-The token will go through different phases:
-1. funding
-1. pending
-1. failed
-1. active
-1. terminated
-
-### Funding Stage
-The token is put up on the platform and investors are able to buy a piece of the asset. If the funding goals are not met the token goes to failed stage. If the goals are met within the time limit, the token goes on to pending stage.
-
-### Pending Stage
-In the pending stage, a verified custodian of the asset must provide proof that they are in possession of the asset to move the token forward.
-
-### Failed Stage
-When failed, tokens that have been bought are redeemable for the amount of ether they were bought for. The contract will never become active or tradeable when reaching a failed state. The contract reaches failed state when the fundingGoal is not reached in time.
-
-### Active Stage
-In the active stage, a token will produce monthly payouts and will be sent to owners in the form of ether.
-
-### Terminated Stage
-A contract enters the terminated stage when a poa contract needs to end. This could be because the building is sold, or some other "act of god" occurs. When in terminated stage, users will not be able to trade the tokens any longer. Payouts from custodian are still possible. This should allow sending money from insurance to token holders if a building is destroyed.
-
-## Built With
-* [Truffle v4.1.8](https://github.com/trufflesuite/truffle/releases/tag/v4.1.8)
-* [openzeppelin-solidity v1.9.0](https://github.com/OpenZeppelin/openzeppelin-solidity/releases)
-
-## Authors
-* **Cody Lamson** - [TovarishFin](https://github.com/TovarishFin)
-* **Matt Stevens**  - [mattgstevens](https://github.com/mattgstevens)
-* **Volkan Bilici**  - [vbilici](https://github.com/vbilici)
-* **Adrian Kizlauskas**  - [dissaranged](https://github.com/dissaranged)
-* **Marius Hanne** - [mhanne](https://github.com/mhanne)
-# Brickblock Smart Contracts
 These are all of the smart contracts which power the Brickblock ecosystem.
 
 ## Installing
@@ -318,7 +114,7 @@ Finalize token sale is the most noteworthy function which finalizes balances onc
 1. `bonusTokens`
     * 14%
 
-When the sale is finalized, any unsold tokens are burnt from the `contributorsShare`. 
+When the sale is finalized, any unsold tokens are burnt from the `contributorsShare`.
 
 Company tokens are held as the contract's token balance (`balanceOf(address(this))`). When finalize is called it sets approval for a given contract to run `trasnferFrom`. The contract to get this approval `BrickblockAccount`.
 
@@ -365,7 +161,7 @@ This was mostly covered above... but there are a few things worth mentioning. In
 Using [ERC223](https://github.com/Dexaran/ERC223-token-standard) would have been great here. But it was not known about at the time of deploying `BrickblockToken`.
 
 #### ACT distributions
-There is a somewhat unique way of handling dividends in this contract. 
+There is a somewhat unique way of handling dividends in this contract.
 
 Imagine that there are 5 BBK tokens locked into the contract; you own 2 of the 5 locked in. Now imagine that there are 10 ACT tokens being distributed to the contract. What `AccessToken` does is simply take the amount and divide that by the total locked tokens (5). This will result in 2. This is `uint256 totalMintedPerToken` in the contract. You would be entitled to 4 ACT at this point.
 
@@ -436,13 +232,13 @@ Essentially what is happening here is that instead of just giving back a number,
 // how much BBK you have locked in
 totalMintedPerToken = lockedBBK[_address]
     // multiplying by totalPerToken and deducting by
-    .mul(totalMintedPerToken.sub(distributedPerBBK[_address])) 
+    .mul(totalMintedPerToken.sub(distributedPerBBK[_address]))
     // variable that holds any balances bumped during transfers
     .add(securedTokenDistributions[_address])
     // deduct anything you spent (from transfers/transferFroms)
     .add(receivedBalances[_address])
     // add anythinng you received (from transfers/transferFroms)
-    .sub(spentBalances[_address]); 
+    .sub(spentBalances[_address]);
 ```
 
 With this algorithm we can distribute ACT to users without actually distributing. Using this means that we need to make the `balances` mapping private in the ERC20 standard in order to ensure that the correct balances are being returned rather than the `balances` mapping which is no longer accurate or used. `transfer` and `transferFrom` are modified to use `balanceOf()` function rather than `balances` mapping.
@@ -464,7 +260,7 @@ It has only two main functions and two supporting utility functions. It does not
 
 This is how locked BBK holders receive ACT.
 
-This function can be called by anyone. Meaning anyone can pay a fee if they really wanted to. For the purposes of the ecosystem, it is used by `PoaTokens` when a fee must be paid. 
+This function can be called by anyone. Meaning anyone can pay a fee if they really wanted to. For the purposes of the ecosystem, it is used by `PoaTokens` when a fee must be paid.
 
 Ether is held on this contract which can be redeemed later using `claimFee()`.
 
@@ -491,7 +287,7 @@ The single public mapping named `whitelisted` maps `address`es to `bool`s. The m
 Where required, other contracts will check if an address is whitelisted on this contract.
 
 ## ExchangeRates
-`ExchangeRates` is used as a central loction to retrieve off-chain fiat:eth prices and put them on chain. Calls can be made recursively for an indefinite period of time. This means that this contract can self-update at a given interval. It can also handle any number of fiat currencies. 
+`ExchangeRates` is used as a central loction to retrieve off-chain fiat:eth prices and put them on chain. Calls can be made recursively for an indefinite period of time. This means that this contract can self-update at a given interval. It can also handle any number of fiat currencies.
 
 Given the above information, this contract allows for any number of contracts to use any number of fiat prices around the globe on-chain.
 
@@ -503,7 +299,7 @@ They are seperate in order to better test them. Oraclize has some testing toolin
 
 `ExchangeRates` job is to hold the settings data for each currency as well as the actual rates.
 
-All rates are given in cent amounts. 
+All rates are given in cent amounts.
 *ex: 1ETH = 50000 USD cents NOT 500USD*
 
 ### Settings
@@ -561,7 +357,7 @@ Emitted upon query execution. Does not mean query was successful. Includes `curr
 Emitted every time settings have been changed for any currency. Includes `currency` parameter.
 
 ### `setActRate`
-This is a special currency setter function. It is callable by `owner` unlike any of the other rates which are only retreivable through Oraclize. 
+This is a special currency setter function. It is callable by `owner` unlike any of the other rates which are only retreivable through Oraclize.
 
 This works in this way because ACT is an internal mechanism in the Brickblock ecosystem.
 
@@ -597,7 +393,7 @@ This is a contract from [Oraclize](https://github.com/oraclize/ethereum-api/blob
 ## CentralLogger
 `CentralLogger` mirrors events from each `PoaToken` listed by `PoaManager` (more on that in `PoaManager` section). One additional event parameter named `tokenAddress` is added for each event in order to keep track of different token's events. Having a central contract to log an undefined number of `PoaToken`s makes for easier tracking of events. This will be linked up to email notifications using the KYC data previously mentioned.
 
-In the contract, all events found on `PoaToken` are also implemented here (with the additional `TokenAddress` parameter previous mentioned). There corresponding functions for each event which are prefixed wiht `log`. These functions are called from `PoaToken`s every time an event would normally be emitted. 
+In the contract, all events found on `PoaToken` are also implemented here (with the additional `TokenAddress` parameter previous mentioned). There corresponding functions for each event which are prefixed wiht `log`. These functions are called from `PoaToken`s every time an event would normally be emitted.
 
 There is a modifier for each `log` function which checks if the sender is a `PoaToken` listed on `PoaManager` (more on that in the next section). This restricts anything other than listed `PoaToken`s from causing these events to be emitted.
 
@@ -629,9 +425,9 @@ There is a modifier for each `log` function which checks if the sender is a `Poa
 1. display information on `broker`s & `PoaToken`s
 
 ### Important Note
-In order to fully understand `PoaManager`s role a quick introduction to upgradeable contracts must be given. 
+In order to fully understand `PoaManager`s role a quick introduction to upgradeable contracts must be given.
 
-`PoaToken`s deployed from PoaManager are not actually `PoaToken`s: 
+`PoaToken`s deployed from PoaManager are not actually `PoaToken`s:
 
 *"They look like a PoaToken and talk like a PoaToken, but they are not actually PoaTokens."*
 
@@ -715,7 +511,7 @@ There is no explicit `owner` but there is a single function, `proxyChangeMaster(
 This is where the magic happens. This is where `delegatecall` is used to take code from `PoaMaster` and use it on the `Proxy`'s `storage`. This forms the concept of a `PoaProxy`. For more information on how this works, see the links previously listed above.
 
 ## PoaToken
-This contract is what most of the ecosystem is built around. 
+This contract is what most of the ecosystem is built around.
 
 PoaToken represents an asset in the real world. The primary usage at the moment is real estate. A broker will go through a vetting process in order to participate in the ecosystem. Once when a broker has been listed on `PoaManager` they are able to deploy new `PoaProxy`s.
 
@@ -806,7 +602,7 @@ There are 5 possible stages for the contract each of them enabling or restrictin
 1. `Active`
     * `fundingGoalInCents` was met and was `activate()`ed in time
     * regular long term stage where payouts and transfers can happen
-1. `Terminated` 
+1. `Terminated`
     * `transfer`s & `transferFrom`s paused
     * `payout()`s can continue in order to wind down contract
     * end of lifecycle
@@ -868,7 +664,7 @@ This balannce is kept track of in `unclaimedPayoutTotals`.
 Because the `Funding` stage of a contract can go on for up to a month or more... the funding goal of the contract needed to be denominated in fiat. Otherwise flucuating rates could make it impossible to buy the asset in real life. Fiat rates are gotten from the `ExchangeRates` contract.
 
 ## BrickblockAccount
-This contract is Brickblock's sole method of using the company's share of BBK and interacting with the ecosystem as a user until November 30, 2020. 
+This contract is Brickblock's sole method of using the company's share of BBK and interacting with the ecosystem as a user until November 30, 2020.
 
 ### Pulling & Withdrawing BBK
 As mentioned in the BrickblockToken section, company tokens are pulled into this `BrickblockToken` using `transferFrom` with the allowance that `BrickblockToken` makes for `BrickblockAccount`. This can be seen, as implemented in the contract itself, below:
@@ -916,7 +712,7 @@ A payable fallback function is needed in order to have ether sent in return for 
 There are functions included in this contract to do what any other user would do (except transferring):
 1. `lockBBK()`
     * lock given amount of BBK tokens into `AccessToken` to receive ACT
-1. `unlockBBK()` 
+1. `unlockBBK()`
     * unlock given amounnt of BBK tokens sending back to this contract
     * useful in case needing to adjust economics based on amount of tokens locked in (company tokens are a large portion)
 1. `claimFee()`
@@ -933,7 +729,7 @@ The following contracts have no/little state and can be upgraded through registr
     * deploy new
     * change registry
 1. `ExchangeRates`
-    * deploy new 
+    * deploy new
     * make change registry
 1. `ExchangeRateProvider`
     * must be killed by `ExchangeRates` in order to retreive any leftover ether
@@ -967,7 +763,7 @@ The following contracts could in theory be upgraded, but through great difficult
         * users would need to lock in BBK again
     * alternatively
         * old ACT balances can be read from old contract as an offset
-            * bbk could be left in old one and people need to unlock from old 
+            * bbk could be left in old one and people need to unlock from old
             * and lock into the new contract
             * change registry address
 
@@ -978,7 +774,7 @@ The following contracts could in theory be upgraded, but through great difficult
 The following contracts cannot be upgraded:
 1. `ContractRegistry`
     * all other contracts rely on this contract as a consistent address
-1. `BrickblockAccount` 
+1. `BrickblockAccount`
     * this can be upgraded trivially after company tokens are freely spendable
         * must empty out ether, ACT and BBK before upgrading
 1. `Proxy`
