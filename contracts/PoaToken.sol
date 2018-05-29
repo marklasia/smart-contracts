@@ -239,7 +239,7 @@ contract PoaToken is PausableToken {
       }
 
       _tempReg := mload(_call) // assign result in mem pointer to previously declared _tempReg
-      mstore(0x40, add(_call, 0x4)) // advance free memory pointer by largest _call size
+      mstore(0x40, add(_call, 0x20)) // advance free memory pointer by largest _call size
     }
 
     // assign _tempReg gotten from assembly call to PoaManager.registry() to registry
@@ -318,7 +318,7 @@ contract PoaToken is PausableToken {
         _call,           // in = mem in  mem[in..(in+insize): set to free memory pointer
         0x24,            // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
         _call,           // out = mem out  mem[out..(out+outsize): output assigned to this storage address
-        0x40             // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (uint256 size = 0x20 = slot size 0x20)
+        0x20             // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (uint256 size = 0x20 = slot size 0x20)
       )
 
       // revert if not successful
