@@ -719,6 +719,50 @@ There are functions included in this contract to do what any other user would do
 1. `withdrawActFunds()`
     * transfer given amount of ACT tokens to given address
 
+## Upgradeability
+The following contracts have no/little state and can be upgraded through registry updates with no or minimal additional work:
+1. `CentralLogger`
+1. `ExchangeRates`
+1. `ExchangeRateProvider`
+    * must be killed by `ExchangeRates` in order to retreive any leftover ether
+
+The following contracts have state but can be upgraded through various mechanisms:
+1. `PoaProxy`
+    * can be upgraded through pointing to a new `PoaMaster` contract
+1. `PoaManager`
+    * deploy new contract with function to seed token and broker addresses.
+    * update registry with new address
+1. `Whitelist`
+    * deploy new contract with functino to seed whitelisted addresses. Can also simply add again through original function for this.
+    * update registry with new address
+1. `FeeManager`
+    * new version would slowly drain out ether balance from original contract by:
+        * user transfers ACT to new contracts possession in function which:
+            calls original FeeManager to get ether out and return to caller of new contract
+        * this would only be until old contract has no ether left
+            * can run whatever is needed after this.
+
+The following contracts could in theory be upgraded, but through great difficulty:
+1. `AccessToken`
+    * this one is probably the most painful... would require:
+        * new deployment of BBK
+        * reseed all ACT balances
+        * users would need to lock in BBK again
+
+1. `BrickblockToken`
+    * could in theory be redeployed and reseeded with previous balances. Would need to have exchanges change address of token as well though...
+        * old one would need to be paused
+
+The following contracts cannot be upgraded:
+1. `ContractRegistry`
+    * all other contracts rely on this contract as a consistent address
+1. `BrickblockAccount` 
+    * this can be upgraded trivially after company tokens are freely spendable
+        * must empty out ether, ACT and BBK before upgrading
+1. `Proxy`
+    * not upgradeable, but the contract it proxies is upgradeable
+
+
 #### Payable Fallback Function
 A payable fallback function is needed in order to have ether sent in return for ACT when using `claimFee()`.
 
