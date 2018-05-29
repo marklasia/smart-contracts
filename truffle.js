@@ -63,19 +63,16 @@ module.exports = {
   },
   mocha: {
     /*
-     * Default
+     * Default reporter: 'spec'
      * + Prints out test duration
      * + Faster
      * - Doesn't display gas costs
-     */
-    reporter: 'spec'
-
-    /*
-     * For local debugging
+     *
+     * Gas cost reporter: 'eth-gas-reporter'
      * + Can analyze gas costs
      * - Slow
      * - Doesn't display test duration
      */
-    // reporter: 'eth-gas-reporter'
+    reporter: process.env.GAS_REPORTER ? 'eth-gas-reporter' : 'spec'
   }
 }
