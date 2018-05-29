@@ -36,7 +36,7 @@ test:
     policy: pull
   script:
     - cp .env.example .env
-    - yarn test
+    - yarn test:ci
 
 test-poa:
   stage: test

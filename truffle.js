@@ -8,11 +8,17 @@ module.exports = {
     },
     ci1: {
       host: 'localhost',
-      port: 8546,
+      port: 8545,
       network_id: '*',
       gasPrice: 1e9
     },
     ci2: {
+      host: 'localhost',
+      port: 8546,
+      network_id: '*',
+      gasPrice: 1e9
+    },
+    ci3: {
       host: 'localhost',
       port: 8547,
       network_id: '*',
