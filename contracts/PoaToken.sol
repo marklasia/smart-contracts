@@ -239,7 +239,7 @@ contract PoaToken is PausableToken {
       }
 
       _tempReg := mload(_call) // assign result in mem pointer to previously declared _tempReg
-      mstore(0x40, add(_call, 0x30)) // clear out free memory pointer
+      mstore(0x40, add(_call, 0x20)) // advance free memory pointer by largest _call size rounded up by 1 word
     }
 
     // assign _tempReg gotten from assembly call to PoaManager.registry() to registry
@@ -292,7 +292,7 @@ contract PoaToken is PausableToken {
       }
 
       _contractAddress := mload(_call) // assign result to return value
-      mstore(0x40, add(_call, 0x30)) // clear out the free memory pointer
+      mstore(0x40, add(_call, 0x40)) // advance free memory pointer by largest _call size rounded up 1 32 byte word
     }
   }
 
@@ -330,7 +330,7 @@ contract PoaToken is PausableToken {
       }
 
       _fiatRate := mload(_call) // assign result to return value
-      mstore(0x40, add(_call, 0x30)) // clear out the free memory pointer
+      mstore(0x40, add(_call, 0x40)) // advance free memory pointer by largest _call size rounded by to 1 32 byte word
     }
   }
 
@@ -369,7 +369,7 @@ contract PoaToken is PausableToken {
       }
 
       _isWhitelisted := mload(_call) // assign result to returned value
-      mstore(0x40, add(_call, 0x30)) // clear out the free memory pointer
+      mstore(0x40, add(_call, 0x40)) /// advance free memory pointer by largest _call size rounded by to 1 32 byte word
     }
   }
 

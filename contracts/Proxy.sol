@@ -90,8 +90,8 @@ contract Proxy {
         )
       }
       
-      mstore(0x40, 0x100) // clear out the free memory pointer
       _registryAddress := mload(0xf0) // assign result to return value
+      mstore(0x40, add(_call, 0x40)) // advance free memory pointer by largest _call size rounded by to 1 32 byte word
     }
   }
 
