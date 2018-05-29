@@ -909,7 +909,7 @@ contract PoaToken is PausableToken {
   //
 
 
-  // prevent any money to come into the contract other than through buy/payout
+  // prevent anyone from sending funds other than selfdestructs of course :)
   function()
     public
     payable
