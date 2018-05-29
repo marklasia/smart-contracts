@@ -239,7 +239,7 @@ contract PoaToken is PausableToken {
       }
 
       _tempReg := mload(_call) // assign result in mem pointer to previously declared _tempReg
-      mstore(0x40, add(_call, 0x24)) // clear out free memory pointer
+      mstore(0x40, add(_call, 0x30)) // clear out free memory pointer
     }
 
     // assign _tempReg gotten from assembly call to PoaManager.registry() to registry
