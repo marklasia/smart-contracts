@@ -184,10 +184,12 @@ Now what happens if there are multiple distributions? Perhaps another distributi
 ```js
 // js pseudo code
 const yourLockedBBK = 2
+
+// distribution 1
 const totalMintedPerToken = 10ACT / 5BBK = 2
 const yourBalance = totalMintedPerToken * yourLockedBBK = 4
+
 // distribution 2
-const yourLockedBBK = 2
 const totalMintedPerToken = (10 + 10)ACT / 5BBK = 4
 const yourBalance = totalMintedPerToken * yourLockedBBK = 8
 ```
@@ -197,32 +199,37 @@ But what happens if you want to claim some of these tokens and move them? We nee
 ```js
 // js pseudo code
 const yourLockedBBK = 2
-const totalMintedPerToken = 20ACT / 5BBK = 2
+const totalMintedPerToken = 10ACT / 5BBK = 2
 const yourBalance = totalMintedPerToken * yourLockedBBK = 4
-// transfer redeem for ETH
-const yourLockedBBK = 2
-const totalMintedPerToken = 20ACT / 5BBK = 2
-const distributedPerBBK = 6
-const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 2
+
+// you withdraw/claim last round of distributions
+const distributedPerBBK = 4
+const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 0
+
+// distribution after claiming
+const totalMintedPerToken = (10 + 10)ACT / 5BBK = 4
+const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 4
 ```
 
 There is one last piece to the puzzle that is missing. What happens when you transfer BBK to another address? Won't you have an inaccurate balance when its based on tokens? We handle that by setting a user's `distributedPerBBK` to max and using another variable to store the rest the balance that was there before the transfer. This is done for both the receiver and the sender. This is called `securedTokenDistributions` in the `AccessToken` contract.
 ```js
 // js pseudo code
 const yourLockedBBK = 2
-const totalMintedPerToken = 20ACT / 5BBK = 2
+const totalMintedPerToken = 10ACT / 5BBK = 2
 const yourBalance = totalMintedPerToken * yourLockedBBK = 4
-// transfer redeem for ETH
-const yourLockedBBK = 2
-const totalMintedPerToken = 20ACT / 5BBK = 2
-const distributedPerBBK = 6
-const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 2
-// transfer 6 ACT token away
-const yourLockedBBK = 2
-const totalMintedPerToken = 20ACT / 5BBK = 2
-const distributedPerBBK = 20ACT
-const securedTokenDistributions = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 2
-const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK + securedTokenDistributions = 2
+
+// you withdraw/claim last round of distributions
+let distributedPerBBK = 4
+const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 0
+
+// distribution after claiming
+const totalMintedPerToken = (10 + 10)ACT / 5BBK = 4
+const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 4
+
+// transfer 4 ACT token away
+distributedPerBBK = 8
+const securedTokenDistributions = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK = 0
+const yourBalance = (totalMintedPerToken * yourLockedBBK) - distributedPerBBK + securedTokenDistributions = 0
 ```
 
 For further reading please see the commented glossary at the top of the `AccessToken.sol` file.
