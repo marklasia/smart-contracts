@@ -704,6 +704,10 @@ Once in `BrickblockAccount` there are only functions for using the tokens to int
 
 `fundsReleaseBlock` needs to be set in the constructor. This means that the contract will need to be up an verified before running `finalizeTokenSale()` on `BrickblockToken`.
 
+
+#### Payable Fallback Function
+A payable fallback function is needed in order to have ether sent in return for ACT when using `claimFee()`.
+
 ### Ecosystem Interaction Functions
 There are functions included in this contract to do what any other user would do (except transferring):
 1. `lockBBK()`
@@ -761,10 +765,6 @@ The following contracts cannot be upgraded:
         * must empty out ether, ACT and BBK before upgrading
 1. `Proxy`
     * not upgradeable, but the contract it proxies is upgradeable
-
-
-#### Payable Fallback Function
-A payable fallback function is needed in order to have ether sent in return for ACT when using `claimFee()`.
 
 ## Built With
 * [Truffle v4.1.8](https://github.com/trufflesuite/truffle/releases/tag/v4.1.8)
