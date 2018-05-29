@@ -35,6 +35,7 @@ test:
   cache:
     policy: pull
   script:
+    - cp .env.example .env
     - yarn test
 
 test-poa:
@@ -42,6 +43,7 @@ test-poa:
   cache:
     policy: pull
   script:
+    - cp .env.example .env
     - yarn test:poa
 
 test-poa-proxy:
@@ -49,6 +51,7 @@ test-poa-proxy:
   cache:
     policy: pull
   script:
+    - cp .env.example .env
     - yarn test:poa-proxy
 
 # test-frozen:
