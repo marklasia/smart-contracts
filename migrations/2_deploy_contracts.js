@@ -15,7 +15,7 @@ const ExchangeRateProviderStub = artifacts.require(
 )
 
 const { localMigration } = require('./networks/localMigration')
-const { rinkebyMigration } = require('./networks/rinkebyMigration')
+const { testnetMigration } = require('./networks/testnetMigration')
 
 // artifacts is not available in other files...
 const contracts = {
@@ -45,7 +45,8 @@ module.exports = (deployer, network, accounts) => {
           await localMigration(deployer, accounts, contracts)
           return true
         case 'rinkeby':
-          await rinkebyMigration(deployer, accounts, contracts)
+        case 'kovan':
+          await testnetMigration(deployer, accounts, contracts)
           return true
         default:
           throw new Error('unsupported network')

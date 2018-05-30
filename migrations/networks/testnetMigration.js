@@ -8,7 +8,7 @@ const {
   addContractsToRegistry
 } = require('../helpers/general')
 
-const rinkebyMigration = async (deployer, accounts, contracts) => {
+const testnetMigration = async (deployer, accounts, contracts) => {
   const owner = accounts[0]
   const contributors = accounts.slice(2, 5)
 
@@ -32,5 +32,5 @@ const rinkebyMigration = async (deployer, accounts, contracts) => {
 }
 
 module.exports = {
-  rinkebyMigration
+  testnetMigration
 }

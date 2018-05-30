@@ -58,7 +58,30 @@ yarn lint:js
 ## Deployment
 Mainnet deployment is done through offline signing of transactions. But testnet deployments can be done through truffle.
 
-TODO: add instructions for deployment to testnet once migration file is done!
+## With truffle
+When deployment is done through truffle the steps below applies with `migrations/2_deploy_contracts.js` file:   
+- chooses the right network configuration according to `network` argument
+- deploys registry
+- deploys other contracts with registry address
+- updates registry for contracts
+- finalize BBK sales
+- distributes tokens to accounts[2 to 5]
+
+Note:  
+account[0] is the owner  
+account[1] is the bonus address for BBK
+
+Make sure you have at least 6 accounts on your node setup
+
+### To deploy on local testnet
+first run `Ganache` or `ganache-cli` on port 8545
+
+`yarn truffle migrate --reset --network dev`
+
+### To deploy on testnet
+
+`yarn truffle migrate --reset --network [network name]`  
+network name can be `rinkeby` or `kovan`
 
 ## General Overview
 
