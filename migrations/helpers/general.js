@@ -188,7 +188,15 @@ const addContractsToRegistry = async config => {
   console.log(chalk.cyan('registry update successful!'))
 }
 
-const setFiatRate = async (exr, exp, queryType, rate, config) => {
+const setFiatRate = async (
+  exr,
+  exp,
+  queryType,
+  rate,
+  network,
+  useStub,
+  config
+) => {
   await exr.setCurrencySettings(
     queryType,
     'https://min-api.cryptocompare.com/data/price?fsym=ETH',
@@ -199,10 +207,12 @@ const setFiatRate = async (exr, exp, queryType, rate, config) => {
     }
   )
   await exr.fetchRate(queryType, config)
-  const pendingQueryId = await exp.pendingTestQueryId()
-  await exp.simulate__callback(pendingQueryId, '50000', {
-    from: config.from
-  })
+  if (useStub) {
+    const pendingQueryId = await exp.pendingTestQueryId()
+    await exp.simulate__callback(pendingQueryId, '50000', {
+      from: config.from
+    })
+  }
 }
 
 module.exports = {

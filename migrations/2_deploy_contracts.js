@@ -39,10 +39,9 @@ module.exports = (deployer, network, accounts) => {
   deployer
     .then(async () => {
       switch (network) {
-        case 'dev':
-          await localMigration(deployer, accounts, contracts)
-          return true
         case 'test':
+          return true
+        case 'dev':
           await localMigration(deployer, accounts, contracts)
           return true
         case 'rinkeby':

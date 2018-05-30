@@ -105,6 +105,7 @@
     "openzeppelin-solidity": "1.9.0",
     "prettier": "^1.12.1",
     "rimraf": "^2.6.2",
+    "solc": "0.4.23",
     "solidity-coverage": "^0.4.9",
     "solium": "^1.1.7",
     "standard-version": "^4.3.0",
@@ -112,6 +113,6 @@
     "truffle": "4.1.8",
     "truffle-contract": "^3.0.1",
     "web3": "^0.18.4",
-    "solc": "0.4.23"
+    "semver": "^5.5.0"
   }
 }

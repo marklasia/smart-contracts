@@ -16,7 +16,7 @@ const localMigration = async (deployer, accounts, contracts) => {
   await addContractsToRegistry({ contracts: instances, owner })
 
   console.log('setting EUR rate')
-  await setFiatRate(instances.exr, instances.exp, 'EUR', 5e4, {
+  await setFiatRate(instances.exr, instances.exp, 'EUR', 5e4, true, {
     from: owner,
     value: 2e18
   })
