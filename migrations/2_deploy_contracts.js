@@ -49,7 +49,10 @@ module.exports = (deployer, network, accounts) => {
           await testnetMigration(deployer, accounts, contracts)
           return true
         default:
-          throw new Error('unsupported network')
+          console.log(
+            `unsupported network: ${network}, default deployment will skip`
+          )
+          return true
       }
     })
     .catch(err => {
