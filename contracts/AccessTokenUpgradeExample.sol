@@ -8,7 +8,7 @@ pragma solidity 0.4.23;
  * NOTE: This should probably only be done once because every subsequent
  * update will get more confusing. If we really have to update the ACT
  * contract we should investigate then whether we should just use
- * the same proxy pattern we are using for the POA contact.
+ * the same proxy pattern we are using for the POA contract.
  */
 
 import "./AccessToken.sol";
