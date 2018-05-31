@@ -223,7 +223,7 @@ describe('when testing different scenarios...', () => {
       reg = contracts.reg
     })
 
-    it('lock -> payFee -> transfer -> claim', async () => {
+    it.only('lock -> payFee -> transfer -> claim', async () => {
       await testApproveAndLockMany(bbk, act, contributors, tokenLockAmount)
       await testPayFee(act, fmr, feePayer, contributors, feeValue, actRate)
       // this should work for all contributors since they have the same balance

@@ -214,24 +214,11 @@ const testClaimFeeMany = async (
   actRate,
   { actTotalSupplyToleranceAfterBurn = 100 } = {}
 ) => {
-  const preContributorBalances = {}
   for (const claimer of claimers) {
     const preActBalance = await act.balanceOf(claimer)
     const preEthBalance = await getEtherBalance(claimer)
     const preActAsWei = preActBalance.div(actRate)
-    preContributorBalances[claimer] = {
-      preActBalance,
-      preEthBalance,
-      preActAsWei
-    }
-  }
 
-  for (const claimer of claimers) {
-    const {
-      preActBalance,
-      preEthBalance,
-      preActAsWei
-    } = preContributorBalances[claimer]
     const txid = await fmr.claimFee(preActBalance, {
       from: claimer,
       gasPrice
@@ -528,31 +515,31 @@ const testUpgradeAct = async (
   await reg.updateContractAddress('AccessToken', actu.address)
   await reg.updateContractAddress('AccessTokenOld', act.address)
 
-  for (const address of contributors) {
-    const preBalance = await act.balanceOf(address)
-    const postBalance = await actu.balanceOf(address)
-    assert.deepEqual(
-      preBalance,
-      postBalance,
-      'balances for both old and new contracts should match'
-    )
-    const oldLockedAmount = await act.lockedBbkOf(address)
-    await testUnlockBBK(bbk, act, address, oldLockedAmount)
-    const newLockedAmount = await testApproveAndLockBBK(
-      bbk,
-      actu,
-      address,
-      oldLockedAmount
-    )
-    assert.deepEqual(
-      oldLockedAmount,
-      newLockedAmount,
-      'locked BBK should be the same as old contract'
-    )
-  }
+  // for (const address of contributors) {
+  //   const preBalance = await act.balanceOf(address)
+  //   const postBalance = await actu.balanceOf(address)
+  //   assert.deepEqual(
+  //     preBalance,
+  //     postBalance,
+  //     'balances for both old and new contracts should match'
+  //   )
+  //   const oldLockedAmount = await act.lockedBbkOf(address)
+  //   await testUnlockBBK(bbk, act, address, oldLockedAmount)
+  //   const newLockedAmount = await testApproveAndLockBBK(
+  //     bbk,
+  //     actu,
+  //     address,
+  //     oldLockedAmount
+  //   )
+  //   assert.deepEqual(
+  //     oldLockedAmount,
+  //     newLockedAmount,
+  //     'locked BBK should be the same as old contract'
+  //   )
+  // }
 
-  await testPayFee(actu, fmr, feePayer, contributors, feeValue, actRate)
   await testClaimFeeMany(actu, fmr, claimers, actRate)
+  await testPayFee(actu, fmr, feePayer, contributors, feeValue, actRate)
 }
 
 module.exports = {
