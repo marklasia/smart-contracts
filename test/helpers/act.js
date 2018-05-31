@@ -2,7 +2,7 @@ const ContractRegistry = artifacts.require('ContractRegistry')
 const AccessToken = artifacts.require('AccessToken')
 const ExchangeRates = artifacts.require('ExchangeRates')
 const FeeManager = artifacts.require('FeeManager')
-const AccessTokenUpgraded = artifacts.require('AccessTokenUpgraded')
+const AccessTokenUpgradeExample = artifacts.require('AccessTokenUpgradeExample')
 
 const assert = require('assert')
 const chalk = require('chalk')
@@ -508,11 +508,22 @@ const testUpgradeAct = async (
   feeValue,
   actRate
 ) => {
+  /*
+   * SETUP:
+   * 1. Pause old contract
+   * 2. Set old contract to OldAccessToken
+   * 3. Deploy new upgraded contract
+   * 4. Set new upgraded contract to point to old contract's state
+   * 5. Test lock & unlock
+   * 6. Test paying some fees
+   * 7. Test claiming some fees
+   */
+
   await act.pause()
   const paused = await act.paused()
   assert(paused, 'the contract should be paused here')
 
-  const actu = await AccessTokenUpgraded.new(reg.address)
+  const actu = await AccessTokenUpgradeExample.new(reg.address)
 
   await reg.updateContractAddress('AccessToken', actu.address)
   await reg.updateContractAddress('AccessTokenOld', act.address)
@@ -542,17 +553,6 @@ const testUpgradeAct = async (
 
   await testPayFee(actu, fmr, feePayer, contributors, feeValue, actRate)
   await testClaimFeeMany(actu, fmr, claimers, actRate)
-  /*
-  SETUP:
-  pause old access token
-  set old contract to OldAccessToken
-  deploy new contract
-  set new contract to AccessToken
-
-  lock/unlock
-  pay some fees
-  claim some fees
-  */
 }
 
 module.exports = {

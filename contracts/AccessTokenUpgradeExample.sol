@@ -1,9 +1,20 @@
 pragma solidity 0.4.23;
 
+/*
+ * This is an example of how we would upgrade the AccessToken contract if we had to.
+ * Instead of doing a full data migration from ACTv1 to ACTv2 we could make
+ * use of inheritance and just access the state on the old contract.
+ *
+ * NOTE: This should probably only be done once because every subsequent
+ * update will get more confusing. If we really have to update the ACT
+ * contract we should investigate then whether we should just use
+ * the same proxy pattern we are using for the POA contact.
+ */
+
 import "./AccessToken.sol";
 
 
-contract AccessTokenUpgraded is AccessToken {
+contract AccessTokenUpgradeExample is AccessToken {
 
   constructor(address _registry) AccessToken(_registry) {}
 
@@ -25,5 +36,5 @@ contract AccessTokenUpgraded is AccessToken {
       .add(securedTokenDistributions[_address])
       .add(receivedBalances[_address])
       .sub(spentBalances[_address]);
-  } 
+  }
 }
