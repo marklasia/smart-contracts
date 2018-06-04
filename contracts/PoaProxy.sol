@@ -56,26 +56,26 @@ contract PoaProxy {
   // proxy state helpers
   //
 
-  // gets PoaManager address from registry
-  function proxyPoaManagerAddress()
-    private
+  function getContractAddress(
+    string _name
+  )
+    public
     view
-    returns (address _poaManagerAddress)
+    returns (address _contractAddress)
   {
-    address _addr = proxyRegistry(); // contract address to call
-    bytes4 _sig = bytes4(keccak256("getContractAddress32(bytes32)")); // function signature we are using
-    string memory _name = "PoaManager"; // function argument we are using
+    bytes4 _sig = bytes4(keccak256("getContractAddress32(bytes32)"));
     bytes32 _name32 = keccak256(_name);
+    bytes32 _proxyRegistrySlot = proxyRegistrySlot;
 
     assembly {
-      let _call := mload(0x40) // set _call to free memory pointer
-      mstore(_call, _sig) // store _sig at _call pointer
+      let _call := mload(0x40)          // set _call to free memory pointer
+      mstore(_call, _sig)               // store _sig at _call pointer
       mstore(add(_call, 0x04), _name32) // store _name32 at _call offset by 4 bytes for pre-existing _sig
 
       // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
       let success := staticcall(
         gas,    // g = gas: whatever was passed already
-        _addr,  // a = address: address is already on stack
+        sload(_proxyRegistrySlot),  // a = address: address in storage
         _call,  // in = mem in  mem[in..(in+insize): set to free memory pointer
         0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
         _call,   // out = mem out  mem[out..(out+outsize): output assigned to this storage address
@@ -87,7 +87,7 @@ contract PoaProxy {
         revert(0, 0)
       }
 
-      _poaManagerAddress := mload(_call) // assign result to return value
+      _contractAddress := mload(_call) // assign result to return value
       mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
     }
   }
@@ -107,21 +107,25 @@ contract PoaProxy {
   // proxy state setters
   //
 
-  function proxyChangeMaster(address _master)
+  function proxyChangeMaster(address _upgradeTo)
     public
     returns (bool)
   {
-    require(msg.sender == proxyPoaManagerAddress());
-    require(_master != address(0));
-    require(proxyMasterContract() != _master);
-    require(proxyIsContract(_master));
-    address _oldMaster = proxyMasterContract();
+    require(msg.sender == getContractAddress("PoaManager"));
+    require(_upgradeTo != address(0));
+    require(proxyMasterContract() != _upgradeTo);
+    require(proxyIsContract(_upgradeTo));
+    address _upgradeFrom = proxyMasterContract();
     bytes32 _proxyMasterContractSlot = proxyMasterContractSlot;
     assembly {
-      sstore(_proxyMasterContractSlot, _master)
+      sstore(_proxyMasterContractSlot, _upgradeTo)
     }
 
-    emit ProxyUpgradedEvent(_oldMaster, _master);
+    emit ProxyUpgradedEvent(_upgradeFrom, _upgradeTo);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logProxyUpgradedEvent(address,address)")),
+      _upgradeFrom, _upgradeTo
+    );
 
     return true;
   }
