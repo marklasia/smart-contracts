@@ -1,8 +1,5 @@
-const distributeBbkToMany = async (bbk, accounts, amount) => {
-  await Promise.all(
-    accounts.map(account => bbk.distributeTokens(account, amount))
-  )
-}
+const distributeBbkToMany = (bbk, accounts, amount) =>
+  Promise.all(accounts.map(account => bbk.distributeTokens(account, amount)))
 
 const finalizeBbk = async (
   bbk,

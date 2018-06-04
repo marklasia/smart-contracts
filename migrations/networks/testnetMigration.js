@@ -1,5 +1,4 @@
 /* eslint-disable no-console */
-const chalk = require('chalk')
 const bbk = require('../helpers/bbk')
 const BigNumber = require('bignumber.js')
 
@@ -17,10 +16,6 @@ const testnetMigration = async (deployer, accounts, contracts) => {
   })
 
   await addContractsToRegistry({ contracts: instances, owner })
-
-  console.log(chalk.yellow('setting ACT rate to 1e3...'))
-  await instances.exr.setActRate(1e3)
-  console.log(chalk.cyan('ACT rate update successful!'))
 
   await bbk.finalizeBbk(
     instances.bbk,
