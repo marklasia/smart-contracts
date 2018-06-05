@@ -107,24 +107,24 @@ contract PoaProxy {
   // proxy state setters
   //
 
-  function proxyChangeMaster(address _upgradeTo)
+  function proxyChangeMaster(address _newMaster)
     public
     returns (bool)
   {
     require(msg.sender == getContractAddress("PoaManager"));
-    require(_upgradeTo != address(0));
-    require(proxyMasterContract() != _upgradeTo);
-    require(proxyIsContract(_upgradeTo));
-    address _upgradeFrom = proxyMasterContract();
+    require(_newMaster != address(0));
+    require(proxyMasterContract() != _newMaster);
+    require(proxyIsContract(_newMaster));
+    address _oldMaster = proxyMasterContract();
     bytes32 _proxyMasterContractSlot = proxyMasterContractSlot;
     assembly {
-      sstore(_proxyMasterContractSlot, _upgradeTo)
+      sstore(_proxyMasterContractSlot, _newMaster)
     }
 
-    emit ProxyUpgradedEvent(_upgradeFrom, _upgradeTo);
+    emit ProxyUpgradedEvent(_oldMaster, _newMaster);
     getContractAddress("Logger").call(
       bytes4(keccak256("logProxyUpgradedEvent(address,address)")),
-      _upgradeFrom, _upgradeTo
+      _oldMaster, _newMaster
     );
 
     return true;
