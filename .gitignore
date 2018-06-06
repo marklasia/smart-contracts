@@ -21,3 +21,7 @@ build
 ~*
 .#*
 .editorconfig
+
+#Private blockchain db
+privateChainData/geth
+privateChainData/history
