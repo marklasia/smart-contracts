@@ -18,7 +18,7 @@ const {
   testUpgradeAct
 } = require('../helpers/act')
 
-describe.only('when interacting with BBK', () => {
+describe('when interacting with BBK', () => {
   contract('AccessToken/BrickblockToken', accounts => {
     const owner = accounts[0]
     const bonusAddress = accounts[1]
