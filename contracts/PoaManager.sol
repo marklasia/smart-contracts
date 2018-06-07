@@ -201,11 +201,12 @@ contract PoaManager is Ownable {
     return tokenAddressList;
   }
 
-  function createProxy(address _target)
+  function createPoaTokenProxy()
     private
     returns (address _proxyContract)
   {
-    _proxyContract = new PoaProxy(_target, address(registry));
+    address _poaTokenMaster = registry.getContractAddress("PoaTokenMaster");
+    _proxyContract = new PoaProxy(_poaTokenMaster, address(registry));
   }
 
   // Create a PoaToken contract with given parameters, and set active value to true
@@ -230,8 +231,7 @@ contract PoaManager is Ownable {
     onlyActiveBroker
     returns (address)
   {
-    address _poaTokenMaster = registry.getContractAddress("PoaTokenMaster");
-    address _tokenAddress = createProxy(_poaTokenMaster);
+    address _tokenAddress = createPoaTokenProxy();
 
     IPoaToken(_tokenAddress).setupContract(
       _name,
@@ -330,15 +330,17 @@ contract PoaManager is Ownable {
     _tokenAddress.terminate();
   }
 
+  // Upgrade an existing PoaToken proxy to what is stored in ContractRegistry
   function upgradeToken(
-    address _proxyTokenAddress,
-    address _masterUpgrade
+    PoaProxy _proxyToken
   )
     public
     onlyOwner
     returns (bool)
   {
-    PoaProxy(_proxyTokenAddress).proxyChangeMaster(_masterUpgrade);
+    _proxyToken.proxyChangeMaster(
+      registry.getContractAddress("PoaTokenMaster")
+    );
   }
 
   // toggle whitelisting required on transfer & transferFrom for a token
