@@ -51,7 +51,7 @@ describe('when using utility functions', () => {
   })
 })
 
-describe.only('when interacting with FeeManager', () => {
+describe('when interacting with FeeManager', () => {
   contract('FeeManager', accounts => {
     const owner = accounts[0]
     const bonusAddress = accounts[1]

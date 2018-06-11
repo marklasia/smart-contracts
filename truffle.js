@@ -51,7 +51,7 @@ module.exports = {
       host: 'localhost',
       port: 8545,
       network_id: 4,
-      gas: 8003929,
+      gas: 7e6,
       gasPrice: 1e9
     },
     // to be used when we want to interact in a local truffle console session
