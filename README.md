@@ -84,7 +84,7 @@ yarn lint:js
 
 Deploying with truffle will execute the [migrations/2_deploy_contracts.js](https://git.brickblock-dev.io/platform/smart-contracts/blob/master/migrations/2_deploy_contracts.js) which does the following:
 
-1. Choose the right network configuration (depends on the `--network` argument
+1. Choose the right network configuration (depends on the `--network` argument)
 1. Deploy registry
 1. Deploy other contracts
 1. Add all contracts to registry
@@ -130,7 +130,7 @@ When you'd like to interact with deployed contracts on a local testnet, check th
 
 This will open a node.js repl session, with all the compiled contracts available as usual (ie. `BrickblockToken.deployed()` or `PoaToken.at(some-address)`).
 
-If you'd like to interact with contracts on a public testnet (ie. rinkey, kovan) then we have a command  that also uses `truffle console` and additionally makes use of the library `truffle-hdwallet-provider`. This allows us to specify a remote node to connect with and a mnemonic to give access to accounts in that HDWALLET (like MetaMask does).
+If you'd like to interact with contracts on a public testnet (ie. rinkeby, kovan) then we have a command  that also uses `truffle console` and additionally makes use of the library `truffle-hdwallet-provider`. This allows us to specify a remote node to connect with and a mnemonic to give access to accounts in that HDWALLET (like MetaMask does).
 
 NOTE: any valid bip39 mnemonic will work fine unless you want to send transactions or ETH, then you will need ETH in the sending account like usual. Feel free to use the example `HDWALLET_MNEMONIC` below.
 
