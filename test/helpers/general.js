@@ -136,7 +136,8 @@ const testWillThrow = async (fn, args) => {
     assert(false, 'the contract should throw here')
   } catch (error) {
     assert(
-      /invalid opcode/.test(error) || /revert/.test(error),
+      /invalid opcode/.test(error.message || error) ||
+        /revert/.test(error.message || error),
       `the error message should be invalid opcode or revert, the error was ${error}`
     )
   }
