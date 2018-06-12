@@ -1,7 +1,7 @@
 #Test environment for geth
 
 ###Requirements
-geth 1.8.10
+geth ^1.8.10
 yarn ^1.6
 
 ###Steps for running tests on Geth private blockchain
