@@ -3,10 +3,10 @@ DIRECTORY=`dirname $0`
 PATH='/privateChainData/geth'
 FULL_PATH=$DIRECTORY$PATH
 
-if [ -d "$FULL_PATH" ]; then
-    printf '%s\n' "Removing old chain data ($FULL_PATH)"
-    /bin/rm -rf "$FULL_PATH"
-fi
+#if [ -d "$FULL_PATH" ]; then
+    printf '%s\n' "Removing old chain data (../..$PATH)"
+    /bin/rm -rf "./$PATH"
+#fi
 
 printf '%s\n' "init genesis block ($FULL_PATH)"
 /usr/local/bin/geth --datadir "./privateChainData/" init "./scripts/geth/genesis.json"
