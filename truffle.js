@@ -29,7 +29,6 @@ module.exports = {
       host: 'localhost',
       port: 8545,
       network_id: 4447,
-      gasPrice: 18000000000,
       gas: 6300000
     },
     ...ciNetworks,

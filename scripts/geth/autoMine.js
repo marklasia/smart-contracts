@@ -2,8 +2,7 @@
 /* eslint no-var:0 */
 /* eslint no-console:0 */
 
-function automine(seconds) {
-  var n = seconds || 5
+function automine(milliSeconds) {
   setInterval(function() {
     if (!eth.mining && (txpool.status.pending || txpool.status.queued)) {
       console.log('miner start')
@@ -12,7 +11,7 @@ function automine(seconds) {
       console.log('miner stop')
       miner.stop()
     }
-  }, n * 1000)
+  }, milliSeconds)
 }
 
-automine(1)
+automine(500)
