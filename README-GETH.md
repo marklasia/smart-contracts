@@ -1,4 +1,4 @@
-#Test envoironment for geth
+#Test environment for geth
 
 ###Requirements
 geth 1.8.10
@@ -11,11 +11,11 @@ yarn ^1.6
 1. On the other terminal window run the command `yarn truffle test test/main-tests/AccessToken.js --network devGeth`
 
 ###Notes:    
-- you can change `AccesToken` to any file name under `main-tests` folder to test other contracts
+- you can change `AccessToken` to any file name under `main-tests` folder to test other contracts
 - if you don't use mac osx you might need to change the geth bin path `/usr/local/bin/geth` inside `scripts/geth/startGeth.sh` file
 - `scripts/geth/genesis.json` is the initial config for geth
 - you can see the arguments used for running geth, inside `startGeth.sh` file.
-- Everytime you run `yarn start:geth` it deletes the old blockchain data and creates a new one
+- Every time you run `yarn start:geth` it deletes the old blockchain data and creates a new one
 
 ###Auto Mining
 `scripts/geth/autoMine.js` is for auto mining on geth. If you want to remove the automining future, just remove the file path in `startGeth.sh` -> `--preload` section. This file only supports ES5.

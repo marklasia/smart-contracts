@@ -207,6 +207,7 @@ const testClaimFeeMany = async (
   fmr,
   claimers,
   actRate,
+  //TODO: check the left over dust amount with AccessToken stress test and try to make sure it does not grow exponentially!
   { aroundZeroTolerance = 5000000 } = {}
 ) => {
   const preContributorBalances = {}
