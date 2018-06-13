@@ -29,6 +29,7 @@ module.exports = {
       host: 'localhost',
       port: 8545,
       network_id: 4447,
+      // Below 6000000 does most likely fails because of required minimum block gas amount.
       gas: 6300000
     },
     ...ciNetworks,
