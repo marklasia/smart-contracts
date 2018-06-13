@@ -8,7 +8,7 @@ GETH_DATA_DIR='./private-chain-data'
 
 if [ -d "$GETH_DATA_DIR/geth" ]; then
     printf '%s\n' "Removing old chain data from $GETH_DATA_DIR/geth"
-    /bin/rm -rf "$GETH_DATA_DIR/geth"
+    rm -rf "$GETH_DATA_DIR/geth"
 fi
 
 printf '%s\n' "init genesis block in $GETH_DATA_DIR/geth"
