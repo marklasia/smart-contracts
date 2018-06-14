@@ -11,13 +11,13 @@ contract PoaToken is PausableToken {
   // instance of registry to call other contracts
   address public registry;
   // ERC20 name of the token
-  bytes32 public name32;
+  bytes32 private name32;
   // ERC20 symbol
-  bytes32 public symbol32;
+  bytes32 private symbol32;
   // ipfs hash for proof of custody by custodian
-  bytes32 public proofOfCustody;
+  bytes32 private proofOfCustody32;
   // fiat currency symbol used to get rate
-  bytes32 public fiatCurrency;
+  bytes32 private fiatCurrency32;
   // broker who is selling property, whitelisted on PoaManager
   address public broker;
   // custodian in charge of taking care of asset and payouts
@@ -146,17 +146,17 @@ contract PoaToken is PausableToken {
     _;
   }
 
-  // modifier validIpfs(bytes32 _ipfsHash) {
-  //   // check that the most common hashing algo is used sha256
-  //   // and that the length is correct. In theory it could be different
-  //   // but use of this functionality is limited to only custodian
-  //   // so this validation should suffice
-  //   require(bytes(_ipfsHash).length == 46);
-  //   require(bytes(_ipfsHash)[0] == 0x51);
-  //   require(bytes(_ipfsHash)[1] == 0x6D);
-  //   require(keccak256(bytes(_ipfsHash)) != keccak256(proofOfCustody));
-  //   _;
-  // }
+  modifier validIpfs(bytes32 _ipfsHash) {
+    // check that the most common hashing algo is used sha256
+    // and that the length is correct. In theory it could be different
+    // but use of this functionality is limited to only custodian
+    // so this validation should suffice
+    require(bytes(bytes32ToString(_ipfsHash)).length == 46);
+    require(bytes(bytes32ToString(_ipfsHash))[0] == 0x51);
+    require(bytes(bytes32ToString(_ipfsHash))[1] == 0x6D);
+    require(keccak256(_ipfsHash) != keccak256(proofOfCustody()));
+    _;
+  }
 
   // token totalSupply must be more than fundingGoalInCents!
   function setupContract
@@ -204,7 +204,7 @@ contract PoaToken is PausableToken {
     // assign strings
     name32 = _name;
     symbol32 = _symbol;
-    fiatCurrency = _fiatCurrency;
+    fiatCurrency32 = _fiatCurrency;
 
     // assign addresses
     broker = _broker;
@@ -261,25 +261,38 @@ contract PoaToken is PausableToken {
     return true;
   }
 
-  function bytes32ToString(bytes32 x)
-    internal 
-    returns (string) 
+  // convert bytes32 back to string
+  function bytes32ToString(bytes32 _data)
+    pure
+    internal
+    returns (string)
   {
-    bytes memory bytesString = new bytes(32);
-    uint charCount = 0;
-    for (uint j = 0; j < 32; j++) {
-      byte char = byte(bytes32(uint(x) * 2 ** (8 * j)));
-      if (char != 0) {
-        bytesString[charCount] = char;
-        charCount++;
+    bytes memory _bytesString = new bytes(32);
+    uint256 _charCount = 0;
+    uint256 _bytesCounter;
+
+    // loop through converted bytes from string
+    for (_bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
+      /*
+      convert bytes32 data to uint in order to increase the number enough to
+      shift bytes further left while pushing out leftmost bytes
+      then convert uint256 data back to bytes32
+      then convert to bytes1 where everything but the leftmost hex value (byte)
+      is cutoff leaving only the leftmost byte
+
+      TLDR: takes a single character from bytes based on counter
+      */
+      bytes1 _char = bytes1(bytes32(uint256(_data) * 2 ** (8 * _bytesCounter)));
+      if (_char != 0) {
+        _bytesString[_charCount] = _char;
+        _charCount++;
       }
     }
-    bytes memory bytesStringTrimmed = new bytes(charCount);
-    for (j = 0; j < charCount; j++) {
-      bytesStringTrimmed[j] = bytesString[j];
-    }
-    return string(bytesStringTrimmed);
   }
+
+  //
+  // start getter functions
+  //
 
   function name()
     external
@@ -296,6 +309,26 @@ contract PoaToken is PausableToken {
   {
     return bytes32ToString(symbol32);
   }
+
+  function fiatCurrency()
+    public
+    view
+    returns (string)
+  {
+    return bytes32ToString(fiatCurrency32);
+  }
+
+  function proofOfCustody()
+    public
+    view
+    returns (string)
+  {
+    return bytes32ToString(proofOfCustody32);
+  }
+
+  //
+  // end getter functions
+  //
 
   //
   // start utility functions
@@ -355,7 +388,7 @@ contract PoaToken is PausableToken {
   {
     bytes4 _sig = bytes4(keccak256("getRate32(bytes32)"));
     address _exchangeRates = getContractAddress("ExchangeRates");
-    bytes32 _fiatCurrency = keccak256(fiatCurrency);
+    bytes32 _fiatCurrency = keccak256(fiatCurrency());
 
     assembly {
       let _call := mload(0x40) // set _call to free memory pointer
@@ -719,7 +752,7 @@ contract PoaToken is PausableToken {
     // fee sent to FeeManager where fee gets
     // turned into ACT for lockedBBK holders
     payFee(_fee);
-    proofOfCustody = _ipfsHash;
+    proofOfCustody32 = _ipfsHash;
     // event showing that proofOfCustody has been updated.
     emit ProofOfCustodyUpdatedEvent(_ipfsHash);
     getContractAddress("Logger")
@@ -915,7 +948,7 @@ contract PoaToken is PausableToken {
     // validIpfs(_ipfsHash)
     returns (bool)
   {
-    proofOfCustody = _ipfsHash;
+    proofOfCustody32 = _ipfsHash;
     emit ProofOfCustodyUpdatedEvent(_ipfsHash);
     getContractAddress("Logger").call(
       bytes4(keccak256("logProofOfCustodyUpdatedEvent(string)")),
