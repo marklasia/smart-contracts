@@ -11,13 +11,13 @@ contract PoaToken is PausableToken {
   // instance of registry to call other contracts
   address public registry;
   // ERC20 name of the token
-  string public name;
+  bytes32 public name32;
   // ERC20 symbol
-  string public symbol;
+  bytes32 public symbol32;
   // ipfs hash for proof of custody by custodian
-  string public proofOfCustody;
+  bytes32 public proofOfCustody;
   // fiat currency symbol used to get rate
-  string public fiatCurrency;
+  bytes32 public fiatCurrency;
   // broker who is selling property, whitelisted on PoaManager
   address public broker;
   // custodian in charge of taking care of asset and payouts
@@ -39,9 +39,9 @@ contract PoaToken is PausableToken {
   // the total per token payout rate: accumulates as payouts are received
   uint256 public totalPerTokenPayout;
   // used to keep track of actual funded amount in fiat during FiatFunding stage
-  uint256 public fundedAmountInCentsDuringFiatFunding;
+  uint256 private fundedAmountInCentsDuringFiatFunding;
    // used to keep track of actual funded amount in POA token during FiatFunding stage
-  uint256 public fundedAmountInTokensDuringFiatFunding;
+  uint256 private fundedAmountInTokensDuringFiatFunding;
   // used to keep track of of actual fundedAmount in eth
   uint256 public fundedAmountInWei;
   // used to enable/disable whitelist required transfers/transferFroms
@@ -53,7 +53,7 @@ contract PoaToken is PausableToken {
   mapping(address => uint256) public unclaimedPayoutTotals;
   // needs to be used due to tokens not directly correlating to fundingGoal
   // due to fluctuating fiat rates
-  mapping(address => uint256) public investmentAmountPerUserInWei;
+  mapping(address => uint256) private investmentAmountPerUserInWei;
   // Used to track fiat pre sale contributors
   mapping(address => uint256) private investmentAmountPerUserInCents;
   mapping(address => uint256) private investmentAmountPerUserInToken;
@@ -84,7 +84,7 @@ contract PoaToken is PausableToken {
   event PayoutEvent(uint256 amount);
   event ClaimEvent(address indexed claimer, uint256 payout);
   event TerminatedEvent();
-  event ProofOfCustodyUpdatedEvent(string ipfsHash);
+  event ProofOfCustodyUpdatedEvent(bytes32 ipfsHash);
   event ReclaimEvent(address indexed reclaimer, uint256 amount);
   event CustodianChangedEvent(address indexed oldAddress, address indexed newAddress);
 
@@ -146,25 +146,25 @@ contract PoaToken is PausableToken {
     _;
   }
 
-  modifier validIpfs(string _ipfsHash) {
-    // check that the most common hashing algo is used sha256
-    // and that the length is correct. In theory it could be different
-    // but use of this functionality is limited to only custodian
-    // so this validation should suffice
-    require(bytes(_ipfsHash).length == 46);
-    require(bytes(_ipfsHash)[0] == 0x51);
-    require(bytes(_ipfsHash)[1] == 0x6D);
-    require(keccak256(bytes(_ipfsHash)) != keccak256(bytes(proofOfCustody)));
-    _;
-  }
+  // modifier validIpfs(bytes32 _ipfsHash) {
+  //   // check that the most common hashing algo is used sha256
+  //   // and that the length is correct. In theory it could be different
+  //   // but use of this functionality is limited to only custodian
+  //   // so this validation should suffice
+  //   require(bytes(_ipfsHash).length == 46);
+  //   require(bytes(_ipfsHash)[0] == 0x51);
+  //   require(bytes(_ipfsHash)[1] == 0x6D);
+  //   require(keccak256(bytes(_ipfsHash)) != keccak256(proofOfCustody));
+  //   _;
+  // }
 
   // token totalSupply must be more than fundingGoalInCents!
   function setupContract
   (
-    string _name,
-    string _symbol,
+    bytes32 _name,
+    bytes32 _symbol,
     // fiat symbol used in ExchangeRates
-    string _fiatCurrency,
+    bytes32 _fiatCurrency,
     address _broker,
     address _custodian,
     uint256 _totalSupply,
@@ -182,9 +182,9 @@ contract PoaToken is PausableToken {
     // ensure that setup has not been called
     require(startTime == 0);
     // ensure all strings are valid
-    require(bytes(_name).length >= 3);
-    require(bytes(_symbol).length >= 3);
-    require(bytes(_fiatCurrency).length >= 3);
+    require(_name != 0);
+    require(_symbol != 0);
+    require(_fiatCurrency != 0);
 
     // ensure all addresses given are valid
     require(_broker != address(0));
@@ -202,8 +202,8 @@ contract PoaToken is PausableToken {
     require(_fundingGoalInCents > 0);
 
     // assign strings
-    name = _name;
-    symbol = _symbol;
+    name32 = _name;
+    symbol32 = _symbol;
     fiatCurrency = _fiatCurrency;
 
     // assign addresses
@@ -261,6 +261,42 @@ contract PoaToken is PausableToken {
     return true;
   }
 
+  function bytes32ToString(bytes32 x)
+    internal 
+    returns (string) 
+  {
+    bytes memory bytesString = new bytes(32);
+    uint charCount = 0;
+    for (uint j = 0; j < 32; j++) {
+      byte char = byte(bytes32(uint(x) * 2 ** (8 * j)));
+      if (char != 0) {
+        bytesString[charCount] = char;
+        charCount++;
+      }
+    }
+    bytes memory bytesStringTrimmed = new bytes(charCount);
+    for (j = 0; j < charCount; j++) {
+      bytesStringTrimmed[j] = bytesString[j];
+    }
+    return string(bytesStringTrimmed);
+  }
+
+  function name()
+    external
+    view
+    returns (string)
+  {
+    return bytes32ToString(name32);
+  }
+
+  function symbol()
+    external
+    view
+    returns (string)
+  {
+    return bytes32ToString(symbol32);
+  }
+
   //
   // start utility functions
   //
@@ -268,7 +304,7 @@ contract PoaToken is PausableToken {
   function isBuyerFundedInFiat(
     address buyer
   )
-    public
+    internal
     view
     returns(bool)
   {
@@ -279,7 +315,7 @@ contract PoaToken is PausableToken {
   function getContractAddress(
     string _name
   )
-    public
+    internal
     view
     returns (address _contractAddress)
   {
@@ -313,7 +349,7 @@ contract PoaToken is PausableToken {
 
   // gas saving call to get fiat rate without interface
   function getFiatRate()
-    public
+    internal
     view
     returns (uint256 _fiatRate)
   {
@@ -384,7 +420,7 @@ contract PoaToken is PausableToken {
 
   // returns fiat value in cents of given wei amount
   function weiToFiatCents(uint256 _wei)
-    public
+    internal
     view
     returns (uint256)
   {
@@ -394,7 +430,7 @@ contract PoaToken is PausableToken {
 
   // returns wei value from fiat cents
   function fiatCentsToWei(uint256 _cents)
-    public
+    internal
     view
     returns (uint256)
   {
@@ -403,7 +439,7 @@ contract PoaToken is PausableToken {
 
   // get funded amount in cents
   function fundedAmountInCents()
-    public
+    external
     view
     returns (uint256)
   {
@@ -412,7 +448,7 @@ contract PoaToken is PausableToken {
 
   // get fundingGoal in wei
   function fundingGoalInWei()
-    public
+    external
     view
     returns (uint256)
   {
@@ -431,7 +467,7 @@ contract PoaToken is PausableToken {
 
   // pay fee to FeeManager
   function payFee(uint256 _value)
-    private
+    internal
     returns (bool)
   {
     require(
@@ -458,7 +494,7 @@ contract PoaToken is PausableToken {
 
   // enables whitelisted transfers/transferFroms
   function toggleWhitelistTransfers()
-    public
+    external
     onlyOwner
     returns (bool)
   {
@@ -472,7 +508,7 @@ contract PoaToken is PausableToken {
 
   // used to enter a new stage of the contract
   function enterStage(Stages _stage)
-    private
+    internal
   {
     stage = _stage;
     emit StageEvent(_stage);
@@ -484,7 +520,7 @@ contract PoaToken is PausableToken {
 
   // used to start the FIAT preSale funding
   function startPreSale()
-    public
+    external
     atStage(Stages.PreFunding)
     returns (bool)
   {
@@ -494,7 +530,7 @@ contract PoaToken is PausableToken {
 
   // used to start the sale as long as startTime has passed
   function startSale()
-    public
+    external
     atEitherStage(Stages.PreFunding, Stages.FiatFunding)
     returns (bool)
   {
@@ -505,7 +541,7 @@ contract PoaToken is PausableToken {
 
   // Buy with FIAT
   function buyFiat(address contributor, uint256 amountInCents)
-    public
+    external
     atStage(Stages.FiatFunding)
     returns (bool)
   {
@@ -538,7 +574,7 @@ contract PoaToken is PausableToken {
 
   // buy tokens
   function buy()
-    public
+    external
     payable
     checkTimeout
     atStage(Stages.Funding)
@@ -584,7 +620,7 @@ contract PoaToken is PausableToken {
 
   // buy and continue funding process (when funding goal not met)
   function buyAndContinueFunding(uint256 _payAmount)
-    private
+    internal
     returns (bool)
   {
     // save this for later in case needing to reclaim
@@ -603,7 +639,7 @@ contract PoaToken is PausableToken {
 
   // buy and finish funding process (when funding goal met)
   function buyAndEndFunding(bool _shouldRefund)
-    private
+    internal
     returns (bool)
   {
     // let the world know that the token is in Pending Stage
@@ -649,7 +685,7 @@ contract PoaToken is PausableToken {
 
   // function to change custodianship of poa
   function changeCustodianAddress(address _newCustodian)
-    public
+    external
     onlyCustodian
     returns (bool)
   {
@@ -668,12 +704,12 @@ contract PoaToken is PausableToken {
 
   // activate token with proofOfCustody fee is taken from contract balance
   // brokers must work this into their funding goals
-  function activate(string _ipfsHash)
+  function activate(bytes32 _ipfsHash)
     external
     checkTimeout
     onlyCustodian
     atStage(Stages.Pending)
-    validIpfs(_ipfsHash)
+    // validIpfs(_ipfsHash)
     returns (bool)
   {
     // calculate company fee charged for activation
@@ -765,7 +801,7 @@ contract PoaToken is PausableToken {
   // settle up perToken balances and move into unclaimedPayoutTotals in order
   // to ensure that token transfers will not result in inaccurate balances
   function settleUnclaimedPerTokenPayouts(address _from, address _to)
-    private
+    internal
     returns (bool)
   {
     // add perToken balance to unclaimedPayoutTotals which will not be affected by transfers
@@ -872,11 +908,11 @@ contract PoaToken is PausableToken {
   }
 
   // allow ipfs hash to be updated when audit etc occurs
-  function updateProofOfCustody(string _ipfsHash)
+  function updateProofOfCustody(bytes32 _ipfsHash)
     external
     atEitherStage(Stages.Active, Stages.Terminated)
     onlyCustodian
-    validIpfs(_ipfsHash)
+    // validIpfs(_ipfsHash)
     returns (bool)
   {
     proofOfCustody = _ipfsHash;
@@ -898,7 +934,7 @@ contract PoaToken is PausableToken {
 
   // used for calculating starting balance once activated
   function startingBalance(address _address)
-    private
+    internal
     view
     returns (uint256)
   {
@@ -984,7 +1020,6 @@ contract PoaToken is PausableToken {
   //
   // end ERC20 overrides
   //
-
 
   // prevent anyone from sending funds other than selfdestructs of course :)
   function()
