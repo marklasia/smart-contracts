@@ -38,6 +38,10 @@ contract PoaToken is PausableToken {
   uint256 public fundingGoalInCents;
   // the total per token payout rate: accumulates as payouts are received
   uint256 public totalPerTokenPayout;
+  // used to keep track of actual funded amount in fiat during FiatFunding stage
+  uint256 public fundedAmountInCentsDuringFiatFunding;
+   // used to keep track of actual funded amount in POA token during FiatFunding stage
+  uint256 public fundedAmountInTokensDuringFiatFunding;
   // used to keep track of of actual fundedAmount in eth
   uint256 public fundedAmountInWei;
   // used to enable/disable whitelist required transfers/transferFroms
@@ -50,26 +54,33 @@ contract PoaToken is PausableToken {
   // needs to be used due to tokens not directly correlating to fundingGoal
   // due to fluctuating fiat rates
   mapping(address => uint256) public investmentAmountPerUserInWei;
+  // Used to track fiat pre sale contributors
+  mapping(address => uint256) private investmentAmountPerUserInCents;
+  mapping(address => uint256) private investmentAmountPerUserInToken;
   // used to calculate balanceOf by deducting spent balances
   mapping(address => uint256) public spentBalances;
   // used to calculate balanceOf by adding received balances
   mapping(address => uint256) public receivedBalances;
   // hide balances to ensure that only balanceOf is being used
   mapping(address => uint256) private balances;
+  
 
   enum Stages {
     PreFunding,
+    FiatFunding,
     Funding,
     Pending,
     Failed,
     Active,
-    Terminated
+    Terminated,
+    Cancelled
   }
 
   Stages public stage = Stages.PreFunding;
 
   event StageEvent(Stages stage);
   event BuyEvent(address indexed buyer, uint256 amount);
+  event BuyFiatEvent(address indexed buyer, uint256 amount);
   event PayoutEvent(uint256 amount);
   event ClaimEvent(address indexed claimer, uint256 payout);
   event TerminatedEvent();
@@ -253,6 +264,16 @@ contract PoaToken is PausableToken {
   //
   // start utility functions
   //
+
+  function isBuyerFundedInFiat(
+    address buyer
+  )
+    public
+    view
+    returns(bool)
+  {
+    return investmentAmountPerUserInToken[buyer] != 0;
+  }
 
   // gets a given contract address by bytes32 saving gas
   function getContractAddress(
@@ -461,15 +482,58 @@ contract PoaToken is PausableToken {
     );
   }
 
+  // used to start the FIAT preSale funding
+  function startPreSale()
+    public
+    atStage(Stages.PreFunding)
+    returns (bool)
+  {
+    enterStage(Stages.FiatFunding);
+    return true;
+  }
+
   // used to start the sale as long as startTime has passed
   function startSale()
     public
-    atStage(Stages.PreFunding)
+    atEitherStage(Stages.PreFunding, Stages.FiatFunding)
     returns (bool)
   {
     require(block.timestamp >= startTime);
     enterStage(Stages.Funding);
     return true;
+  }
+
+  // Buy with FIAT
+  function buyFiat(address contributor, uint256 amountInCents)
+    public
+    atStage(Stages.FiatFunding)
+    returns (bool)
+  {
+    //if the amount is bigger than funding goal, reject the transaction
+    if (fundedAmountInCentsDuringFiatFunding >= fundingGoalInCents) {
+      return false;
+    } else {
+      uint256 _newFundedAmount = fundedAmountInCentsDuringFiatFunding.add(amountInCents);
+
+      if (fundingGoalInCents.sub(_newFundedAmount) > 0) {
+        fundedAmountInCentsDuringFiatFunding = fundedAmountInCentsDuringFiatFunding.add(amountInCents);
+        investmentAmountPerUserInCents[contributor] = amountInCents;
+        uint256 _percentOfFundingGoal = fundingGoalInCents.div(amountInCents).div(100);
+        uint256 _tokenAmount = totalSupply().mul(_percentOfFundingGoal);
+        fundedAmountInTokensDuringFiatFunding = fundedAmountInTokensDuringFiatFunding.add(_tokenAmount);
+        investmentAmountPerUserInToken[contributor] = investmentAmountPerUserInToken[contributor].add(_tokenAmount);
+
+        emit BuyFiatEvent(contributor, amountInCents);
+
+        return true;
+      } else {
+        // funding goal reached, end the sale
+        enterStage(Stages.Pending);
+
+        return true;
+      } 
+
+    }
   }
 
   // buy tokens
@@ -481,6 +545,11 @@ contract PoaToken is PausableToken {
     isBuyWhitelisted
     returns (bool)
   {
+    // Prevent FiatFunding addresses from contributing to funding to keep total supply legit
+    if (investmentAmountPerUserInToken[msg.sender] != 0) {
+      return false;
+    }
+
     // prevent case where buying after reaching fundingGoal results in buyer
     // earning money on a buy
     if (weiToFiatCents(fundedAmountInWei) > fundingGoalInCents) {
@@ -493,7 +562,8 @@ contract PoaToken is PausableToken {
 
     // get current funded amount + sent value in cents
     // with most current rate available
-    uint256 _currentFundedCents = weiToFiatCents(fundedAmountInWei.add(msg.value));
+    uint256 _currentFundedCents = weiToFiatCents(fundedAmountInWei.add(msg.value))
+      .add(fundedAmountInCentsDuringFiatFunding);
     // check if balance has met funding goal to move on to Pending
     if (_currentFundedCents < fundingGoalInCents) {
       // give a range due to fun fun integer division
@@ -563,6 +633,17 @@ contract PoaToken is PausableToken {
     if (stage != Stages.Failed) {
       revert();
     }
+    return true;
+  }
+
+  function setCancelled()
+    external
+    onlyCustodian
+    atEitherStage(Stages.PreFunding ,Stages.FiatFunding)
+    returns (bool)
+  {
+    enterStage(Stages.Cancelled);
+    
     return true;
   }
 
@@ -821,11 +902,17 @@ contract PoaToken is PausableToken {
     view
     returns (uint256)
   {
-    return uint256(stage) > 3
-      ? investmentAmountPerUserInWei[_address]
-        .mul(totalSupply())
-        .div(fundedAmountInWei)
-      : 0;
+    if (isBuyerFundedInFiat(_address)) {
+      return investmentAmountPerUserInToken[_address];
+    } else {
+      return uint256(stage) > 3
+        ? investmentAmountPerUserInWei[_address]
+          .mul(
+            totalSupply().sub(fundedAmountInTokensDuringFiatFunding)
+          )
+          .div(fundedAmountInWei)
+        : 0;
+    }
   }
 
   // ERC20 override uses NoobCoin pattern
