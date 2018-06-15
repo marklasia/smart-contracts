@@ -735,13 +735,13 @@ const testBuyRemainingTokens = async (poa, config) => {
   )
   assert.equal(
     preStage.toString(),
-    new BigNumber(1).toString(),
-    'stage should be 1, Funding'
+    new BigNumber(2).toString(),
+    'stage should be 2, Funding'
   )
   assert.equal(
     postStage.toString(),
-    new BigNumber(2).toString(),
-    'stage should be 2, Pending'
+    new BigNumber(3).toString(),
+    'stage should be 3, Pending'
   )
 
   return postUserWeiInvested
@@ -770,13 +770,13 @@ const testActivate = async (poa, fmr, ipfsHash, config) => {
   )
   assert.equal(
     preStage.toString(),
-    new BigNumber(2),
-    'preStage should be 2, Pending'
+    new BigNumber(3),
+    'preStage should be 3, Pending'
   )
   assert.equal(
     postStage.toString(),
-    new BigNumber(4),
-    'postStage should be 4, Active'
+    new BigNumber(5),
+    'postStage should be 5, Active'
   )
   assert.equal(preCustody, '', 'proofOfCustody should start empty')
   assert.equal(
@@ -1029,8 +1029,8 @@ const testSetFailed = async (poa, shouldBePending) => {
 
   assert.equal(
     preStage.toString(),
-    shouldBePending ? new BigNumber(2).toString() : new BigNumber(1).toString(),
-    `preStage should be ${shouldBePending ? '2, Pending' : '1 Funding'}`
+    shouldBePending ? new BigNumber(3).toString() : new BigNumber(2).toString(),
+    `preStage should be ${shouldBePending ? '3, Pending' : '2 Funding'}`
   )
 
   assert.equal(
