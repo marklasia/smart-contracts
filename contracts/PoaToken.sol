@@ -55,11 +55,11 @@ contract PoaToken is PausableToken {
   // due to fluctuating fiat rates
   mapping(address => uint256) public investmentAmountPerUserInWei;
   // Used to track fiat pre sale contributors
-  mapping(address => uint256) public fiatInvestmentPerUserInTokens;
+  mapping(address => uint256) private fiatInvestmentPerUserInTokens;
   // used to calculate balanceOf by deducting spent balances
-  mapping(address => uint256) public spentBalances;
+  mapping(address => uint256) private spentBalances;
   // used to calculate balanceOf by adding received balances
-  mapping(address => uint256) public receivedBalances;
+  mapping(address => uint256) private receivedBalances;
   // hide balances to ensure that only balanceOf is being used
   mapping(address => uint256) private balances;
   
@@ -83,7 +83,7 @@ contract PoaToken is PausableToken {
   event PayoutEvent(uint256 amount);
   event ClaimEvent(address indexed claimer, uint256 payout);
   event TerminatedEvent();
-  event ProofOfCustodyUpdatedEvent(bytes32 ipfsHash);
+  event ProofOfCustodyUpdatedEvent(string ipfsHash);
   event ReclaimEvent(address indexed reclaimer, uint256 amount);
   event CustodianChangedEvent(address indexed oldAddress, address indexed newAddress);
 
@@ -145,14 +145,14 @@ contract PoaToken is PausableToken {
     _;
   }
 
-  modifier validIpfs(bytes32 _ipfsHash) {
+  modifier validIpfs(bytes32[2] _ipfsHash) {
     // check that the most common hashing algo is used sha256
     // and that the length is correct. In theory it could be different
     // but use of this functionality is limited to only custodian
     // so this validation should suffice
-    require(bytes(bytes32ToString(_ipfsHash)).length == 46);
-    require(bytes(bytes32ToString(_ipfsHash))[0] == 0x51);
-    require(bytes(bytes32ToString(_ipfsHash))[1] == 0x6D);
+    require(bytes(to64LengthString(_ipfsHash)).length == 46);
+    require(bytes(to64LengthString(_ipfsHash))[0] == 0x51);
+    require(bytes(to64LengthString(_ipfsHash))[1] == 0x6D);
     require(keccak256(_ipfsHash) != keccak256(proofOfCustody()));
     _;
   }
@@ -260,10 +260,10 @@ contract PoaToken is PausableToken {
     return true;
   }
 
-  // takes a fixed length bytes32 and returns string
-  function bytes32ToString(bytes32 _data, uint256 length)
+  // takes a single bytes32 and returns a max 32 char long string
+  function to32LengthString(bytes32 _data)
     pure
-    public
+    private
     returns (string)
   {
     // create new empty bytes array with same length as input
@@ -305,14 +305,14 @@ contract PoaToken is PausableToken {
     return string(_bytesStringTrimmed);
   }
 
-  // takes a fixed length array of 5 bytes32. needed for contract communication
-  function bytes32ToString(bytes32[] _data, uint256 _length)
+  // takes a dynamically sized array of bytes32. needed for longer strings
+  function to64LengthString(bytes32[2] _data)
     pure
-    public
+    private
     returns (string)
   {
     // create new empty bytes array with same length as input
-    bytes memory _bytesString = new bytes(_length * 32);
+    bytes memory _bytesString = new bytes(_data.length * 32);
     // keep track of string length for later usage in trimming
     uint256 _stringLength;
 
@@ -353,7 +353,6 @@ contract PoaToken is PausableToken {
     return string(_bytesStringTrimmed);
   }
 
-
   //
   // start getter functions
   //
@@ -363,7 +362,7 @@ contract PoaToken is PausableToken {
     view
     returns (string)
   {
-    return bytes32ToString(name32);
+    return to32LengthString(name32);
   }
 
   function symbol()
@@ -371,7 +370,7 @@ contract PoaToken is PausableToken {
     view
     returns (string)
   {
-    return bytes32ToString(symbol32);
+    return to32LengthString(symbol32);
   }
 
   function fiatCurrency()
@@ -379,7 +378,7 @@ contract PoaToken is PausableToken {
     view
     returns (string)
   {
-    return bytes32ToString(fiatCurrency32);
+    return to32LengthString(fiatCurrency32);
   }
 
   function proofOfCustody()
@@ -387,7 +386,7 @@ contract PoaToken is PausableToken {
     view
     returns (string)
   {
-    return bytes32ToString(proofOfCustody32);
+    return to64LengthString(proofOfCustody32);
   }
 
   //
@@ -798,7 +797,7 @@ contract PoaToken is PausableToken {
 
   // activate token with proofOfCustody fee is taken from contract balance
   // brokers must work this into their funding goals
-  function activate(bytes32 _ipfsHash)
+  function activate(bytes32[2] _ipfsHash)
     external
     checkTimeout
     onlyCustodian
@@ -815,7 +814,7 @@ contract PoaToken is PausableToken {
     payFee(_fee);
     proofOfCustody32 = _ipfsHash;
     // event showing that proofOfCustody has been updated.
-    emit ProofOfCustodyUpdatedEvent(_ipfsHash);
+    emit ProofOfCustodyUpdatedEvent(to64LengthString(_ipfsHash));
     getContractAddress("Logger")
       .call(bytes4(keccak256("logProofOfCustodyUpdatedEvent()")));
     // balance of contract (fundingGoalInCents) set to claimable by broker.
@@ -1002,7 +1001,7 @@ contract PoaToken is PausableToken {
   }
 
   // allow ipfs hash to be updated when audit etc occurs
-  function updateProofOfCustody(bytes32 _ipfsHash)
+  function updateProofOfCustody(bytes32[2] _ipfsHash)
     external
     atEitherStage(Stages.Active, Stages.Terminated)
     onlyCustodian
@@ -1010,7 +1009,7 @@ contract PoaToken is PausableToken {
     returns (bool)
   {
     proofOfCustody32 = _ipfsHash;
-    emit ProofOfCustodyUpdatedEvent(_ipfsHash);
+    emit ProofOfCustodyUpdatedEvent(to64LengthString(_ipfsHash));
     getContractAddress("Logger").call(
       bytes4(keccak256("logProofOfCustodyUpdatedEvent(string)")),
       _ipfsHash
