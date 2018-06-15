@@ -18,7 +18,8 @@ const {
   sendTransaction,
   testWillThrow,
   timeTravel,
-  waitForEvent
+  waitForEvent,
+  toBytes32
 } = require('./general')
 const { finalizedBBK } = require('./bbk')
 const { testApproveAndLockMany } = require('./act')
@@ -148,14 +149,13 @@ const setupPoaAndEcosystem = async () => {
     from: owner,
     value: 1e18
   })
-
   const poa = await PoaToken.new()
 
   await pmr.setupPoaToken(
     poa.address,
-    defaultName,
-    defaultSymbol,
-    defaultFiatCurrency,
+    toBytes32(defaultName),
+    toBytes32(defaultSymbol),
+    toBytes32(defaultFiatCurrency),
     broker,
     custodian,
     defaultTotalSupply,

@@ -55,8 +55,7 @@ contract PoaToken is PausableToken {
   // due to fluctuating fiat rates
   mapping(address => uint256) private investmentAmountPerUserInWei;
   // Used to track fiat pre sale contributors
-  mapping(address => uint256) private investmentAmountPerUserInCents;
-  mapping(address => uint256) private investmentAmountPerUserInToken;
+  mapping(address => uint256) private fiatInvestmentPerUserInTokens;
   // used to calculate balanceOf by deducting spent balances
   mapping(address => uint256) public spentBalances;
   // used to calculate balanceOf by adding received balances
@@ -256,7 +255,7 @@ contract PoaToken is PausableToken {
     owner = getContractAddress("PoaManager");
 
     // run getRate once in order to see if rate is initialized, throws if not
-    require(getFiatRate() > 0);
+    // require(getFiatRate() > 0);
 
     return true;
   }
@@ -335,13 +334,13 @@ contract PoaToken is PausableToken {
   //
 
   function isBuyerFundedInFiat(
-    address buyer
+    address _buyer
   )
     internal
     view
     returns(bool)
   {
-    return investmentAmountPerUserInToken[buyer] != 0;
+    return fiatInvestmentPerUserInTokens[_buyer] != 0;
   }
 
   // gets a given contract address by bytes32 saving gas
@@ -576,6 +575,7 @@ contract PoaToken is PausableToken {
   function buyFiat(address contributor, uint256 amountInCents)
     external
     atStage(Stages.FiatFunding)
+    onlyCustodian
     returns (bool)
   {
     //if the amount is bigger than funding goal, reject the transaction
@@ -586,20 +586,16 @@ contract PoaToken is PausableToken {
 
       if (fundingGoalInCents.sub(_newFundedAmount) > 0) {
         fundedAmountInCentsDuringFiatFunding = fundedAmountInCentsDuringFiatFunding.add(amountInCents);
-        investmentAmountPerUserInCents[contributor] = amountInCents;
-        uint256 _percentOfFundingGoal = fundingGoalInCents.div(amountInCents).div(100);
-        uint256 _tokenAmount = totalSupply().mul(_percentOfFundingGoal);
+        uint256 _percentOfFundingGoal = fundingGoalInCents.mul(100).div(amountInCents);
+        uint256 _tokenAmount = totalSupply().mul(_percentOfFundingGoal).div(100);
         fundedAmountInTokensDuringFiatFunding = fundedAmountInTokensDuringFiatFunding.add(_tokenAmount);
-        investmentAmountPerUserInToken[contributor] = investmentAmountPerUserInToken[contributor].add(_tokenAmount);
+        fiatInvestmentPerUserInTokens[contributor] = fiatInvestmentPerUserInTokens[contributor].add(_tokenAmount);
 
         emit BuyFiatEvent(contributor, amountInCents);
 
         return true;
       } else {
-        // funding goal reached, end the sale
-        enterStage(Stages.Pending);
-
-        return true;
+        return false;
       } 
 
     }
@@ -615,7 +611,7 @@ contract PoaToken is PausableToken {
     returns (bool)
   {
     // Prevent FiatFunding addresses from contributing to funding to keep total supply legit
-    if (investmentAmountPerUserInToken[msg.sender] != 0) {
+    if (fiatInvestmentPerUserInTokens[msg.sender] != 0) {
       return false;
     }
 
@@ -708,7 +704,7 @@ contract PoaToken is PausableToken {
   function setCancelled()
     external
     onlyCustodian
-    atEitherStage(Stages.PreFunding ,Stages.FiatFunding)
+    atEitherStage(Stages.PreFunding, Stages.FiatFunding)
     returns (bool)
   {
     enterStage(Stages.Cancelled);
@@ -972,7 +968,9 @@ contract PoaToken is PausableToken {
     returns (uint256)
   {
     if (isBuyerFundedInFiat(_address)) {
-      return investmentAmountPerUserInToken[_address];
+      return uint256(stage) > 3
+        ? fiatInvestmentPerUserInTokens[_address]
+        : 0;
     } else {
       return uint256(stage) > 3
         ? investmentAmountPerUserInWei[_address]
