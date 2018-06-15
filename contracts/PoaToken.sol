@@ -9,7 +9,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
 contract PoaToken is PausableToken {
   uint256 public constant version = 1;
   // instance of registry to call other contracts
-  address public registry;
+  address private registry;
   // ERC20 name of the token
   bytes32 private name32;
   // ERC20 symbol
@@ -39,18 +39,18 @@ contract PoaToken is PausableToken {
   // the total per token payout rate: accumulates as payouts are received
   uint256 public totalPerTokenPayout;
   // used to keep track of actual funded amount in fiat during FiatFunding stage
-  uint256 public fundedAmountInCentsDuringFiatFunding;
+  uint256 private fundedAmountInCentsDuringFiatFunding;
    // used to keep track of actual funded amount in POA token during FiatFunding stage
-  uint256 public fundedAmountInTokensDuringFiatFunding;
+  uint256 private fundedAmountInTokensDuringFiatFunding;
   // used to keep track of of actual fundedAmount in eth
   uint256 public fundedAmountInWei;
   // used to enable/disable whitelist required transfers/transferFroms
   bool public whitelistTransfers;
 
   // used to deduct already claimed payouts on a per token basis
-  mapping(address => uint256) public claimedPerTokenPayouts;
+  mapping(address => uint256) private claimedPerTokenPayouts;
   // fallback for when a transfer happens with payouts remaining
-  mapping(address => uint256) public unclaimedPayoutTotals;
+  mapping(address => uint256) private unclaimedPayoutTotals;
   // needs to be used due to tokens not directly correlating to fundingGoal
   // due to fluctuating fiat rates
   mapping(address => uint256) public investmentAmountPerUserInWei;
@@ -62,7 +62,6 @@ contract PoaToken is PausableToken {
   mapping(address => uint256) private receivedBalances;
   // hide balances to ensure that only balanceOf is being used
   mapping(address => uint256) private balances;
-  
 
   enum Stages {
     PreFunding,
@@ -76,16 +75,6 @@ contract PoaToken is PausableToken {
   }
 
   Stages public stage = Stages.PreFunding;
-
-  event StageEvent(Stages stage);
-  event BuyEvent(address indexed buyer, uint256 amount);
-  event BuyFiatEvent(address indexed buyer, uint256 amount);
-  event PayoutEvent(uint256 amount);
-  event ClaimEvent(address indexed claimer, uint256 payout);
-  event TerminatedEvent();
-  event ProofOfCustodyUpdatedEvent(string ipfsHash);
-  event ReclaimEvent(address indexed reclaimer, uint256 amount);
-  event CustodianChangedEvent(address indexed oldAddress, address indexed newAddress);
 
   modifier eitherCustodianOrOwner() {
     owner = getContractAddress("PoaManager");
@@ -150,10 +139,11 @@ contract PoaToken is PausableToken {
     // and that the length is correct. In theory it could be different
     // but use of this functionality is limited to only custodian
     // so this validation should suffice
-    require(bytes(to64LengthString(_ipfsHash)).length == 46);
-    require(bytes(to64LengthString(_ipfsHash))[0] == 0x51);
-    require(bytes(to64LengthString(_ipfsHash))[1] == 0x6D);
-    require(keccak256(_ipfsHash) != keccak256(proofOfCustody()));
+    bytes memory _ipfsHashBytes = bytes(to64LengthString(_ipfsHash));
+    require(_ipfsHashBytes.length == 46);
+    require(_ipfsHashBytes[0] == 0x51);
+    require(_ipfsHashBytes[1] == 0x6D);
+    require(keccak256(_ipfsHashBytes) != keccak256(bytes(proofOfCustody())));
     _;
   }
 
@@ -607,7 +597,6 @@ contract PoaToken is PausableToken {
     internal
   {
     stage = _stage;
-    emit StageEvent(_stage);
     getContractAddress("Logger").call(
       bytes4(keccak256("logStageEvent(uint256)")),
       _stage
@@ -654,8 +643,6 @@ contract PoaToken is PausableToken {
         uint256 _tokenAmount = totalSupply().mul(_percentOfFundingGoal).div(100);
         fundedAmountInTokensDuringFiatFunding = fundedAmountInTokensDuringFiatFunding.add(_tokenAmount);
         fiatInvestmentPerUserInTokens[contributor] = fiatInvestmentPerUserInTokens[contributor].add(_tokenAmount);
-
-        emit BuyFiatEvent(contributor, amountInCents);
 
         return true;
       } else {
@@ -722,7 +709,6 @@ contract PoaToken is PausableToken {
     // increment the funded amount
     fundedAmountInWei = fundedAmountInWei.add(_payAmount);
 
-    emit BuyEvent(msg.sender, _payAmount);
     getContractAddress("Logger").call(
       bytes4(keccak256("logBuyEvent(address,uint256)")), msg.sender, _payAmount
     );
@@ -786,7 +772,6 @@ contract PoaToken is PausableToken {
     require(_newCustodian != custodian);
     address _oldCustodian = custodian;
     custodian = _newCustodian;
-    emit CustodianChangedEvent(_oldCustodian, _newCustodian);
     getContractAddress("Logger").call(
       bytes4(keccak256("logCustodianChangedEvent(address,address)")),
       _oldCustodian,
@@ -802,7 +787,7 @@ contract PoaToken is PausableToken {
     checkTimeout
     onlyCustodian
     atStage(Stages.Pending)
-    // validIpfs(_ipfsHash)
+    validIpfs(_ipfsHash)
     returns (bool)
   {
     // calculate company fee charged for activation
@@ -813,8 +798,6 @@ contract PoaToken is PausableToken {
     // turned into ACT for lockedBBK holders
     payFee(_fee);
     proofOfCustody32 = _ipfsHash;
-    // event showing that proofOfCustody has been updated.
-    emit ProofOfCustodyUpdatedEvent(to64LengthString(_ipfsHash));
     getContractAddress("Logger")
       .call(bytes4(keccak256("logProofOfCustodyUpdatedEvent()")));
     // balance of contract (fundingGoalInCents) set to claimable by broker.
@@ -842,8 +825,6 @@ contract PoaToken is PausableToken {
     enterStage(Stages.Terminated);
     // pause. Cannot be unpaused now that in Stages.Terminated
     paused = true;
-    // let the world know this token is in Terminated Stage
-    emit TerminatedEvent();
     getContractAddress("Logger")
       .call(bytes4(keccak256("logTerminatedEvent()")));
     return true;
@@ -921,7 +902,6 @@ contract PoaToken is PausableToken {
     require(_refundAmount > 0);
     fundedAmountInWei = fundedAmountInWei.sub(_refundAmount);
     msg.sender.transfer(_refundAmount);
-    emit ReclaimEvent(msg.sender, _refundAmount);
     getContractAddress("Logger").call(
       bytes4(keccak256("logReclaimEvent(address,uint256)")),
       msg.sender,
@@ -960,8 +940,6 @@ contract PoaToken is PausableToken {
     uint256 _delta = (_payoutAmount.mul(1e18) % totalSupply()).div(1e18);
     // pay fee along with any dust to FeeManager
     payFee(_fee.add(_delta));
-    // let the world know that a payout has happened for this token
-    emit PayoutEvent(_payoutAmount.sub(_delta));
     getContractAddress("Logger").call(
       bytes4(keccak256("logPayoutEvent(uint256)")),
       _payoutAmount.sub(_delta)
@@ -990,8 +968,6 @@ contract PoaToken is PausableToken {
     unclaimedPayoutTotals[msg.sender] = 0;
     // transfer Ξ payable amount to sender
     msg.sender.transfer(_payoutAmount);
-    // let the world know that a payout for sender has been claimed
-    emit ClaimEvent(msg.sender, _payoutAmount);
     getContractAddress("Logger").call(
       bytes4(keccak256("logClaimEvent(address,uint256)")),
       msg.sender,
@@ -1005,11 +981,10 @@ contract PoaToken is PausableToken {
     external
     atEitherStage(Stages.Active, Stages.Terminated)
     onlyCustodian
-    // validIpfs(_ipfsHash)
+    validIpfs(_ipfsHash)
     returns (bool)
   {
     proofOfCustody32 = _ipfsHash;
-    emit ProofOfCustodyUpdatedEvent(to64LengthString(_ipfsHash));
     getContractAddress("Logger").call(
       bytes4(keccak256("logProofOfCustodyUpdatedEvent(string)")),
       _ipfsHash

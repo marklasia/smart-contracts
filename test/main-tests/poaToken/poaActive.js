@@ -191,15 +191,18 @@ describe('when in Active (stage 4)', () => {
       // invalid length
       await testWillThrow(testUpdateProofOfCustody, [
         poa,
-        newIpfsHashArray32.slice(0, newIpfsHashArray32[1].length - 2),
-        { from: owner }
+        [
+          newIpfsHashArray32[0],
+          newIpfsHashArray32[1].slice(newIpfsHashArray32[1].length - 2)
+        ],
+        { from: custodian }
       ])
 
       // wrong hashing algo
       await testWillThrow(testUpdateProofOfCustody, [
         poa,
-        'Zr' + newIpfsHashArray32[0].slice(2),
-        { from: owner }
+        [newIpfsHashArray32[0].replace('Qm', 'Zr'), newIpfsHashArray32[1]],
+        { from: custodian }
       ])
     })
 

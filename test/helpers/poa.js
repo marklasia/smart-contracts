@@ -29,7 +29,6 @@ const {
   sendTransaction,
   testWillThrow,
   timeTravel,
-  waitForEvent,
   toBytes32
 } = require('./general')
 const { finalizedBBK } = require('./bbk')
@@ -622,9 +621,7 @@ const testBuyTokens = async (poa, config) => {
   const preTokenBalance = await poa.balanceOf(buyer)
   const preFundedAmount = await poa.fundedAmountInWei()
   const preUserWeiInvested = await poa.investmentAmountPerUserInWei(buyer)
-  const BuyEvent = poa.BuyEvent()
   const tx = await poa.buy(config)
-  const { args: triggeredEvent } = await waitForEvent(BuyEvent)
   const gasUsed = await getGasUsed(tx)
   const gasCost = new BigNumber(gasUsed).mul(config.gasPrice)
 
@@ -635,16 +632,6 @@ const testBuyTokens = async (poa, config) => {
 
   const expectedPostEthBalance = preEthBalance.sub(weiBuyAmount).sub(gasCost)
 
-  assert.equal(
-    triggeredEvent.buyer,
-    config.from,
-    'buy event buyer should be equal to config.from'
-  )
-  assert.equal(
-    triggeredEvent.amount.toString(),
-    config.value.toString(),
-    'buy event amount should be equal to config.value'
-  )
   assert.equal(
     expectedPostEthBalance.toString(),
     postEthBalance.toString(),
