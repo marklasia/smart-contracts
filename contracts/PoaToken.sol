@@ -15,7 +15,7 @@ contract PoaToken is PausableToken {
   // ERC20 symbol
   bytes32 private symbol32;
   // ipfs hash for proof of custody by custodian
-  bytes32 private proofOfCustody32;
+  bytes32[2] private proofOfCustody32;
   // fiat currency symbol used to get rate
   bytes32 private fiatCurrency32;
   // broker who is selling property, whitelisted on PoaManager
@@ -261,7 +261,7 @@ contract PoaToken is PausableToken {
   }
 
   // takes a fixed length bytes32 and returns string
-  function bytes32ToString(bytes32 _data)
+  function bytes32ToString(bytes32 _data, uint256 length)
     pure
     public
     returns (string)
@@ -304,6 +304,55 @@ contract PoaToken is PausableToken {
     // return trimmed bytes array converted to string
     return string(_bytesStringTrimmed);
   }
+
+  // takes a fixed length array of 5 bytes32. needed for contract communication
+  function bytes32ToString(bytes32[] _data, uint256 _length)
+    pure
+    public
+    returns (string)
+  {
+    // create new empty bytes array with same length as input
+    bytes memory _bytesString = new bytes(_length * 32);
+    // keep track of string length for later usage in trimming
+    uint256 _stringLength;
+
+    // loop through each bytes32 in array
+    for (uint _arrayCounter = 0; _arrayCounter < _data.length; _arrayCounter++) {
+      // loop through each byte in bytes32
+      for (uint _bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
+        /*
+        convert bytes32 data to uint in order to increase the number enough to
+        shift bytes further left while pushing out leftmost bytes
+        then convert uint256 data back to bytes32
+        then convert to bytes1 where everything but the leftmost hex value (byte)
+        is cutoff leaving only the leftmost byte
+
+        TLDR: takes a single character from bytes based on counter
+        */
+        bytes1 _char = bytes1(
+          bytes32(
+            uint(_data[_arrayCounter]) * 2 ** (8 * _bytesCounter)
+          )
+        );
+        // add the character if not empty
+        if (_char != 0) {
+          _bytesString[_stringLength] = _char;
+          _stringLength += 1;
+        }
+      }
+    }
+
+    // new bytes with correct matching string length
+    bytes memory _bytesStringTrimmed = new bytes(_stringLength);
+    // loop through _bytesStringTrimmed throwing in
+    // non empty data from _bytesString
+    for (_bytesCounter = 0; _bytesCounter < _stringLength; _bytesCounter++) {
+      _bytesStringTrimmed[_bytesCounter] = _bytesString[_bytesCounter];
+    }
+    // return trimmed bytes array converted to string
+    return string(_bytesStringTrimmed);
+  }
+
 
   //
   // start getter functions
