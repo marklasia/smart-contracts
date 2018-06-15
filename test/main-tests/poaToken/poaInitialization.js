@@ -124,6 +124,17 @@ describe('when initializing PoaToken', () => {
     })
 
     it('should NOT initialize with empty name', async () => {
+      await testSetCurrencyRate(
+        exr,
+        exp,
+        defaultFiatCurrency,
+        defaultFiatRate,
+        {
+          from: owner,
+          value: 1e18
+        }
+      )
+
       await testWillThrow(pmr.setupPoaToken, [
         poa.address,
         emptyBytes32,
@@ -140,6 +151,17 @@ describe('when initializing PoaToken', () => {
     })
 
     it('should NOT initialize with empty symbol', async () => {
+      await testSetCurrencyRate(
+        exr,
+        exp,
+        defaultFiatCurrency,
+        defaultFiatRate,
+        {
+          from: owner,
+          value: 1e18
+        }
+      )
+
       await testWillThrow(pmr.setupPoaToken, [
         poa.address,
         defaultName32,
@@ -156,6 +178,17 @@ describe('when initializing PoaToken', () => {
     })
 
     it('should NOT initialize with empty fiat currency', async () => {
+      await testSetCurrencyRate(
+        exr,
+        exp,
+        defaultFiatCurrency,
+        defaultFiatRate,
+        {
+          from: owner,
+          value: 1e18
+        }
+      )
+
       await testWillThrow(pmr.setupPoaToken, [
         poa.address,
         defaultName32,

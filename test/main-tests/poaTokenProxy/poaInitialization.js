@@ -2,8 +2,9 @@ const {
   owner,
   broker,
   custodian,
-  defaultName,
-  defaultSymbol,
+  defaultName32,
+  defaultSymbol32,
+  defaultFiatCurrency32,
   defaultFiatCurrency,
   defaultFundingTimeout,
   defaultActivationTimeout,
@@ -13,7 +14,8 @@ const {
   setupEcosystem,
   testSetCurrencyRate,
   testProxyInitialization,
-  defaultTotalSupply
+  defaultTotalSupply,
+  emptyBytes32
 } = require('../../helpers/poa')
 const { testWillThrow, addressZero } = require('../../helpers/general.js')
 const BigNumber = require('bignumber.js')
@@ -47,9 +49,9 @@ describe('when initializing PoaToken', () => {
       )
 
       const poa = await testProxyInitialization(reg, pmr, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
+        defaultName32,
+        defaultSymbol32,
+        defaultFiatCurrency32,
         custodian,
         defaultTotalSupply,
         await getDefaultStartTime(),
@@ -90,9 +92,9 @@ describe('when initializing PoaToken', () => {
       )
 
       await testProxyInitialization(reg, pmr, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
+        defaultName32,
+        defaultSymbol32,
+        defaultFiatCurrency32,
         custodian,
         defaultTotalSupply,
         await getDefaultStartTime(),
@@ -116,9 +118,9 @@ describe('when initializing PoaToken', () => {
       )
 
       await testProxyInitialization(reg, pmr, [
-        defaultName,
-        defaultSymbol,
-        defaultFiatCurrency,
+        defaultName32,
+        defaultSymbol32,
+        defaultFiatCurrency32,
         custodian,
         defaultTotalSupply,
         await getDefaultStartTime(),
@@ -134,9 +136,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           custodian,
           defaultTotalSupply,
           await getDefaultStartTime(),
@@ -155,9 +157,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           custodian,
           defaultTotalSupply,
           await getDefaultStartTime(),
@@ -174,99 +176,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
-          custodian,
-          defaultTotalSupply,
-          await getDefaultStartTime(),
-          defaultFundingTimeout,
-          defaultActivationTimeout,
-          defaultFundingGoal,
-          { from: broker }
-        ]
-      ])
-    })
-
-    it('should NOT initialize with < 3 character ascii char name', async () => {
-      await testSetCurrencyRate(
-        exr,
-        exp,
-        defaultFiatCurrency,
-        defaultFiatRate,
-        {
-          from: owner,
-          value: 1e18
-        }
-      )
-
-      await testWillThrow(testProxyInitialization, [
-        reg,
-        pmr,
-        [
-          'is',
-          defaultSymbol,
-          defaultFiatCurrency,
-          custodian,
-          defaultTotalSupply,
-          await getDefaultStartTime(),
-          defaultFundingTimeout,
-          defaultActivationTimeout,
-          defaultFundingGoal,
-          { from: broker }
-        ]
-      ])
-    })
-
-    it('should NOT initialize with < 3 character ascii char symbol', async () => {
-      await testSetCurrencyRate(
-        exr,
-        exp,
-        defaultFiatCurrency,
-        defaultFiatRate,
-        {
-          from: owner,
-          value: 1e18
-        }
-      )
-
-      await testWillThrow(testProxyInitialization, [
-        reg,
-        pmr,
-        [
-          defaultName,
-          'US',
-          defaultFiatCurrency,
-          custodian,
-          defaultTotalSupply,
-          await getDefaultStartTime(),
-          defaultFundingTimeout,
-          defaultActivationTimeout,
-          defaultFundingGoal,
-          { from: broker }
-        ]
-      ])
-    })
-
-    it('should NOT initialize with < 3 character ascii char fiatCurrency', async () => {
-      await testSetCurrencyRate(
-        exr,
-        exp,
-        defaultFiatCurrency,
-        defaultFiatRate,
-        {
-          from: owner,
-          value: 1e18
-        }
-      )
-
-      await testWillThrow(testProxyInitialization, [
-        reg,
-        pmr,
-        [
-          defaultName,
-          defaultSymbol,
-          'US',
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           custodian,
           defaultTotalSupply,
           await getDefaultStartTime(),
@@ -294,9 +206,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           custodian,
           defaultTotalSupply,
           await getDefaultStartTime(),
@@ -304,6 +216,97 @@ describe('when initializing PoaToken', () => {
           defaultActivationTimeout,
           defaultFundingGoal,
           { from: custodian }
+        ]
+      ])
+    })
+
+    it('should NOT initialize with empty name', async () => {
+      await testSetCurrencyRate(
+        exr,
+        exp,
+        defaultFiatCurrency,
+        defaultFiatRate,
+        {
+          from: owner,
+          value: 1e18
+        }
+      )
+
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          emptyBytes32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: broker }
+        ]
+      ])
+    })
+
+    it('should NOT initialize with empty symbol', async () => {
+      await testSetCurrencyRate(
+        exr,
+        exp,
+        defaultFiatCurrency,
+        defaultFiatRate,
+        {
+          from: owner,
+          value: 1e18
+        }
+      )
+
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName32,
+          emptyBytes32,
+          defaultFiatCurrency32,
+          custodian,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: broker }
+        ]
+      ])
+    })
+
+    it('should NOT initialize with empty fiat currency', async () => {
+      await testSetCurrencyRate(
+        exr,
+        exp,
+        defaultFiatCurrency,
+        defaultFiatRate,
+        {
+          from: owner,
+          value: 1e18
+        }
+      )
+
+      await testWillThrow(testProxyInitialization, [
+        reg,
+        pmr,
+        [
+          defaultName32,
+          defaultSymbol32,
+          emptyBytes32,
+          custodian,
+          addressZero,
+          defaultTotalSupply,
+          await getDefaultStartTime(),
+          defaultFundingTimeout,
+          defaultActivationTimeout,
+          defaultFundingGoal,
+          { from: owner }
         ]
       ])
     })
@@ -324,9 +327,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           addressZero,
           defaultTotalSupply,
           await getDefaultStartTime(),
@@ -341,9 +344,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           null,
           defaultTotalSupply,
           await getDefaultStartTime(),
@@ -371,9 +374,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           custodian,
           9e17,
           await getDefaultStartTime(),
@@ -388,9 +391,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           custodian,
           null,
           await getDefaultStartTime(),
@@ -417,9 +420,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           custodian,
           defaultTotalSupply,
           // simulate day before
@@ -447,9 +450,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           custodian,
           defaultTotalSupply,
           await getDefaultStartTime(),
@@ -480,9 +483,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           custodian,
           defaultTotalSupply,
           await getDefaultStartTime(),
@@ -518,9 +521,9 @@ describe('when initializing PoaToken', () => {
         reg,
         pmr,
         [
-          defaultName,
-          defaultSymbol,
-          defaultFiatCurrency,
+          defaultName32,
+          defaultSymbol32,
+          defaultFiatCurrency32,
           custodian,
           defaultTotalSupply,
           await getDefaultStartTime(),

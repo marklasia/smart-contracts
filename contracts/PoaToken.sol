@@ -363,7 +363,7 @@ contract PoaToken is PausableToken {
   function getContractAddress(
     string _name
   )
-    internal
+    public
     view
     returns (address _contractAddress)
   {
