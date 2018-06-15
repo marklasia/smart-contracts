@@ -39,9 +39,9 @@ contract PoaToken is PausableToken {
   // the total per token payout rate: accumulates as payouts are received
   uint256 public totalPerTokenPayout;
   // used to keep track of actual funded amount in fiat during FiatFunding stage
-  uint256 private fundedAmountInCentsDuringFiatFunding;
+  uint256 public fundedAmountInCentsDuringFiatFunding;
    // used to keep track of actual funded amount in POA token during FiatFunding stage
-  uint256 private fundedAmountInTokensDuringFiatFunding;
+  uint256 public fundedAmountInTokensDuringFiatFunding;
   // used to keep track of of actual fundedAmount in eth
   uint256 public fundedAmountInWei;
   // used to enable/disable whitelist required transfers/transferFroms
@@ -53,9 +53,9 @@ contract PoaToken is PausableToken {
   mapping(address => uint256) public unclaimedPayoutTotals;
   // needs to be used due to tokens not directly correlating to fundingGoal
   // due to fluctuating fiat rates
-  mapping(address => uint256) private investmentAmountPerUserInWei;
+  mapping(address => uint256) public investmentAmountPerUserInWei;
   // Used to track fiat pre sale contributors
-  mapping(address => uint256) private fiatInvestmentPerUserInTokens;
+  mapping(address => uint256) public fiatInvestmentPerUserInTokens;
   // used to calculate balanceOf by deducting spent balances
   mapping(address => uint256) public spentBalances;
   // used to calculate balanceOf by adding received balances
@@ -175,7 +175,7 @@ contract PoaToken is PausableToken {
     // given as fiat cents
     uint256 _fundingGoalInCents
   )
-    public
+    external
     returns (bool)
   {
     // ensure that setup has not been called
@@ -397,7 +397,7 @@ contract PoaToken is PausableToken {
 
   // gas saving call to get fiat rate without interface
   function getFiatRate()
-    internal
+    public
     view
     returns (uint256 _fiatRate)
   {
@@ -468,7 +468,7 @@ contract PoaToken is PausableToken {
 
   // returns fiat value in cents of given wei amount
   function weiToFiatCents(uint256 _wei)
-    internal
+    public
     view
     returns (uint256)
   {
@@ -478,7 +478,7 @@ contract PoaToken is PausableToken {
 
   // returns wei value from fiat cents
   function fiatCentsToWei(uint256 _cents)
-    internal
+    public
     view
     returns (uint256)
   {
@@ -567,7 +567,7 @@ contract PoaToken is PausableToken {
   }
 
   // used to start the FIAT preSale funding
-  function startPreSale()
+  function startFiatPreSale()
     external
     atStage(Stages.PreFunding)
     returns (bool)
