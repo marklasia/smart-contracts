@@ -255,23 +255,24 @@ contract PoaToken is PausableToken {
     owner = getContractAddress("PoaManager");
 
     // run getRate once in order to see if rate is initialized, throws if not
-    // require(getFiatRate() > 0);
+    require(getFiatRate() > 0);
 
     return true;
   }
 
-  // convert bytes32 back to string
+  // takes a fixed length bytes32 and returns string
   function bytes32ToString(bytes32 _data)
     pure
-    internal
+    public
     returns (string)
   {
+    // create new empty bytes array with same length as input
     bytes memory _bytesString = new bytes(32);
-    uint256 _charCount = 0;
-    uint256 _bytesCounter;
+    // keep track of string length for later usage in trimming
+    uint256 _stringLength;
 
-    // loop through converted bytes from string
-    for (_bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
+    // loop through each byte in bytes32
+    for (uint _bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
       /*
       convert bytes32 data to uint in order to increase the number enough to
       shift bytes further left while pushing out leftmost bytes
@@ -281,12 +282,27 @@ contract PoaToken is PausableToken {
 
       TLDR: takes a single character from bytes based on counter
       */
-      bytes1 _char = bytes1(bytes32(uint256(_data) * 2 ** (8 * _bytesCounter)));
+      bytes1 _char = bytes1(
+        bytes32(
+          uint(_data) * 2 ** (8 * _bytesCounter)
+        )
+      );
+      // add the character if not empty
       if (_char != 0) {
-        _bytesString[_charCount] = _char;
-        _charCount++;
+        _bytesString[_stringLength] = _char;
+        _stringLength += 1;
       }
     }
+
+    // new bytes with correct matching string length
+    bytes memory _bytesStringTrimmed = new bytes(_stringLength);
+    // loop through _bytesStringTrimmed throwing in
+    // non empty data from _bytesString
+    for (_bytesCounter = 0; _bytesCounter < _stringLength; _bytesCounter++) {
+      _bytesStringTrimmed[_bytesCounter] = _bytesString[_bytesCounter];
+    }
+    // return trimmed bytes array converted to string
+    return string(_bytesStringTrimmed);
   }
 
   //

@@ -42,8 +42,11 @@ const whitelistedPoaBuyers = accounts.slice(4, 9)
 const bbkTokenDistAmount = new BigNumber(1e18)
 const actRate = new BigNumber(1e3)
 const defaultName = 'TestPoa'
+const defaultName32 = web3.toHex('TestPoa')
 const defaultSymbol = 'TPA'
+const defaultSymbol32 = web3.toHex('TPA')
 const defaultFiatCurrency = 'EUR'
+const defaultFiatCurrency32 = web3.toHex('EUR')
 const defaultFundingTimeout = new BigNumber(60 * 60 * 24)
 const defaultActivationTimeout = new BigNumber(60 * 60 * 24 * 7)
 const defaultFundingGoal = new BigNumber(5e5)
@@ -51,6 +54,7 @@ const defaultTotalSupply = new BigNumber(1e23)
 const defaultFiatRate = new BigNumber(33333)
 const defaultIpfsHash = 'QmSUfCtXgb59G9tczrz2WuHNAbecV55KRBGXBbZkou5RtE'
 const defaultBuyAmount = new BigNumber(1e18)
+const emptyBytes32 = '0x' + '0'.repeat(64)
 const getDefaultStartTime = async () => {
   const currentBlock = await web3.eth.getBlock(web3.eth.blockNumber)
   const blockTime = new BigNumber(currentBlock.timestamp)
@@ -1394,12 +1398,15 @@ module.exports = {
   defaultActivationTimeout,
   defaultBuyAmount,
   defaultFiatCurrency,
+  defaultFiatCurrency32,
   defaultFiatRate,
   defaultFundingGoal,
   defaultFundingTimeout,
   defaultIpfsHash,
   defaultName,
+  defaultName32,
   defaultSymbol,
+  defaultSymbol32,
   defaultTotalSupply,
   determineNeededTimeTravel,
   fundingTimeoutContract,
@@ -1444,5 +1451,6 @@ module.exports = {
   testUpdateProofOfCustody,
   testWeiToFiatCents,
   timeTravel,
-  whitelistedPoaBuyers
+  whitelistedPoaBuyers,
+  emptyBytes32
 }
