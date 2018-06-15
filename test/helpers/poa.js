@@ -64,9 +64,14 @@ const defaultFundingGoal = new BigNumber(5e5)
 const defaultTotalSupply = new BigNumber(1e23)
 const defaultFiatRate = new BigNumber(33333)
 const defaultIpfsHash = 'QmSUfCtXgb59G9tczrz2WuHNAbecV55KRBGXBbZkou5RtE'
+const newIpfsHash = 'Qmd286K6pohQcTKYqnS1YhWrCiS4gz7Xi34sdwMe9USZ7u'
 const defaultIpfsHashArray32 = [
   web3.toHex(defaultIpfsHash.slice(0, 32)),
   web3.toHex(defaultIpfsHash.slice(32))
+]
+const newIpfsHashArray32 = [
+  web3.toHex(newIpfsHash.slice(0, 32)),
+  web3.toHex(newIpfsHash.slice(32))
 ]
 const defaultBuyAmount = new BigNumber(1e18)
 const emptyBytes32 = '0x' + '0'.repeat(64)
@@ -930,8 +935,8 @@ const testClaim = async (poa, config, isTerminated) => {
   )
   assert.equal(
     stage.toString(),
-    isTerminated ? new BigNumber(5).toString() : new BigNumber(4).toString(),
-    `stage should be in ${isTerminated ? 5 : 4}, Active`
+    isTerminated ? new BigNumber(6).toString() : new BigNumber(5).toString(),
+    `stage should be in ${isTerminated ? 6 : 5}, Active`
   )
 }
 
@@ -939,8 +944,8 @@ const testClaimAllPayouts = async (poa, poaTokenHolders) => {
   const stage = await poa.stage()
   assert.equal(
     stage.toString(),
-    new BigNumber(4).toString(),
-    'stage should be in 4, Active'
+    new BigNumber(5).toString(),
+    'stage should be in 5, Active'
   )
 
   let totalClaimAmount = bigZero
@@ -1190,9 +1195,17 @@ const testUpdateProofOfCustody = async (poa, ipfsHash, config) => {
   await poa.updateProofOfCustody(ipfsHash, config)
 
   const postIpfsHash = await poa.proofOfCustody()
+  const expectedHash = ipfsHash.reduce(
+    (acc, item) => acc.concat(web3.toAscii(item)),
+    ''
+  )
 
   assert(preIpfsHash != postIpfsHash, 'should not be same ipfsHash')
-  assert.equal(postIpfsHash, ipfsHash, 'new ifpsHash should be set in contract')
+  assert.equal(
+    postIpfsHash,
+    expectedHash,
+    'new ifpsHash should be set in contract'
+  )
 }
 
 const testTransfer = async (poa, to, value, args) => {
@@ -1288,13 +1301,13 @@ const testTerminate = async (poa, config) => {
 
   assert.equal(
     preStage.toString(),
-    new BigNumber(4).toString(),
-    'preStage should be 4, Active'
+    new BigNumber(5).toString(),
+    'preStage should be 5, Active'
   )
   assert.equal(
     postStage.toString(),
-    new BigNumber(5).toString(),
-    'postStage should be 5, Terminated'
+    new BigNumber(6).toString(),
+    'postStage should be 6, Terminated'
   )
 }
 
@@ -1444,7 +1457,9 @@ module.exports = {
   defaultFundingGoal,
   defaultFundingTimeout,
   defaultIpfsHash,
+  newIpfsHash,
   defaultIpfsHashArray32,
+  newIpfsHashArray32,
   defaultName,
   defaultName32,
   defaultSymbol,
