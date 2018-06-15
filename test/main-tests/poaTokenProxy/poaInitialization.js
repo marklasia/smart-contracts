@@ -300,13 +300,12 @@ describe('when initializing PoaToken', () => {
           defaultSymbol32,
           emptyBytes32,
           custodian,
-          addressZero,
           defaultTotalSupply,
           await getDefaultStartTime(),
           defaultFundingTimeout,
           defaultActivationTimeout,
           defaultFundingGoal,
-          { from: owner }
+          { from: broker }
         ]
       ])
     })
@@ -399,7 +398,8 @@ describe('when initializing PoaToken', () => {
           await getDefaultStartTime(),
           defaultFundingTimeout,
           defaultActivationTimeout,
-          defaultFundingGoal
+          defaultFundingGoal,
+          { from: broker }
         ]
       ])
     })
@@ -429,7 +429,8 @@ describe('when initializing PoaToken', () => {
           new BigNumber(Date.now()).div(1000).sub(60 * 60 * 24),
           defaultFundingTimeout,
           defaultActivationTimeout,
-          defaultFundingGoal
+          defaultFundingGoal,
+          { from: broker }
         ]
       ])
     })
@@ -462,7 +463,8 @@ describe('when initializing PoaToken', () => {
             .mul(24)
             .sub(1),
           defaultActivationTimeout,
-          defaultFundingGoal
+          defaultFundingGoal,
+          { from: broker }
         ]
       ])
     })
@@ -500,7 +502,8 @@ describe('when initializing PoaToken', () => {
             .mul(24)
             .mul(7)
             .sub(1),
-          defaultFundingGoal
+          defaultFundingGoal,
+          { from: broker }
         ]
       ])
     })
@@ -529,7 +532,8 @@ describe('when initializing PoaToken', () => {
           await getDefaultStartTime(),
           defaultFundingTimeout,
           defaultActivationTimeout,
-          0
+          0,
+          { from: broker }
         ]
       ])
     })
