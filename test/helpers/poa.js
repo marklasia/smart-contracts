@@ -9,6 +9,17 @@ const PoaToken = artifacts.require('PoaToken')
 const Whitelist = artifacts.require('Whitelist')
 
 const assert = require('assert')
+
+const stages = {
+  PreFunding: '0',
+  FiatFunding: '1',
+  Funding: '2',
+  Pending: '3',
+  Failed: '4',
+  Active: '5',
+  Terminated: '6',
+  Cancelled: '7'
+}
 const {
   areInRange,
   bigZero,
@@ -550,6 +561,26 @@ const testCalculateFee = async (poa, taxableValue) => {
   )
 }
 
+const testStartPreSale = async (poa, config) => {
+  const preStage = await poa.stage()
+
+  await poa.startPreSale(config ? config : { from: owner })
+
+  const postStage = await poa.stage()
+
+  assert.equal(
+    preStage.toString(),
+    stages.PreFunding,
+    'stage should start as PreFunding or FiatFunding'
+  )
+
+  assert.equal(
+    postStage.toString(),
+    stages.FiatFunding,
+    'stage should start as FiatFunding'
+  )
+}
+
 const testStartSale = async (poa, config) => {
   const preStage = await poa.stage()
 
@@ -557,15 +588,16 @@ const testStartSale = async (poa, config) => {
 
   const postStage = await poa.stage()
 
-  assert.equal(
-    preStage.toString(),
-    bigZero.toString(),
-    'stage should start as 0, PreFunding'
+  assert(
+    preStage.toString() === stages.PreFunding ||
+      preStage.toString() === stages.FiatFunding,
+    'stage should start as PreFunding or FiatFunding'
   )
+
   assert.equal(
     postStage.toString(),
-    new BigNumber(1).toString(),
-    'stage should start as 1, Funding'
+    stages.Funding,
+    'stage should start as Funding'
   )
 }
 
@@ -1442,6 +1474,7 @@ module.exports = {
   testResetCurrencyRate,
   testSetCurrencyRate,
   testSetFailed,
+  testStartPreSale,
   testStartSale,
   testTerminate,
   testToggleWhitelistTransfers,
@@ -1452,5 +1485,6 @@ module.exports = {
   testWeiToFiatCents,
   timeTravel,
   whitelistedPoaBuyers,
-  emptyBytes32
+  emptyBytes32,
+  stages
 }
