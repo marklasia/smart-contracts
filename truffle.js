@@ -1,3 +1,5 @@
+require('dotenv').config()
+
 const HDWalletProvider = require('truffle-hdwallet-provider')
 /*
  * Our CI runners often run multiple smart contract test jobs in parallel which can lead
@@ -6,6 +8,13 @@ const HDWalletProvider = require('truffle-hdwallet-provider')
  */
 const FIRST_PORT = 8545
 const LAST_PORT = 8645
+// Values below 63e5 fail often because of the required minimum block gas amount.
+const GETH_GAS_LIMIT =
+  process.env.GETH_GAS_LIMIT &&
+  process.env.GETH_GAS_LIMIT >= 63e5 &&
+  process.env.GETH_GAS_LIMIT <= 8e6
+    ? process.env.GETH_GAS_LIMIT
+    : 8e6
 
 const ciNetworks = {}
 for (let portCounter = FIRST_PORT; portCounter < LAST_PORT; portCounter++) {
@@ -29,8 +38,7 @@ module.exports = {
       host: 'localhost',
       port: 8545,
       network_id: 4447,
-      // Values below 6000000 fail often because of the required minimum block gas amount.
-      gas: 6300000
+      gas: GETH_GAS_LIMIT
     },
     ...ciNetworks,
     ropsten: {
