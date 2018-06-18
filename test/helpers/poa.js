@@ -29,7 +29,6 @@ const {
   sendTransaction,
   testWillThrow,
   timeTravel,
-  waitForEvent,
   toBytes32
 } = require('./general')
 const { finalizedBBK } = require('./bbk')
@@ -64,6 +63,15 @@ const defaultFundingGoal = new BigNumber(5e5)
 const defaultTotalSupply = new BigNumber(1e23)
 const defaultFiatRate = new BigNumber(33333)
 const defaultIpfsHash = 'QmSUfCtXgb59G9tczrz2WuHNAbecV55KRBGXBbZkou5RtE'
+const newIpfsHash = 'Qmd286K6pohQcTKYqnS1YhWrCiS4gz7Xi34sdwMe9USZ7u'
+const defaultIpfsHashArray32 = [
+  web3.toHex(defaultIpfsHash.slice(0, 32)),
+  web3.toHex(defaultIpfsHash.slice(32))
+]
+const newIpfsHashArray32 = [
+  web3.toHex(newIpfsHash.slice(0, 32)),
+  web3.toHex(newIpfsHash.slice(32))
+]
 const defaultBuyAmount = new BigNumber(1e18)
 const emptyBytes32 = '0x' + '0'.repeat(64)
 const getDefaultStartTime = async () => {
@@ -678,9 +686,7 @@ const testBuyTokens = async (poa, config) => {
   const preTokenBalance = await poa.balanceOf(buyer)
   const preFundedAmount = await poa.fundedAmountInWei()
   const preUserWeiInvested = await poa.investmentAmountPerUserInWei(buyer)
-  const BuyEvent = poa.BuyEvent()
   const tx = await poa.buy(config)
-  const { args: triggeredEvent } = await waitForEvent(BuyEvent)
   const gasUsed = await getGasUsed(tx)
   const gasCost = new BigNumber(gasUsed).mul(config.gasPrice)
 
@@ -691,16 +697,6 @@ const testBuyTokens = async (poa, config) => {
 
   const expectedPostEthBalance = preEthBalance.sub(weiBuyAmount).sub(gasCost)
 
-  assert.equal(
-    triggeredEvent.buyer,
-    config.from,
-    'buy event buyer should be equal to config.from'
-  )
-  assert.equal(
-    triggeredEvent.amount.toString(),
-    config.value.toString(),
-    'buy event amount should be equal to config.value'
-  )
   assert.equal(
     expectedPostEthBalance.toString(),
     postEthBalance.toString(),
@@ -828,6 +824,11 @@ const testActivate = async (poa, fmr, ipfsHash, config) => {
   const postPaused = await poa.paused()
   const postBrokerPayouts = await poa.currentPayout(broker, true)
 
+  const expectedHash = ipfsHash.reduce(
+    (acc, item) => acc.concat(web3.toAscii(item)),
+    ''
+  )
+
   assert.equal(
     postFeeManagerBalance.sub(preFeeManagerBalance).toString(),
     calculatedFee.toString(),
@@ -846,8 +847,8 @@ const testActivate = async (poa, fmr, ipfsHash, config) => {
   assert.equal(preCustody, '', 'proofOfCustody should start empty')
   assert.equal(
     postCustody,
-    ipfsHash,
-    'proofOfCustody should be set to ipfsHash'
+    expectedHash,
+    'proofOfCustody should be set to expectedHash'
   )
   assert(prePaused, 'should be paused before activation')
   assert(!postPaused, 'should not be paused after activation')
@@ -986,8 +987,8 @@ const testClaim = async (poa, config, isTerminated) => {
   )
   assert.equal(
     stage.toString(),
-    isTerminated ? new BigNumber(5).toString() : new BigNumber(4).toString(),
-    `stage should be in ${isTerminated ? 5 : 4}, Active`
+    isTerminated ? new BigNumber(6).toString() : new BigNumber(5).toString(),
+    `stage should be in ${isTerminated ? 6 : 5}, Active`
   )
 }
 
@@ -995,8 +996,8 @@ const testClaimAllPayouts = async (poa, poaTokenHolders) => {
   const stage = await poa.stage()
   assert.equal(
     stage.toString(),
-    new BigNumber(4).toString(),
-    'stage should be in 4, Active'
+    new BigNumber(5).toString(),
+    'stage should be in 5, Active'
   )
 
   let totalClaimAmount = bigZero
@@ -1246,9 +1247,17 @@ const testUpdateProofOfCustody = async (poa, ipfsHash, config) => {
   await poa.updateProofOfCustody(ipfsHash, config)
 
   const postIpfsHash = await poa.proofOfCustody()
+  const expectedHash = ipfsHash.reduce(
+    (acc, item) => acc.concat(web3.toAscii(item)),
+    ''
+  )
 
   assert(preIpfsHash != postIpfsHash, 'should not be same ipfsHash')
-  assert.equal(postIpfsHash, ipfsHash, 'new ifpsHash should be set in contract')
+  assert.equal(
+    postIpfsHash,
+    expectedHash,
+    'new ifpsHash should be set in contract'
+  )
 }
 
 const testTransfer = async (poa, to, value, args) => {
@@ -1344,13 +1353,13 @@ const testTerminate = async (poa, config) => {
 
   assert.equal(
     preStage.toString(),
-    new BigNumber(4).toString(),
-    'preStage should be 4, Active'
+    new BigNumber(5).toString(),
+    'preStage should be 5, Active'
   )
   assert.equal(
     postStage.toString(),
-    new BigNumber(5).toString(),
-    'postStage should be 5, Terminated'
+    new BigNumber(6).toString(),
+    'postStage should be 6, Terminated'
   )
 }
 
@@ -1500,6 +1509,9 @@ module.exports = {
   defaultFundingGoal,
   defaultFundingTimeout,
   defaultIpfsHash,
+  newIpfsHash,
+  defaultIpfsHashArray32,
+  newIpfsHashArray32,
   defaultName,
   defaultName32,
   defaultSymbol,
