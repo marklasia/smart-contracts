@@ -626,9 +626,7 @@ const testBuyTokensWithFiat = async (poa, buyer, amountInCents, config) => {
   )
   const preFundedAmountInTokens = await poa.fundedAmountInTokensDuringFiatFunding()
   const preFundedAmountInCents = await poa.fundedAmountInCentsDuringFiatFunding()
-  const BuyFiatEvent = poa.BuyFiatEvent()
   await poa.buyFiat(buyer, amountInCents, config)
-  const { args: triggeredEvent } = await waitForEvent(BuyFiatEvent)
 
   const postInvestedTokenAmountPerUser = await poa.fiatInvestmentPerUserInTokens(
     buyer
@@ -639,18 +637,6 @@ const testBuyTokensWithFiat = async (poa, buyer, amountInCents, config) => {
   const expectedUserTokenAmount = await getExpectedTokenAmount(
     poa,
     amountInCents
-  )
-
-  assert.equal(
-    triggeredEvent.buyer,
-    buyer,
-    'buy fiat event buyer should be equal to config.from'
-  )
-
-  assert.equal(
-    triggeredEvent.amount.toString(),
-    amountInCents.toString(),
-    'buy event amount should be equal to config.value'
   )
 
   assert.equal(

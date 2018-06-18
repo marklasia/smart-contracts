@@ -39,9 +39,9 @@ contract PoaToken is PausableToken {
   // the total per token payout rate: accumulates as payouts are received
   uint256 public totalPerTokenPayout;
   // used to keep track of actual funded amount in fiat during FiatFunding stage
-  uint256 private fundedAmountInCentsDuringFiatFunding;
+  uint256 public fundedAmountInCentsDuringFiatFunding;
    // used to keep track of actual funded amount in POA token during FiatFunding stage
-  uint256 private fundedAmountInTokensDuringFiatFunding;
+  uint256 public fundedAmountInTokensDuringFiatFunding;
   // used to keep track of of actual fundedAmount in eth
   uint256 public fundedAmountInWei;
   // used to enable/disable whitelist required transfers/transferFroms
@@ -55,7 +55,7 @@ contract PoaToken is PausableToken {
   // due to fluctuating fiat rates
   mapping(address => uint256) public investmentAmountPerUserInWei;
   // Used to track fiat pre sale contributors
-  mapping(address => uint256) private fiatInvestmentPerUserInTokens;
+  mapping(address => uint256) public fiatInvestmentPerUserInTokens;
   // used to calculate balanceOf by deducting spent balances
   mapping(address => uint256) private spentBalances;
   // used to calculate balanceOf by adding received balances
