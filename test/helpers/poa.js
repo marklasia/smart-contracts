@@ -564,7 +564,7 @@ const testCalculateFee = async (poa, taxableValue) => {
 const testStartPreSale = async (poa, config) => {
   const preStage = await poa.stage()
 
-  await poa.startPreSale(config ? config : { from: owner })
+  await poa.startFiatPreSale(config ? config : { from: owner })
 
   const postStage = await poa.stage()
 
@@ -598,6 +598,71 @@ const testStartSale = async (poa, config) => {
     postStage.toString(),
     stages.Funding,
     'stage should start as Funding'
+  )
+}
+
+const getExpectedTokenAmount = async (poa, amountInCents) => {
+  const totalSupply = await poa.totalSupply()
+  const fundingGoal = await poa.fundingGoalInCents()
+  const percentOfFundingGoal = fundingGoal.mul(100).div(amountInCents)
+
+  return totalSupply.mul(percentOfFundingGoal).div(100)
+}
+
+const testBuyTokensWithFiat = async (poa, buyer, amountInCents, config) => {
+  assert(!!config.gasPrice, 'gasPrice must be given')
+  assert(!!config.from, 'from must be given')
+
+  const preInvestedTokenAmountPerUser = await poa.fiatInvestmentPerUserInTokens(
+    buyer
+  )
+  const preFundedAmountInTokens = await poa.fundedAmountInTokensDuringFiatFunding()
+  const preFundedAmountInCents = await poa.fundedAmountInCentsDuringFiatFunding()
+  const BuyFiatEvent = poa.BuyFiatEvent()
+  await poa.buyFiat(buyer, amountInCents, config)
+  const { args: triggeredEvent } = await waitForEvent(BuyFiatEvent)
+
+  const postInvestedTokenAmountPerUser = await poa.fiatInvestmentPerUserInTokens(
+    buyer
+  )
+  const expectedFundedAmountInCents = preFundedAmountInCents.add(amountInCents)
+  const postFundedAmountInTokens = await poa.fundedAmountInTokensDuringFiatFunding()
+  const postFundedAmountInCents = await poa.fundedAmountInCentsDuringFiatFunding()
+  const expectedUserTokenAmount = await getExpectedTokenAmount(
+    poa,
+    amountInCents
+  )
+
+  assert.equal(
+    triggeredEvent.buyer,
+    buyer,
+    'buy fiat event buyer should be equal to config.from'
+  )
+
+  assert.equal(
+    triggeredEvent.amount.toString(),
+    amountInCents.toString(),
+    'buy event amount should be equal to config.value'
+  )
+
+  assert.equal(
+    expectedFundedAmountInCents.toString(),
+    postFundedAmountInCents.toString(),
+    'Funded Amount In Cents should match expected value'
+  )
+
+  assert.equal(
+    expectedUserTokenAmount.toString(),
+    postFundedAmountInTokens.sub(preFundedAmountInTokens).toString(),
+    'Token amount should match the expected value'
+  )
+
+  assert.equal(
+    postInvestedTokenAmountPerUser
+      .sub(preInvestedTokenAmountPerUser)
+      .toString(),
+    expectedUserTokenAmount.toString(),
+    'Investor token amount should match the expected value'
   )
 }
 
@@ -1455,6 +1520,7 @@ module.exports = {
   testBuyRemainingTokens,
   testBuyTokens,
   testBuyTokensMulti,
+  testBuyTokensWithFiat,
   testCalculateFee,
   testChangeCustodianAddress,
   testClaim,
@@ -1486,5 +1552,6 @@ module.exports = {
   timeTravel,
   whitelistedPoaBuyers,
   emptyBytes32,
-  stages
+  stages,
+  getExpectedTokenAmount
 }
