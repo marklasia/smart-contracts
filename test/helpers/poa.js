@@ -592,7 +592,7 @@ const testStartPreSale = async (poa, config) => {
 const testStartSale = async (poa, config) => {
   const preStage = await poa.stage()
 
-  await poa.startSale(config ? config : { from: owner })
+  await poa.startEthSale(config ? config : { from: owner })
 
   const postStage = await poa.stage()
 

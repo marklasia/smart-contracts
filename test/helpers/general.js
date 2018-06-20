@@ -247,7 +247,6 @@ const waitForEvent = (event, optTimeout) =>
 
 const toBytes32 = text => {
   return web3.toHex(text)
-  //return '0'.repeat(64 - hexValue.length) + hexValue
 }
 
 module.exports = {

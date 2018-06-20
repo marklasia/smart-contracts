@@ -66,7 +66,7 @@ contract PoaToken is PausableToken {
   enum Stages {
     PreFunding,
     FiatFunding,
-    Funding,
+    EthFunding,
     Pending,
     Failed,
     Active,
@@ -126,7 +126,7 @@ contract PoaToken is PausableToken {
       .add(activationTimeout);
 
     if (
-      (stage == Stages.Funding && block.timestamp >= fundingTimeoutDeadline) ||
+      (stage == Stages.EthFunding && block.timestamp >= fundingTimeoutDeadline) ||
       (stage == Stages.Pending && block.timestamp >= activationTimeoutDeadline)
     ) {
       enterStage(Stages.Failed);
@@ -134,7 +134,7 @@ contract PoaToken is PausableToken {
     _;
   }
 
-  modifier validIpfs(bytes32[2] _ipfsHash) {
+  modifier validIpfsHash(bytes32[2] _ipfsHash) {
     // check that the most common hashing algo is used sha256
     // and that the length is correct. In theory it could be different
     // but use of this functionality is limited to only custodian
@@ -387,7 +387,7 @@ contract PoaToken is PausableToken {
   // start utility functions
   //
 
-  function isBuyerFundedInFiat(
+  function isFiatInvestor(
     address _buyer
   )
     internal
@@ -614,13 +614,13 @@ contract PoaToken is PausableToken {
   }
 
   // used to start the sale as long as startTime has passed
-  function startSale()
+  function startEthSale()
     external
     atEitherStage(Stages.PreFunding, Stages.FiatFunding)
     returns (bool)
   {
     require(block.timestamp >= startTime);
-    enterStage(Stages.Funding);
+    enterStage(Stages.EthFunding);
     return true;
   }
 
@@ -657,12 +657,12 @@ contract PoaToken is PausableToken {
     external
     payable
     checkTimeout
-    atStage(Stages.Funding)
+    atStage(Stages.EthFunding)
     isBuyWhitelisted
     returns (bool)
   {
     // Prevent FiatFunding addresses from contributing to funding to keep total supply legit
-    if (fiatInvestmentPerUserInTokens[msg.sender] != 0) {
+    if (isFiatInvestor(msg.sender)) {
       return false;
     }
 
@@ -741,7 +741,7 @@ contract PoaToken is PausableToken {
   // lastly can also be used when no one else has called reclaim.
   function setFailed()
     external
-    atEitherStage(Stages.Funding, Stages.Pending)
+    atEitherStage(Stages.EthFunding, Stages.Pending)
     checkTimeout
     returns (bool)
   {
@@ -787,7 +787,7 @@ contract PoaToken is PausableToken {
     checkTimeout
     onlyCustodian
     atStage(Stages.Pending)
-    validIpfs(_ipfsHash)
+    validIpfsHash(_ipfsHash)
     returns (bool)
   {
     // calculate company fee charged for activation
@@ -981,7 +981,7 @@ contract PoaToken is PausableToken {
     external
     atEitherStage(Stages.Active, Stages.Terminated)
     onlyCustodian
-    validIpfs(_ipfsHash)
+    validIpfsHash(_ipfsHash)
     returns (bool)
   {
     proofOfCustody32 = _ipfsHash;
@@ -1006,7 +1006,7 @@ contract PoaToken is PausableToken {
     view
     returns (uint256)
   {
-    if (isBuyerFundedInFiat(_address)) {
+    if (isFiatInvestor(_address)) {
       return uint256(stage) > 3
         ? fiatInvestmentPerUserInTokens[_address]
         : 0;
