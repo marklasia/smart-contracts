@@ -896,6 +896,7 @@ contract PoaToken is PausableToken {
     atStage(Stages.Failed)
     returns (bool)
   {
+    require(!isFiatInvestor(msg.sender));
     totalSupply_ = 0;
     uint256 _refundAmount = investmentAmountPerUserInWei[msg.sender];
     investmentAmountPerUserInWei[msg.sender] = 0;
