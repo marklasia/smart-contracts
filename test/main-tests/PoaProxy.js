@@ -17,7 +17,7 @@ const {
   setupPoaAndEcosystem
 } = require('../helpers/poa')
 
-describe('when using PoaProxy contract to proxy a PoaToken', () => {
+describe.only('when using PoaProxy contract to proxy a PoaToken', () => {
   contract('PoaProxy/PoaToken', accounts => {
     let poam
     let upoam

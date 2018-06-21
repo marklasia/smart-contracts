@@ -542,16 +542,6 @@ contract PoaToken is PausableToken {
     return fiatCentsToWei(fundingGoalInCents);
   }
 
-  // public utility function to allow checking of required fee for a given amount
-  function calculateFee(uint256 _value)
-    public
-    pure
-    returns (uint256)
-  {
-    // divide by 1000 because feeRate permille
-    return feeRate.mul(_value).div(1000);
-  }
-
   // pay fee to FeeManager
   function payFee(uint256 _value)
     internal
@@ -792,7 +782,7 @@ contract PoaToken is PausableToken {
     returns (bool)
   {
     // calculate company fee charged for activation
-    uint256 _fee = calculateFee(address(this).balance);
+    uint256 _fee = feeRate.mul(address(this).balance).div(1000);
     // if activated and fee paid: put in Active stage
     enterStage(Stages.Active);
     // fee sent to FeeManager where fee gets
@@ -921,7 +911,7 @@ contract PoaToken is PausableToken {
     returns (bool)
   {
     // calculate fee based on feeRate
-    uint256 _fee = calculateFee(msg.value);
+    uint256 _fee = feeRate.mul(msg.value).div(1000);
     // ensure the value is high enough for a fee to be claimed
     require(_fee > 0);
     // deduct fee from payout
