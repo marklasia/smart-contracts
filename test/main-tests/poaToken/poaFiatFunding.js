@@ -181,7 +181,7 @@ describe('when in FIAT Funding (stage 1)', () => {
       const fundingGoal = await poa.fundingGoalInCents()
       const invesmentAmountInCents = fundingGoal.add(1)
 
-      testWillThrow(testBuyTokensWithFiat, [
+      await testWillThrow(testBuyTokensWithFiat, [
         poa,
         fiatInvestor,
         invesmentAmountInCents,
