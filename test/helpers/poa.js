@@ -1032,9 +1032,9 @@ const testFirstReclaim = async (poa, config, shouldBePending) => {
 
   assert.equal(
     preStage.toString(),
-    shouldBePending ? stages.Funding : stages.Pending,
+    shouldBePending ? stages.Pending : stages.Funding,
     `contract should be in stage ${
-      shouldBePending ? 'funding' : ' pending'
+      shouldBePending ? 'Funding' : 'Pending'
     } before reclaiming`
   )
 
@@ -1044,8 +1044,8 @@ const testFirstReclaim = async (poa, config, shouldBePending) => {
 
   assert.equal(
     postStage.toNumber(),
-    3,
-    'the contract should be in stage 2 (failed) after reclaiming'
+    stages.Failed,
+    'the contract should be in stage Failed after reclaiming'
   )
 }
 

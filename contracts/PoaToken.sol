@@ -126,11 +126,12 @@ contract PoaToken is PausableToken {
       .add(activationTimeout);
 
     if (
-      (stage == Stages.EthFunding && block.timestamp >= fundingTimeoutDeadline) ||
+      (uint256(stage) < 3 && block.timestamp >= fundingTimeoutDeadline) ||
       (stage == Stages.Pending && block.timestamp >= activationTimeoutDeadline)
     ) {
       enterStage(Stages.Failed);
     }
+    
     _;
   }
 
