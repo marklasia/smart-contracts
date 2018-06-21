@@ -780,21 +780,13 @@ const testBuyRemainingTokens = async (poa, config) => {
     areInRange(fundingGoalInCents, postFundedFiatCents, 1),
     'fundedAmount in fiat cents should be within 1 cent of fundingGoalCents'
   )
-  assert.equal(
-    preStage.toString(),
-    new BigNumber(2).toString(),
-    'stage should be 2, Funding'
-  )
-  assert.equal(
-    postStage.toString(),
-    new BigNumber(3).toString(),
-    'stage should be 3, Pending'
-  )
+  assert.equal(preStage.toString(), stages.Funding, 'stage should be Funding')
+  assert.equal(postStage.toString(), stages.Pending, 'stage should be Pending')
 
   return postUserWeiInvested
 }
 
-const testActivate = async (poa, fmr, ipfsHash, config) => {
+const testActivate = async (poa, fmr, ipfsHash32, config) => {
   const contractBalance = await getEtherBalance(poa.address)
   const calculatedFee = await poa.calculateFee(contractBalance)
 
@@ -803,14 +795,14 @@ const testActivate = async (poa, fmr, ipfsHash, config) => {
   const preCustody = await poa.proofOfCustody()
   const prePaused = await poa.paused()
   const preBrokerPayouts = await poa.currentPayout(broker, true)
-  await poa.activate(ipfsHash, config)
+  await poa.activate(ipfsHash32, config)
   const postFeeManagerBalance = await getEtherBalance(fmr.address)
   const postStage = await poa.stage()
   const postCustody = await poa.proofOfCustody()
   const postPaused = await poa.paused()
   const postBrokerPayouts = await poa.currentPayout(broker, true)
 
-  const expectedHash = ipfsHash.reduce(
+  const expectedHash = ipfsHash32.reduce(
     (acc, item) => acc.concat(web3.toAscii(item)),
     ''
   )
@@ -822,13 +814,13 @@ const testActivate = async (poa, fmr, ipfsHash, config) => {
   )
   assert.equal(
     preStage.toString(),
-    new BigNumber(3),
-    'preStage should be 3, Pending'
+    stages.Pending,
+    'preStage should be Pending'
   )
   assert.equal(
     postStage.toString(),
     stages.Active,
-    'postStage should be 5, Active'
+    'postStage should be Active'
   )
   assert.equal(preCustody, '', 'proofOfCustody should start empty')
   assert.equal(
@@ -980,11 +972,7 @@ const testClaim = async (poa, config, isTerminated) => {
 
 const testClaimAllPayouts = async (poa, poaTokenHolders) => {
   const stage = await poa.stage()
-  assert.equal(
-    stage.toString(),
-    new BigNumber(5).toString(),
-    'stage should be in 5, Active'
-  )
+  assert.equal(stage.toString(), stages.Active, 'stage should be in Active')
 
   let totalClaimAmount = bigZero
 
@@ -1082,13 +1070,13 @@ const testSetFailed = async (poa, shouldBePending) => {
   assert.equal(
     preStage.toString(),
     shouldBePending ? stages.Pending : stages.Funding,
-    `preStage should be ${shouldBePending ? '3, Pending' : '2 Funding'}`
+    `preStage should be ${shouldBePending ? 'Pending' : 'Funding'}`
   )
 
   assert.equal(
     postStage.toString(),
     stages.Failed,
-    'postStage should be 3, Failed'
+    'postStage should be Failed'
   )
 }
 
@@ -1337,15 +1325,11 @@ const testTerminate = async (poa, config) => {
 
   const postStage = await poa.stage()
 
-  assert.equal(
-    preStage.toString(),
-    new BigNumber(5).toString(),
-    'preStage should be 5, Active'
-  )
+  assert.equal(preStage.toString(), stages.Active, 'preStage should be Active')
   assert.equal(
     postStage.toString(),
     stages.Terminated,
-    'postStage should be 6, Terminated'
+    'postStage should be Terminated'
   )
 }
 

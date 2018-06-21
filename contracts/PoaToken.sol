@@ -64,14 +64,14 @@ contract PoaToken is PausableToken {
   mapping(address => uint256) private balances;
 
   enum Stages {
-    PreFunding,
-    FiatFunding,
-    EthFunding,
-    Pending,
-    Failed,
-    Active,
-    Terminated,
-    Cancelled
+    PreFunding, // 0
+    FiatFunding, // 1
+    EthFunding, // 2
+    Pending, // 3
+    Failed,  // 4
+    Active, // 5
+    Terminated, // 6
+    Cancelled // 7
   }
 
   Stages public stage = Stages.PreFunding;
@@ -1007,11 +1007,11 @@ contract PoaToken is PausableToken {
     returns (uint256)
   {
     if (isFiatInvestor(_address)) {
-      return uint256(stage) > 3
+      return uint256(stage) > 4
         ? fiatInvestmentPerUserInTokens[_address]
         : 0;
     } else {
-      return uint256(stage) > 3
+      return uint256(stage) > 4
         ? investmentAmountPerUserInWei[_address]
           .mul(
             totalSupply().sub(fundedAmountInTokensDuringFiatFunding)
