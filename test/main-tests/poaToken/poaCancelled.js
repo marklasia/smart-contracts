@@ -162,7 +162,7 @@ describe('when in Cancelled', () => {
     })
 
     it('should Not allow EthFunding', async () => {
-      testWillThrow(testBuyTokens, [
+      await testWillThrow(testBuyTokens, [
         poa,
         {
           from: whitelistedPoaBuyers[0],
