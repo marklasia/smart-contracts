@@ -9,7 +9,7 @@ import "openzeppelin-solidity/contracts/token/ERC20/PausableToken.sol";
 contract PoaToken is PausableToken {
   uint256 public constant version = 1;
   // instance of registry to call other contracts
-  address private registry;
+  address public registry;
   // ERC20 name of the token
   bytes32 private name32;
   // ERC20 symbol
