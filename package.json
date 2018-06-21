@@ -40,7 +40,7 @@
     "seed": "cross-env NODE_PATH=build NODE_ENV=development node scripts/seed.js",
     "seed:ropsten": "cross-env NODE_PATH=build NODE_ENV=development node scripts/seed.ropsten.js",
     "---SECTION:TEST---": "-------------------- HOW TO TEST THE SMART CONTRACTS --------------------",
-    "test": "yarn build && truffle test test/main-tests/* && truffle test test/main-tests/**/*",
+    "test": "yarn build && truffle test test/main-tests/*, test/main-tests/**/*",
     "test:gas-reporter": "GAS_REPORTER=true yarn test",
     "pretest:ci": "./scripts/find-open-port.sh && yarn build",
     "test:ci:comment": "Why the magic for getting a port? Creating a local file based on the session-id seems to be the easiest way to share state (namely the current ganache port) between multiple npm script tasks",

@@ -33,7 +33,7 @@ const {
 } = require('../../helpers/general.js')
 
 describe('when in Active (stage 4)', () => {
-  contract('PoaToken', () => {
+  contract('PoaTokenProxy', () => {
     const newIpfsHash = 'Qmd286K6pohQcTKYqnS1YhWrCiS4gz7Xi34sdwMe9USZ7u'
     let poa
     let fmr

@@ -29,7 +29,7 @@ const {
 } = require('../../helpers/general.js')
 
 describe('when in Pending (stage 2)', () => {
-  contract('PoaToken', () => {
+  contract('PoaTokenProxy', () => {
     let poa
     let fmr
 

@@ -15,7 +15,7 @@ const {
 const { timeTravel, gasPrice } = require('../../helpers/general.js')
 
 describe("when going through Poa's normal flow", async () => {
-  contract('PoaToken', () => {
+  contract('PoaTokenProxy', () => {
     let fmr
     let poa
 

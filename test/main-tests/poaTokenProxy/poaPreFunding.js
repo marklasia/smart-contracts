@@ -28,7 +28,7 @@ const {
 } = require('../../helpers/general.js')
 
 describe('when in PreFunding (stage 0)', async () => {
-  contract('PoaToken', () => {
+  contract('PoaTokenProxy', () => {
     let poa
     let fmr
 

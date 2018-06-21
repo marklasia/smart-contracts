@@ -21,7 +21,7 @@ const { testWillThrow, addressZero } = require('../../helpers/general.js')
 const BigNumber = require('bignumber.js')
 
 describe('when initializing PoaToken', () => {
-  contract('PoaToken', () => {
+  contract('PoaTokenProxy', () => {
     let reg
     let exr
     let exp

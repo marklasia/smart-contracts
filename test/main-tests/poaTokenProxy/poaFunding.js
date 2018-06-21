@@ -29,7 +29,7 @@ const {
 } = require('../../helpers/general.js')
 
 describe('when in Funding (stage 1)', () => {
-  contract('PoaToken', () => {
+  contract('PoaTokenProxy', () => {
     let poa
     let fmr
 

@@ -31,7 +31,7 @@ const {
 const BigNumber = require('bignumber.js')
 
 describe('when in Failed (stage 3)', () => {
-  contract('PoaToken', () => {
+  contract('PoaTokenProxy', () => {
     const tokenBuyAmount = new BigNumber(5e17)
     let poa
     let fmr
