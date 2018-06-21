@@ -1080,6 +1080,26 @@ const testSetFailed = async (poa, shouldBePending) => {
   )
 }
 
+const testSetCancelled = async (poa, from, shoulBeFiatFunding) => {
+  const preStage = await poa.stage()
+
+  await poa.setCancelled({ from })
+
+  const postStage = await poa.stage()
+
+  assert.equal(
+    preStage.toString(),
+    shoulBeFiatFunding ? stages.FiatFunding : stages.PreFunding,
+    `preStage should be ${shoulBeFiatFunding ? 'FiatFunding' : 'PreFunding'}`
+  )
+
+  assert.equal(
+    postStage.toString(),
+    stages.Cancelled,
+    'Post stage should be Cancelled'
+  )
+}
+
 const testReclaim = async (poa, config, first = false) => {
   const claimer = config.from
 
@@ -1522,6 +1542,7 @@ module.exports = {
   testResetCurrencyRate,
   testSetCurrencyRate,
   testSetFailed,
+  testSetCancelled,
   testStartPreSale,
   testStartSale,
   testTerminate,
