@@ -1,100 +1,185 @@
-# Ecosystem Doomsday Scenarios
-A collection of possible scenarios that may need to be dealt with, along with some assumptions made about the current setup of Brickblocks smart contract ecosystem.
+# Worst Case Scenarios
+A collection of unlikely, but possible scenarios that we might need to deal with and strategies on how to deal with them.
 
-
-## One of our "DO NOT UPGRADE" contracts have a problem
-(ContractRegistry, BrickblockAccount, FeeManager)
+## 1. Non-upgradeable Contract Scenarios
+(`ContractRegistry`, `BrickblockAccount`, `FeeManager`)
 
 ### ContractRegistry
-All contracts receive the contract registry address during deployment; if we needed to change the registry all contracts would need to be upgraded / re-deployed to call a different registry.
 
-This would be very painful to change; the upside is that this contract is very simple and should not have issues which is why all contracts expect this address not to change.
+| Probability | Severity |
+| ----------- | -------- |
+| Very Low    | Very High |
 
-The owner address of this smart contract is very important, as changing the addresses in the registry can allow for a wide varierty of attacks on the ecosystem.
+The registry address is hardcoded into all contracts via the `constructor` at deploy time. If we have to update the registry (read: re-deploy under new address), **all** our contracts would need to be either upgraded, if possible, or re-deployed to point to the new registry.
+
+This is doable, but very painful. This scenario is very unlikely because this contract is very simple and we can reasonably expect that there won't be any issues with it.
+
+The `owner` address of the registry contract is very important, as changing the addresses in the registry can allow for a wide variety of attacks on our ecosystem.
 
 ### BrickblockAccount
-This contract holds the company BBK and should not be upgradeable to instill trust in the community. If a security issue was found here then the company tokens could be at risk.
 
-In general this contract will function as intended as long as the ContractRegistry is not compromised.
+| Probability | Severity |
+| ----------- | -------- |
+| Very Low    | High     |
+
+This contract holds the company's BBK tokens and should not be upgradeable to instill trust in the community that we won't run off with the money. If a security issue was found here,  the company tokens could be at risk.
+
+It's also a relatively simple contract. Additionally, all functions have the `onlyOwner` modifier. This contract should function as intended as long as the `ContractRegistry` isn't compromised.
 
 ### FeeManager
-This contract holds all ETH paid out as fees. It is not possible to move this ETH other than burning ACT owned by an address.
 
-This would be very painful to change; the upside is that this contract is very simple and should not have issues which is why all contracts expect this address not to change.
+| Probability | Severity |
+| ----------- | -------- |
+| Very Low    | High     |
 
+This contract holds all ETH that were paid as fees during PoA sales. It's impossible to move its ETH, other than through burning ACT first. Not even the `owner` can access the ETH in this contract without burning a proportionate amount of ACT.
 
-## AccessToken Scenarios
+It would be very painful to change, however, it also is a very simple contract and the likelihood that there is an issue with it is very low.
+
+## 2. AccessToken Scenarios
 
 ### Economics of ACT don't work as expected and need to be changed
-This contract technically holds all locked BBK, which means this contract cannot simply be redeployed into some state; luckily there is no ETH stored here and we are only concerned with BBK balances.
-- an upgraded version of this contract would need to call the `balanceOf` on its predecessor to get an accurate balance for an address
-- as well the `totalSupply_` of the upgrade should be set to the predecessor after being paused
-- deploy upgrade
-- update `ContractRegistry`
 
+| Probability | Severity |
+| ----------- | -------- |
+| Medium      | Medium   |
+
+This contract holds all locked BBK, which means this contract cannot simply be redeployed into some arbitrary state. Luckily, there is no ETH stored here and we're only concerned with BBK balances.
+
+#### Mitigation Steps
+- Deploy new version of the contract
+- Pause the old contract (it's a `PausableToken`)
+- Set the `totalSupply_` of the new version to the last value of the predecessor's `totalSupply_`
+- On the new contract, `balanceOf()` needs to call its predecessor to get an accurate balance for an address
+- Update `ContractRegistry` with the address of the new contract
 
 ## PoaToken Scenarios
 
-### PoaToken needs to whitelist both senders and receivers of tokens
-- there is a flag `whitelistTransfers` which enables checking that both `_to` and `_from` are whitelisted
-- fix is to call `toggleWhitelistTransfers`
+### Restrict `transfer()`s to whitelisted ETH addresses
 
-### A specific PoaToken holder needs to be prevented from selling PoaTokens (but not preventing receiving payouts)
-- same as above scenario: must call `toggleWhitelistTransfers` which turns on this check for everyone!
-- ensure the address to block is not whitelisted in the `WhitelistContract`
+| Probability | Severity |
+| ----------- | -------- |
+| Medium      | Very Low |
 
-### A specific PoaToken holder needs to be prevented from selling PoaTokens AND receiving payouts
-An upgrade to `PoaToken` contract must be done and there are two approaches:
+Currently we only check for whitelist status during the initial sale of tokens. If a buyer of a token wants to send their token to a 3rd party afterwards, they're free to do so at the moment. However, it's not unlikely that regulations will come into play at some point forcing us to check both sender and receiver before allowing a `transfer()` to happen.
 
-1. update `claimPayouts` to do a similar check as `transfer` and `transferFrom` (this results in POA tokens and ETH payout balance remaining "locked" as long as the address is not whitelisted)
-2. the larger fix would be the address that should not receive payouts must have their `PoaToken` balance changed to zero. This would be a large change as it removes all trustlessness properties from PoaToken holders, since *someone* can decide that they are not allowed to hold tokens / receive payouts. If this route is chosen then additional questions arise such as: where do those tokens go, if those tokens are auctioned who get the ETH, where does the balance of payout ETH go, and of course who has the power to perform this action.
+#### Mitigation Steps
+- We've built this in behind a feature flag already
+- We just need to call `toggleWhitelistTransfers` on all active PoA tokens, to set the boolean flag `whitelistTransfers` which enables checking that both `_to` and `_from` are whitelisted
+
+### Preven bad actor from transferring PoaTokens but NOT from receiving payouts
+| Probability | Severity |
+| ----------- | -------- |
+| Medium      | Very Low |
+
+There can be a case where a bad actor needs to be prevented from transferring tokens. For example, we might receive a court order against a certain individual. Or we find out that their KYC data was invalid or fraudulent.
+
+#### Mitigation Steps
+- Call `toggleWhitelistTransfers` to turn on the `transfer()` whitelist
+- NOTE: This is currently a global flag, so this will turn on this check for everyone.
+- Take the offending ETH address off of the whitelist
+- This effectively "freezes" the offender's assets
+- NOTE: This does not currently prevent the offender from receiving payouts
+
+### Prevent bad actor from transferring PoaTokens AND receiving payouts
+
+| Probability | Severity |
+| ----------- | -------- |
+| Medium      | Medium   |
+
+Explanation see above. But in addition we might also have to stop a bad actor from receiving payouts.
+
+#### Mitigation Steps
+We need to upgrade the `PoaToken` master contract. There are two approaches:
+
+1. Either update `claimPayout()` to do a whitelist check, similar to `transfer()`
+    - This effectively freezes both POA tokens and the ETH payout balance as long as the address is not whitelisted
+2. OR change the `PoaToken` balance of the bad actor to zero. This would be a change with large impact, as it removes all trustlessness properties from PoaToken holders. Since now *someone* (regulator, Brickblock, the custodian…) could decide that a PoaToken holder is not allowed to hold tokens and receive payouts. If we have to take this route, then additional questions arise such as: Where do those tokens go? Would they have to be auctioned? If they're auctioned, who would get the ETH? Where does the ETH balance of the unclaimed payouts go? And, most importantly, what are the checks and balances to perform this action?
 
 ### Custodian of a PoaToken loses their private key
-- no `onlyCustodian` functions could be called (`activate`, `changeCustodianAddress`, `payout`, `updateProofOfCustody`)
-- effectively the `PoaToken` would be stuck; can never be activated (if in a pre-Active stage) and no payouts can occur (since the custodian address cant be changed)
-- would need to terminate and redeploy the PoaToken, plus seeding whatever state it is in
-- if asset should not be tokenized any more, would need to build `PoaToken` balances by reducing all events `BuyEvent` and `Transfer` in order to do final payout
 
-### PoaToken needs to be upgraded
-There is a hack for existing smart contract code / custodian reaches out for help:
-- pause the token to prevent transfers
-- figure out what the issue is
-  * contract has a security flaw, can we upgrade with the Proxy pattern
-- if the contract is in a bad state and needs to be rebuilt, continue
-- reduce all events for that `PoaToken` to get a mapping of address balances
-  * check that the total of tokens matches expected total
-  * check that the mapping of addresses to tokens is the same number on live contract
-  * notify all exchanges / holders of this PoaToken of the new address
-  * terminate old `PoaToken`
-  * unpause new `PoaToken`
+| Probability | Severity |
+| ----------- | -------- |
+| High        | Medium   |
+
+This is bound to happen sooner or later. If the custodian lost their private key, no `onlyCustodian` functions could be called on `PoaToken` anymore (e.g. `activate`, `changeCustodianAddress`, `payout`, `updateProofOfCustody`). Effectively, the `PoaToken` would be stuck, can never be activated (if in a pre-active stage) and payouts become impossible since the custodian address can't be changed.
+
+#### Mitigation Steps: Short Term
+- Set `PoaToken` to stage `terminated`
+- Redeploy the `PoaToken`
+- Migrate the state of the old contract to the new
+- Special case: If the asset should not be tokenized anymore, we'd need to re-build `PoaToken` balances by reducing all `BuyEvent`s and `TransferEvent`s in order to do a final payout
+
+#### Mitigation Steps: Mid-Long Term
+We coul allow changing the custodian's address. The checks and balances would be very important here. We need to think carefully about what conditions need to be met to call this function, e.g.:
+
+- Custodian needs to sign a legally binding document, asking the `owner` of the contract to update their address
+- Upload this document to IPFS
+- Store the IPFS hash in the `PoaToken` contract for a public audit trail
+- Change the custodian's address in the `PoaToken` contract
+
+### Security vulnerability in PoaToken
+
+| Probability | Severity |
+| ----------- | -------- |
+| Medium      | Medium   |
+
+Solidity is still a young language, there is no guarantee that there won't be new vulnerabilities discovered in the future. This is why we chose to make `PoaToken`s upgradeable via the Proxy pattern to be able to react quickly and protect investors.
+
+#### Mitigation Steps
+- Pause all `PoaToken` instances to prevent transfers
+- Figure out what the issue is
+- Check whether we can resolve the issue by upgrading the master `PoaToken` contract via the Proxy
+- Work out which contracts are in a bad state because of an attack
+- Rebuild the state for affected contracts by reducing all `Buy` and `Transfer` events for that `PoaToken` to get a mapping of address balances:
+  * Replay all correct `Buy` and `Transfer` events, skip malicious ones (e.g. hacker draining balances into one of their wallets via a vulnerability)
+  * Check that the total of tokens matches the expected total
+  * Check that the mapping of addresses to tokens is the same number on old and new contract (minus potential hacker addresses)
+- Redeploy affected contracts with correct state in `paused` state
+- Notify exchanges and token holders of this `PoaToken`s new address
+- Terminate the old `PoaToken`
+- Unpause the new `PoaToken`
 
 
 ## WhitelistContract Scenarios
 
-### WhitelistContract needs to be scoped (and not be a global whitelist for all PoaTokens)
-- code a new WhitelistContract that checks the `msg.sender` which would be the PoaToken itself as well as the address that is sent in the PoaToken function `checkIsWhitelisted`
-- deploy new WhitelistContract
-- initialize with desired state of whitelisting
-- update ContractRegistry
+### The whitelist needs to be changed from a global to a scoped version
+
+| Probability | Severity |
+| ----------- | -------- |
+| High        | Low      |
+
+Initially, there is one global master whitelist to rule them all. As we scale our business, it's likely that new requirements arise around whitelisting. It could be that each broker will need their own whitelist of their own clients. Or due to new regulation we might need different whitelists for different jurisdictions. Or there may be special assets that even require a whitelist on a per PoaToken contract level.
+
+#### Mitigation Steps
+- Code a new `WhitelistContract` that checks the `msg.sender` (which would be the PoaToken itself) as well as the address that is sent in the PoaToken function `checkIsWhitelisted`
+- Deploy new `WhitelistContract`
+- Initialize with desired state of whitelisting
+- Update `ContractRegistry`
 
 
 ## ExchangeRates Scenarios
 
-### Do not want to use OraclizeAPI
-If this third party service goes out of business / changes fees / we want to use another Oracle (perhaps our own) there are two scenarios to cover:
+### We no longer want to use Oraclize
 
-1. interface expected in ExchangeRates of the ExchangeRateProvider stays the same
-2. interface is not the same
+| Probability | Severity |
+| ----------- | -------- |
+| Medium      | Low      |
 
-#### interface expected in ExchangeRates of the ExchangeRateProvider stays the same
-- build and deploy a new `ExchangeRateProvider`
-- call `killProvider` on old `ExchangeRate` with an address to receive leftover ETH
-- update the `ContractRegistry` with new `ExchangeRateProvider`
-- fund new `ExchangeRateProvider` with ETH to fund Oracle callbacks when needed
+If Oraclize goes out of business, changes its fees or we want to use another oracle service (perhaps even our own), there are two scenarios to cover:
 
-#### interface is not the same
-- build and deploy a new `ExchangeRateProvider` as above
-- build and deploy a new `ExchangeRates` contract to use updated interface
-- ensure the expected fiat exchange rates are active in new `ExchangeRates`
-- update the `ContractRegistry` with new `ExchangeRates`
-- call `toggleRatesActive` on old `ExchangeRate`
+1. The Interface expected in `ExchangeRates` of the `ExchangeRateProvider` stays the same
+2. The Interface expected in `ExchangeRates` of the `ExchangeRateProvider` changes
+
+#### Mitigation Steps: Interface Remains Unchanged
+- Build and deploy a new `ExchangeRateProvider`
+- Call `killProvider` on old `ExchangeRate` with an address to receive any leftover ETH
+- Update the `ContractRegistry` with the new `ExchangeRateProvider`'s address
+- Fund the new `ExchangeRateProvider` with ETH to fund Oracle callbacks when needed
+
+#### Mitigation Steps: Interface Changes
+- Build and deploy a new `ExchangeRateProvider` as above
+- Build and deploy a new `ExchangeRates` contract to use the updated interface
+- Ensure the expected fiat exchange rates are active in the new `ExchangeRates` contract
+- Update the `ContractRegistry` with the new `ExchangeRates`'s address
+- Call `toggleRatesActive` on old `ExchangeRate`
