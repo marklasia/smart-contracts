@@ -50,7 +50,7 @@ contract PoaToken is PausableToken {
   // used to deduct already claimed payouts on a per token basis
   mapping(address => uint256) private claimedPerTokenPayouts;
   // fallback for when a transfer happens with payouts remaining
-  mapping(address => uint256) private unclaimedPayoutTotals;
+  mapping(address => uint256) public unclaimedPayoutTotals;
   // needs to be used due to tokens not directly correlating to fundingGoal
   // due to fluctuating fiat rates
   mapping(address => uint256) public investmentAmountPerUserInWei;

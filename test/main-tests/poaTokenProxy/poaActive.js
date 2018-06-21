@@ -2,7 +2,7 @@ const {
   owner,
   custodian,
   whitelistedPoaBuyers,
-  defaultIpfsHash,
+  defaultIpfsHashArray32,
   setupPoaProxyAndEcosystem,
   testStartSale,
   testBuyTokens,
@@ -74,7 +74,7 @@ describe('when in Active (stage 4)', () => {
       })
 
       // move into Active
-      await testActivate(poa, fmr, defaultIpfsHash, {
+      await testActivate(poa, fmr, defaultIpfsHashArray32, {
         from: custodian
       })
 
@@ -133,7 +133,7 @@ describe('when in Active (stage 4)', () => {
       await testWillThrow(testActivate, [
         poa,
         fmr,
-        defaultIpfsHash,
+        defaultIpfsHashArray32,
         { from: custodian }
       ])
     })

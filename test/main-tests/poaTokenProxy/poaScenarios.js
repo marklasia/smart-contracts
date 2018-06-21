@@ -1,7 +1,7 @@
 const {
   custodian,
   whitelistedPoaBuyers,
-  defaultIpfsHash,
+  defaultIpfsHashArray32,
   setupPoaProxyAndEcosystem,
   testStartSale,
   testBuyTokens,
@@ -72,7 +72,7 @@ describe('De-whitelisted POA holders', () => {
       })
 
       // move into Active
-      await testActivate(poa, fmr, defaultIpfsHash, {
+      await testActivate(poa, fmr, defaultIpfsHashArray32, {
         from: custodian
       })
 
@@ -207,7 +207,7 @@ describe('when trying various scenarios involving payout, transfer, approve, and
       })
 
       // move into Active
-      await testActivate(poa, fmr, defaultIpfsHash, {
+      await testActivate(poa, fmr, defaultIpfsHashArray32, {
         from: custodian
       })
 
@@ -922,7 +922,7 @@ describe('when buying tokens with a fluctuating fiatRate', () => {
       // this matches the first buyer's first purchase (whitelistedPoaBuers[0])
       commitments[0].amount = purchase
 
-      await testActivate(poa, fmr, defaultIpfsHash, {
+      await testActivate(poa, fmr, defaultIpfsHashArray32, {
         from: custodian,
         gasPrice
       })
@@ -964,7 +964,7 @@ describe('when buying tokens with a fluctuating fiatRate', () => {
       // this matches the first buyer's first purchase (whitelistedPoaBuers[0])
       commitments[0].amount = purchase
 
-      await testActivate(poa, fmr, defaultIpfsHash, {
+      await testActivate(poa, fmr, defaultIpfsHashArray32, {
         from: custodian,
         gasPrice
       })

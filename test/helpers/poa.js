@@ -1032,9 +1032,9 @@ const testFirstReclaim = async (poa, config, shouldBePending) => {
 
   assert.equal(
     preStage.toString(),
-    shouldBePending ? new BigNumber(2).toString() : new BigNumber(1).toString(),
+    shouldBePending ? stages.Funding : stages.Pending,
     `contract should be in stage ${
-      shouldBePending ? '1 (funding)' : ' 2 (pending)'
+      shouldBePending ? 'funding' : ' pending'
     } before reclaiming`
   )
 

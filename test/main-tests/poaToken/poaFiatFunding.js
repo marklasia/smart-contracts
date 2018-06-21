@@ -3,7 +3,7 @@ const {
   custodian,
   bbkContributors,
   whitelistedPoaBuyers,
-  defaultIpfsHash,
+  defaultIpfsHashArray32,
   setupPoaAndEcosystem,
   testStartSale,
   testStartPreSale,
@@ -65,7 +65,7 @@ describe('when in FIAT Funding (stage 1)', () => {
       await testWillThrow(testActivate, [
         poa,
         fmr,
-        defaultIpfsHash,
+        defaultIpfsHashArray32,
         { from: custodian }
       ])
     })
@@ -93,7 +93,7 @@ describe('when in FIAT Funding (stage 1)', () => {
     it('should NOT updateProofOfCustody, even if valid and from custodian', async () => {
       await testWillThrow(testUpdateProofOfCustody, [
         poa,
-        defaultIpfsHash,
+        defaultIpfsHashArray32,
         { from: custodian }
       ])
     })
