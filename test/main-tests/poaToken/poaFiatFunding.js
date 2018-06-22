@@ -192,7 +192,7 @@ describe('when in FIAT Funding (stage 1)', () => {
       ])
     })
 
-    it('should NOT allow buying from FIAT investors during ETH sale', async () => {
+    it('should NOT allow FIAT investors to buy tokens during the ETH sale with the same address they used during the FIAT sale', async () => {
       await testBuyTokensWithFiat(poa, fiatInvestor, 100000, {
         from: custodian,
         gasPrice
@@ -208,7 +208,7 @@ describe('when in FIAT Funding (stage 1)', () => {
       ])
     })
 
-    it('should NOT allow FIAT buying during sale stage', async () => {
+    it('should NOT allow FIAT investment during the ETH sale', async () => {
       await testStartSale(poa)
 
       await testWillThrow(testBuyTokensWithFiat, [

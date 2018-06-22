@@ -135,7 +135,7 @@ contract PoaToken is PausableToken {
     _;
   }
 
-  modifier validIpfsHash(bytes32[2] _ipfsHash) {
+  modifier isValidIpfsHash(bytes32[2] _ipfsHash) {
     // check that the most common hashing algo is used sha256
     // and that the length is correct. In theory it could be different
     // but use of this functionality is limited to only custodian
@@ -778,7 +778,7 @@ contract PoaToken is PausableToken {
     checkTimeout
     onlyCustodian
     atStage(Stages.Pending)
-    validIpfsHash(_ipfsHash)
+    isValidIpfsHash(_ipfsHash)
     returns (bool)
   {
     // calculate company fee charged for activation
@@ -973,7 +973,7 @@ contract PoaToken is PausableToken {
     external
     atEitherStage(Stages.Active, Stages.Terminated)
     onlyCustodian
-    validIpfsHash(_ipfsHash)
+    isValidIpfsHash(_ipfsHash)
     returns (bool)
   {
     proofOfCustody32 = _ipfsHash;
