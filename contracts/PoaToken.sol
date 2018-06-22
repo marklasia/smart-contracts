@@ -18,6 +18,8 @@ contract PoaToken is PausableToken {
   bytes32[2] private proofOfCustody32;
   // fiat currency symbol used to get rate
   bytes32 private fiatCurrency32;
+  // delegatecall address for all crowdsale functions
+  address public poaCrowdsaleMaster;
   // broker who is selling property, whitelisted on PoaManager
   address public broker;
   // custodian in charge of taking care of asset and payouts
@@ -155,6 +157,7 @@ contract PoaToken is PausableToken {
     bytes32 _symbol,
     // fiat symbol used in ExchangeRates
     bytes32 _fiatCurrency,
+    address _poaCrowdsaleMaster,
     address _broker,
     address _custodian,
     address _registry,
@@ -180,6 +183,7 @@ contract PoaToken is PausableToken {
     // ensure all addresses given are valid
     require(_broker != address(0));
     require(_custodian != address(0));
+    require(_poaCrowdsaleMaster != address(0));
 
     // ensure totalSupply is at least 1 whole token
     require(_totalSupply >= 1e18);
@@ -198,6 +202,7 @@ contract PoaToken is PausableToken {
     fiatCurrency32 = _fiatCurrency;
 
     // assign addresses
+    poaCrowdsaleMaster = _poaCrowdsaleMaster;
     broker = _broker;
     custodian = _custodian;
     registry = _registry;
@@ -1064,11 +1069,47 @@ contract PoaToken is PausableToken {
   // end ERC20 overrides
   //
 
-  // prevent anyone from sending funds other than selfdestructs of course :)
+  // forward any unfound function calls to PoaCrowdsale master copy
   function()
-    public
+    external
     payable
   {
-    revert();
+    assembly {
+      // load address from storage variable using _slot suffix
+      let _master := sload(poaCrowdsaleMaster_slot)
+
+      // calldatacopy(t, f, s)
+      calldatacopy(
+        0x0, // t = mem position to
+        0x0, // f = mem position from
+        calldatasize // s = size bytes
+      )
+
+      // delegatecall(g, a, in, insize, out, outsize) => 0 on error 1 on success
+      let success := delegatecall(
+        gas, // g = gas
+        _master, // a = address
+        0x0, // in = mem in  mem[in..(in+insize)
+        calldatasize, // insize = mem insize  mem[in..(in+insize)
+        0x0, // out = mem out  mem[out..(out+outsize)
+        0 // outsize = mem outsize  mem[out..(out+outsize)
+      )
+
+      // returndatacopy(t, f, s)
+      returndatacopy(
+        0x0, // t = mem position to
+        0x0,  // f = mem position from
+        returndatasize // s = size bytes
+      )
+
+      // check if call was a success and return if no errors & revert if errors
+      if iszero(success) {
+        revert(0, 0)
+      }
+        return(
+          0x0,
+          returndatasize
+        )
+    }
   }
 }
