@@ -174,13 +174,13 @@ const setupPoaAndEcosystem = async () => {
   })
   const poa = await PoaToken.new()
 
-  await pmr.setupPoaToken(
-    poa.address,
+  await poa.setupContract(
     toBytes32(defaultName),
     toBytes32(defaultSymbol),
     toBytes32(defaultFiatCurrency),
     broker,
     custodian,
+    reg.address,
     defaultTotalSupply,
     await getDefaultStartTime(),
     defaultFundingTimeout,
@@ -396,13 +396,13 @@ const testInitialization = async (exr, exp, reg, pmr) => {
 
   await reg.updateContractAddress('PoaManager', pmr.address)
 
-  await pmr.setupPoaToken(
-    poa.address,
+  await poa.setupContract(
     defaultName,
     defaultSymbol,
     defaultFiatCurrency,
     broker,
     custodian,
+    reg.address,
     defaultTotalSupply,
     defaultStartTime,
     defaultFundingTimeout,
@@ -508,7 +508,7 @@ const testInitialization = async (exr, exp, reg, pmr) => {
     registry,
     'registry should match actual registry address'
   )
-  assert.equal(contractOwner, pmr.address, 'the owner should be PoaManagerStub')
+  assert.equal(contractOwner, pmr.address, 'the owner should be PoaManager')
   assert(paused, 'contract should start paused')
   assert(
     !whitelistTransfers,

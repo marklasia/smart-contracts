@@ -28,3 +28,6 @@ private-chain-data/history
 
 # Local Settings
 .vscode
+
+# generated diagrams
+sequence-diagrams/*.svg
