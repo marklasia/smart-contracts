@@ -1,7 +1,7 @@
 # Worst Case Scenarios
 A collection of unlikely, but possible scenarios that we might need to deal with and strategies on how to deal with them.
 
-## 1. Non-upgradeable Contract Scenarios
+## Non-upgradeable Contract Scenarios
 (`ContractRegistry`, `BrickblockAccount`, `FeeManager`)
 
 ### ContractRegistry
@@ -36,7 +36,7 @@ This contract holds all ETH that was paid as fees during PoA sales. It's impossi
 
 It would be very painful to change. However, it also is a straightforward contract and the likelihood that there is an issue with it is very low.
 
-## 2. AccessToken Scenarios
+## AccessToken Scenarios
 
 ### We need to update the economics of ACT
 
@@ -150,14 +150,49 @@ Solidity is still a young language, and there is no guarantee that there won't b
 | ----------- | -------- |
 | High        | Low      |
 
-Initially, there is one global master whitelist to rule them all. As we scale our business, it's likely that new requirements arise around whitelisting. It could be that each broker will need their own whitelist of their own clients. Or due to new regulation, we might need different whitelists for different jurisdictions. Or there may be special assets that even require a whitelist on a per PoaToken contract level.
+Initially, there is one global master whitelist to rule them all. As we scale our business, it's likely that new requirements arise around whitelisting.
+
+There are 3 likely scenarios:
+
+1. Each broker will need their own whitelist of their own clients
+2. Due to new regulation, we might need different whitelists for different jurisdictions.
+3. There may be special assets that require a whitelist per PoaToken contract.
 
 #### Mitigation Steps
-- Code a new `WhitelistContract` that checks the `msg.sender` (which would be the PoaToken itself) as well as the address that is sent in the PoaToken function `checkIsWhitelisted`
+At a high level, the same steps would need to be done:
+- Code a new `WhitelistContract` that changes the function `whitelisted(address)` to also use the `msg.sender` (which would be the calling PoaToken contract) and use the address that is given as a function argument (which can be either the sender / receiver of tokens OR the address participating in funding the PoaToken)
 - Deploy new `WhitelistContract`
 - Initialize with desired state of whitelisting
 - Update `ContractRegistry`
 
+
+The current mapping is `address => bool` as one global whitelist. We can generalize all three scenarios by looking at what data is needed for each case.
+
+##### Mitigation Steps: (1) Each broker gets a whitelist
+This means a mapping like `poa-address => broker-address => List<whitelisted-address>`
+
+##### Mitigation Steps: (2) Different whitelists based on "jurisdictions"
+This means a mapping like `poa-address => jurisdiction-id => List<whitelisted-address>`
+
+##### Mitigation Steps: (3) Unique whitelist for a PoaToken
+To match the previous two cases, we could make the mapping like `poa-address => poa-address => List<whitelisted-address>`
+
+To allow all 3 scenarios, this means removing the existing `whitelist` mapping and adding two mappings:
+- the first like `poa-address => group-id` where `group-id` is one of [`broker-address`, `jurisdiction-id`, `poa-address`]
+- the second like `group-id => mapping()`
+
+This generalizes to:
+```
+mapping (address => uint256) public poaTokenToWhitelistGroupId
+mapping (uint256 => mapping (address => bool)) public whitelistGroup
+
+function whitelist(address) {
+  uint256 groupId = poaTokenToWhitelistGroupIdMap[msg.sender]
+  return whitelistGroup[groupId][address]
+}
+```
+
+This will allow for the `group-id` that a `poa-address` belongs to to change over time. We may still have a "global" `group-id` for any `poa-token` that does not need to be scoped.
 
 ## ExchangeRates Scenarios
 
@@ -172,13 +207,13 @@ If Oraclize goes out of business, changes its fees or we want to use another ora
 1. The Interface expected in `ExchangeRates` of the `ExchangeRateProvider` stays the same
 2. The Interface expected in `ExchangeRates` of the `ExchangeRateProvider` changes
 
-#### Mitigation Steps: Interface Remains Unchanged
+#### Mitigation Steps: (1) Interface Remains Unchanged
 - Build and deploy a new `ExchangeRateProvider`
 - Call `killProvider` on old `ExchangeRate` with an address to receive any leftover ETH
 - Update the `ContractRegistry` with the new `ExchangeRateProvider`'s address
 - Fund the new `ExchangeRateProvider` with ETH to fund Oracle callbacks when needed
 
-#### Mitigation Steps: Interface Changes
+#### Mitigation Steps: (2) Interface Changes
 - Build and deploy a new `ExchangeRateProvider` as above
 - Build and deploy a new `ExchangeRates` contract to use the updated interface
 - Ensure the expected fiat exchange rates are active in the new `ExchangeRates` contract
