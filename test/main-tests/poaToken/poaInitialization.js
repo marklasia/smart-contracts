@@ -94,7 +94,7 @@ describe('when initializing PoaToken', () => {
         }
       )
 
-      await testWillThrow(poa.setupPoaToken, [
+      await testWillThrow(poa.setupContract, [
         defaultName32,
         defaultSymbol32,
         defaultFiatCurrency32,
@@ -108,7 +108,7 @@ describe('when initializing PoaToken', () => {
         defaultFundingGoal
       ])
 
-      await testWillThrow(poa.setupPoaToken, [
+      await testWillThrow(poa.setupContract, [
         defaultName32,
         defaultSymbol32,
         defaultFiatCurrency32,
