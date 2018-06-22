@@ -135,7 +135,7 @@ contract PoaToken is PausableToken {
     _;
   }
 
-  modifier isValidIpfsHash(bytes32[2] _ipfsHash) {
+  modifier validIpfsHash(bytes32[2] _ipfsHash) {
     // check that the most common hashing algo is used sha256
     // and that the length is correct. In theory it could be different
     // but use of this functionality is limited to only custodian
@@ -249,6 +249,16 @@ contract PoaToken is PausableToken {
     require(getFiatRate() > 0);
 
     return true;
+  }
+
+  // public utility function to allow checking of required fee for a given amount
+  function calculateFee(uint256 _value)
+    public
+    pure
+    returns (uint256)
+  {
+    // divide by 1000 because feeRate permille
+    return feeRate.mul(_value).div(1000);
   }
 
   // takes a single bytes32 and returns a max 32 char long string
@@ -778,11 +788,11 @@ contract PoaToken is PausableToken {
     checkTimeout
     onlyCustodian
     atStage(Stages.Pending)
-    isValidIpfsHash(_ipfsHash)
+    validIpfsHash(_ipfsHash)
     returns (bool)
   {
     // calculate company fee charged for activation
-    uint256 _fee = feeRate.mul(address(this).balance).div(1000);
+    uint256 _fee = calculateFee(address(this).balance);
     // if activated and fee paid: put in Active stage
     enterStage(Stages.Active);
     // fee sent to FeeManager where fee gets
@@ -911,7 +921,7 @@ contract PoaToken is PausableToken {
     returns (bool)
   {
     // calculate fee based on feeRate
-    uint256 _fee = feeRate.mul(msg.value).div(1000);
+    uint256 _fee = calculateFee(msg.value);
     // ensure the value is high enough for a fee to be claimed
     require(_fee > 0);
     // deduct fee from payout
@@ -973,7 +983,7 @@ contract PoaToken is PausableToken {
     external
     atEitherStage(Stages.Active, Stages.Terminated)
     onlyCustodian
-    isValidIpfsHash(_ipfsHash)
+    validIpfsHash(_ipfsHash)
     returns (bool)
   {
     proofOfCustody32 = _ipfsHash;
