@@ -1,7 +1,214 @@
 pragma solidity 0.4.23;
 
+/* solium-disable security/no-block-members */
+/* solium-disable security/no-low-level-calls */
+
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+
 
 contract PoaCrowdsale {
+  using SafeMath for uint256;
+
+  uint256 public constant version = 1;
+
+  enum Stages {
+    PreFunding, // 0
+    FiatFunding, // 1
+    EthFunding, // 2
+    Pending, // 3
+    Failed,  // 4
+    Active, // 5
+    Terminated, // 6
+    Cancelled // 7
+  }
+  
+  //
+  // start special hashed common storage pointers
+  //
+
+  // represents slot for: Stage
+  bytes32 private constant stageSlot = keccak256("stage");
+  // represents slot for: address
+  bytes32 private constant custodianSlot = keccak256("custodian");
+  // represents slot for: bytes32[2] TODO: probably need to fix getters/setters
+  bytes32 private constant proofOfCustody32Slot = keccak256("proofOfCustody32Slot");
+  // represents slot for: uint256
+  bytes32 private constant totalSupplySlot = keccak256("totalSupply");
+  // represents slot for: uint256
+  bytes32 private constant fundedAmountInTokensDuringFiatFundingSlot = 
+  keccak256("fundedAmountInTokensDuringFiatFunding");
+  // represents slot for: mapping(address => uint256)
+  bytes32 private constant fiatInvestmentPerUserInTokensSlot = 
+  keccak256("fiatInvestmentPerUserInTokens");
+  // represents slot for: uint256
+  bytes32 private constant fundedAmountInWeiSlot = keccak256("fundedAmountInWei");
+  // represents slot for: mapping(address => uint256)
+  bytes32 private constant investmentAmountPerUserInWeiSlot = 
+  keccak256("investmentAmountPerUserInWei");
+  // represents slot for: address
+  bytes32 private constant registrySlot = keccak256("registry");
+  // represents slot for: mapping(address => uint256)
+  bytes32 private constant unclaimedPayoutTotalsSlot = keccak256("unclaimedPayoutTotals");
+  bytes32 private constant brokerSlot = keccak256("broker");
+  bytes32 private constant pausedSlot = keccak256("paused");
+
+  
+  //
+  // end special hashed common storage pointers
+  //
+
+  //
+  // start crowdsale specific storage variables
+  //
+
+  // ‰ permille NOT percent: fee paid to BBK holders through ACT
+  uint256 public constant feeRate = 5;
+  // used to check when contract should move from PreFunding to Funding stage
+  uint256 public startTime;
+  // amount of seconds until moving to Failed from
+  // Funding stage after startTime
+  uint256 public fundingTimeout;
+  // amount of seconds until moving to Failed from
+  // Pending stage after startTime + fundingTimeout
+  uint256 public activationTimeout;
+  // fiat currency symbol used to get rate
+  bytes32 private fiatCurrency32;
+  // amount needed before moving to pending calculated in fiat
+  uint256 public fundingGoalInCents;
+  // used to keep track of actual funded amount in fiat during FiatFunding stage
+  uint256 public fundedAmountInCentsDuringFiatFunding;
+
+
+  //
+  // end crowdsale specific storage variabls
+  // 
+
+  event Unpause();
+
+  //
+  // start modifiers
+  //
+
+  modifier onlyCustodian() {
+    require(msg.sender == custodian());
+    _;
+  }
+
+  modifier atStage(Stages _stage) {
+    require(stage() == _stage);
+    _;
+  }
+
+  modifier atEitherStage(Stages _stage, Stages _orStage) {
+    require(stage() == _stage || stage() == _orStage);
+    _;
+  }
+
+  modifier checkTimeout() {
+    uint256 fundingTimeoutDeadline = startTime.add(fundingTimeout);
+    uint256 activationTimeoutDeadline = startTime
+      .add(fundingTimeout)
+      .add(activationTimeout);
+
+    if (
+      (uint256(stage()) < 3 && block.timestamp >= fundingTimeoutDeadline) ||
+      (stage() == Stages.Pending && block.timestamp >= activationTimeoutDeadline)
+    ) {
+      enterStage(Stages.Failed);
+    }
+    
+    _;
+  }
+
+  modifier validIpfsHash(bytes32[2] _ipfsHash) {
+    // check that the most common hashing algo is used sha256
+    // and that the length is correct. In theory it could be different
+    // but use of this functionality is limited to only custodian
+    // so this validation should suffice
+    bytes memory _ipfsHashBytes = bytes(to64LengthString(_ipfsHash));
+    require(_ipfsHashBytes.length == 46);
+    require(_ipfsHashBytes[0] == 0x51);
+    require(_ipfsHashBytes[1] == 0x6D);
+    require(keccak256(_ipfsHashBytes) != keccak256(bytes(proofOfCustody())));
+    _;
+  }
+
+  modifier isBuyWhitelisted() {
+    require(checkIsWhitelisted(msg.sender));
+    _;
+  }
+
+  //
+  // end modifiers
+  //
+
+  //
+  // start lifecycle functions
+  //
+
+  // used to enter a new stage of the contract
+  function enterStage(Stages _stage)
+    internal
+  {
+    setStage(_stage);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logStageEvent(uint256)")),
+      _stage
+    );
+  }
+
+  // used to start the FIAT preSale funding
+  function startFiatPreSale()
+    external
+    atStage(Stages.PreFunding)
+    returns (bool)
+  {
+    enterStage(Stages.FiatFunding);
+    return true;
+  }
+
+  // used to start the sale as long as startTime has passed
+  function startEthSale()
+    external
+    atEitherStage(Stages.PreFunding, Stages.FiatFunding)
+    returns (bool)
+  {
+    require(block.timestamp >= startTime);
+    enterStage(Stages.EthFunding);
+    return true;
+  }
+
+  // Buy with FIAT
+  function buyFiat(address _contributor, uint256 _amountInCents)
+    external
+    atStage(Stages.FiatFunding)
+    onlyCustodian
+    returns (bool)
+  {
+    //if the amount is bigger than funding goal, reject the transaction
+    if (fundedAmountInCentsDuringFiatFunding >= fundingGoalInCents) {
+      return false;
+    } else {
+      uint256 _newFundedAmount = fundedAmountInCentsDuringFiatFunding.add(_amountInCents);
+
+      if (fundingGoalInCents.sub(_newFundedAmount) > 0) {
+        fundedAmountInCentsDuringFiatFunding = fundedAmountInCentsDuringFiatFunding.add(_amountInCents);
+        uint256 _percentOfFundingGoal = fundingGoalInCents.mul(100).div(_amountInCents);
+        uint256 _tokenAmount = totalSupply().mul(_percentOfFundingGoal).div(100);
+        setFundedAmountInTokensDuringFiatFunding(fundedAmountInTokensDuringFiatFunding().add(_tokenAmount));
+        setFiatInvestmentPerUserInTokens(
+          _contributor, 
+          fiatInvestmentPerUserInTokens(_contributor).add(_tokenAmount)
+        );
+
+        return true;
+      } else {
+        return false;
+      } 
+
+    }
+  }
+
   // buy tokens
   function buy()
     external
@@ -18,7 +225,7 @@ contract PoaCrowdsale {
 
     // prevent case where buying after reaching fundingGoal results in buyer
     // earning money on a buy
-    if (weiToFiatCents(fundedAmountInWei) > fundingGoalInCents) {
+    if (weiToFiatCents(fundedAmountInWei()) > fundingGoalInCents) {
       enterStage(Stages.Pending);
       if (msg.value > 0) {
         msg.sender.transfer(msg.value);
@@ -28,7 +235,7 @@ contract PoaCrowdsale {
 
     // get current funded amount + sent value in cents
     // with most current rate available
-    uint256 _currentFundedCents = weiToFiatCents(fundedAmountInWei.add(msg.value))
+    uint256 _currentFundedCents = weiToFiatCents(fundedAmountInWei().add(msg.value))
       .add(fundedAmountInCentsDuringFiatFunding);
     // check if balance has met funding goal to move on to Pending
     if (_currentFundedCents < fundingGoalInCents) {
@@ -54,10 +261,12 @@ contract PoaCrowdsale {
     returns (bool)
   {
     // save this for later in case needing to reclaim
-    investmentAmountPerUserInWei[msg.sender] = investmentAmountPerUserInWei[msg.sender]
-      .add(_payAmount);
+    setInvestmentAmountPerUserInWei(
+      msg.sender, 
+      investmentAmountPerUserInWei(msg.sender).add(_payAmount)
+    );
     // increment the funded amount
-    fundedAmountInWei = fundedAmountInWei.add(_payAmount);
+    setFundedAmountInWei(fundedAmountInWei().add(_payAmount));
 
     getContractAddress("Logger").call(
       bytes4(keccak256("logBuyEvent(address,uint256)")), msg.sender, _payAmount
@@ -74,7 +283,7 @@ contract PoaCrowdsale {
     // let the world know that the token is in Pending Stage
     enterStage(Stages.Pending);
     uint256 _refundAmount = _shouldRefund ?
-      fundedAmountInWei.add(msg.value).sub(fiatCentsToWei(fundingGoalInCents)) :
+      fundedAmountInWei().add(msg.value).sub(fiatCentsToWei(fundingGoalInCents)) :
       0;
     // transfer refund amount back to user
     msg.sender.transfer(_refundAmount);
@@ -84,4 +293,668 @@ contract PoaCrowdsale {
 
     return true;
   }
+
+  // activate token with proofOfCustody fee is taken from contract balance
+  // brokers must work this into their funding goals
+  function activate(bytes32[2] _ipfsHash)
+    external
+    checkTimeout
+    onlyCustodian
+    atStage(Stages.Pending)
+    validIpfsHash(_ipfsHash)
+    returns (bool)
+  {
+    // calculate company fee charged for activation
+    uint256 _fee = calculateFee(address(this).balance);
+    // if activated and fee paid: put in Active stage
+    enterStage(Stages.Active);
+    // fee sent to FeeManager where fee gets
+    // turned into ACT for lockedBBK holders
+    payFee(_fee);
+    setProofOfCustody32(_ipfsHash);
+    getContractAddress("Logger")
+      .call(bytes4(keccak256("logProofOfCustodyUpdatedEvent()")));
+    // balance of contract (fundingGoalInCents) set to claimable by broker.
+    // can now be claimed by broker via claim function
+    // should only be buy()s - fee. this ensures buy() dust is cleared
+    setUnclaimedPayoutTotals(
+      broker(), 
+      unclaimedPayoutTotals(broker()).add(address(this).balance)
+    );
+    // allow trading of tokens
+    setPaused(false);
+    // let world know that this token can now be traded.
+    emit Unpause();
+
+    return true;
+  }
+
+  // used to manually set Stage to Failed when no users have bought any tokens
+  // if no buy()s occurred before fundingTimeoutBlock token would be stuck in Funding
+  // can also be used when activate is not called by custodian within activationTimeout
+  // lastly can also be used when no one else has called reclaim.
+  function setFailed()
+    external
+    atEitherStage(Stages.EthFunding, Stages.Pending)
+    checkTimeout
+    returns (bool)
+  {
+    if (stage() != Stages.Failed) {
+      revert();
+    }
+    return true;
+  }
+
+  // reclaim Ξ for sender if fundingGoalInCents is not met within fundingTimeoutBlock
+  function reclaim()
+    external
+    checkTimeout
+    atStage(Stages.Failed)
+    returns (bool)
+  {
+    require(!isFiatInvestor(msg.sender));
+    setTotalSupply(0);
+    uint256 _refundAmount = investmentAmountPerUserInWei(msg.sender);
+    setInvestmentAmountPerUserInWei(msg.sender, 0);
+    require(_refundAmount > 0);
+    setFundedAmountInWei(fundedAmountInWei().sub(_refundAmount));
+    msg.sender.transfer(_refundAmount);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logReclaimEvent(address,uint256)")),
+      msg.sender,
+      _refundAmount
+    );
+    return true;
+  }
+
+  function setCancelled()
+    external
+    onlyCustodian
+    atEitherStage(Stages.PreFunding, Stages.FiatFunding)
+    returns (bool)
+  {
+    enterStage(Stages.Cancelled);
+    
+    return true;
+  }
+
+  //
+  // end lifecycle functions
+  //
+
+  //
+  // start utility functions
+  //
+
+  // gets a given contract address by bytes32 saving gas
+  function getContractAddress(
+    string _name
+  )
+    public
+    view
+    returns (address _contractAddress)
+  {
+    bytes4 _sig = bytes4(keccak256("getContractAddress32(bytes32)"));
+    bytes32 _name32 = keccak256(_name);
+    address _registry = registry();
+
+    assembly {
+      let _call := mload(0x40)          // set _call to free memory pointer
+      mstore(_call, _sig)               // store _sig at _call pointer
+      mstore(add(_call, 0x04), _name32) // store _name32 at _call offset by 4 bytes for pre-existing _sig
+
+      // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
+      let success := staticcall(
+        gas,    // g = gas: whatever was passed already
+        sload(_registry),  // a = address: address in storage
+        _call,  // in = mem in  mem[in..(in+insize): set to free memory pointer
+        0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
+        _call,   // out = mem out  mem[out..(out+outsize): output assigned to this storage address
+        0x20    // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (address size = 0x14 <  slot size 0x20)
+      )
+
+      // revert if not successful
+      if iszero(success) {
+        revert(0, 0)
+      }
+
+      _contractAddress := mload(_call) // assign result to return value
+      mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
+    }
+  }
+
+  // gas saving call to get fiat rate without interface
+  function getFiatRate()
+    public
+    view
+    returns (uint256 _fiatRate)
+  {
+    bytes4 _sig = bytes4(keccak256("getRate32(bytes32)"));
+    address _exchangeRates = getContractAddress("ExchangeRates");
+    bytes32 _fiatCurrency = keccak256(fiatCurrency());
+
+    assembly {
+      let _call := mload(0x40) // set _call to free memory pointer
+      mstore(_call, _sig) // store _sig at _call pointer
+      mstore(add(_call, 0x04), _fiatCurrency) // store _fiatCurrency at _call offset by 4 bytes for pre-existing _sig
+
+      // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
+      let success := staticcall(
+        gas,             // g = gas: whatever was passed already
+        _exchangeRates,  // a = address: address from getContractAddress
+        _call,           // in = mem in  mem[in..(in+insize): set to free memory pointer
+        0x24,            // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
+        _call,           // out = mem out  mem[out..(out+outsize): output assigned to this storage address
+        0x20             // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (uint256 size = 0x20 = slot size 0x20)
+      )
+
+      // revert if not successful
+      if iszero(success) {
+        revert(0, 0)
+      }
+
+      _fiatRate := mload(_call) // assign result to return value
+      mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
+    }
+  }
+
+  // use assembly in order to avoid gas usage which is too high
+  // used to check if whitelisted at Whitelist contract
+  function checkIsWhitelisted(address _address)
+    public
+    view
+    returns (bool _isWhitelisted)
+  {
+    bytes4 _sig = bytes4(keccak256("whitelisted(address)"));
+    address _whitelistContract = getContractAddress("Whitelist");
+    address _arg = _address;
+
+    assembly {
+      let _call := mload(0x40) // set _call to free memory pointer
+      mstore(_call, _sig) // store _sig at _call pointer
+      mstore(add(_call, 0x04), _arg) // store _arg at _call offset by 4 bytes for pre-existing _sig
+
+      // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
+      let success := staticcall(
+        gas,    // g = gas: whatever was passed already
+        _whitelistContract,  // a = address: _whitelist address assigned from getContractAddress()
+        _call,  // in = mem in  mem[in..(in+insize): set to _call pointer
+        0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
+        _call,   // out = mem out  mem[out..(out+outsize): output assigned to this storage address
+        0x20    // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (bool size = 0x01 < slot size 0x20)
+      )
+
+      // revert if not successful
+      if iszero(success) {
+        revert(0, 0)
+      }
+
+      _isWhitelisted := mload(_call) // assign result to returned value
+      mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
+    }
+  }
+
+  // takes a single bytes32 and returns a max 32 char long string
+  function to32LengthString(bytes32 _data)
+    pure
+    private
+    returns (string)
+  {
+    // create new empty bytes array with same length as input
+    bytes memory _bytesString = new bytes(32);
+    // keep track of string length for later usage in trimming
+    uint256 _stringLength;
+
+    // loop through each byte in bytes32
+    for (uint _bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
+      /*
+      convert bytes32 data to uint in order to increase the number enough to
+      shift bytes further left while pushing out leftmost bytes
+      then convert uint256 data back to bytes32
+      then convert to bytes1 where everything but the leftmost hex value (byte)
+      is cutoff leaving only the leftmost byte
+
+      TLDR: takes a single character from bytes based on counter
+      */
+      bytes1 _char = bytes1(
+        bytes32(
+          uint(_data) * 2 ** (8 * _bytesCounter)
+        )
+      );
+      // add the character if not empty
+      if (_char != 0) {
+        _bytesString[_stringLength] = _char;
+        _stringLength += 1;
+      }
+    }
+
+    // new bytes with correct matching string length
+    bytes memory _bytesStringTrimmed = new bytes(_stringLength);
+    // loop through _bytesStringTrimmed throwing in
+    // non empty data from _bytesString
+    for (_bytesCounter = 0; _bytesCounter < _stringLength; _bytesCounter++) {
+      _bytesStringTrimmed[_bytesCounter] = _bytesString[_bytesCounter];
+    }
+    // return trimmed bytes array converted to string
+    return string(_bytesStringTrimmed);
+  }
+
+  // takes a dynamically sized array of bytes32. needed for longer strings
+  function to64LengthString(bytes32[2] _data)
+    pure
+    private
+    returns (string)
+  {
+    // create new empty bytes array with same length as input
+    bytes memory _bytesString = new bytes(_data.length * 32);
+    // keep track of string length for later usage in trimming
+    uint256 _stringLength;
+
+    // loop through each bytes32 in array
+    for (uint _arrayCounter = 0; _arrayCounter < _data.length; _arrayCounter++) {
+      // loop through each byte in bytes32
+      for (uint _bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
+        /*
+        convert bytes32 data to uint in order to increase the number enough to
+        shift bytes further left while pushing out leftmost bytes
+        then convert uint256 data back to bytes32
+        then convert to bytes1 where everything but the leftmost hex value (byte)
+        is cutoff leaving only the leftmost byte
+
+        TLDR: takes a single character from bytes based on counter
+        */
+        bytes1 _char = bytes1(
+          bytes32(
+            uint(_data[_arrayCounter]) * 2 ** (8 * _bytesCounter)
+          )
+        );
+        // add the character if not empty
+        if (_char != 0) {
+          _bytesString[_stringLength] = _char;
+          _stringLength += 1;
+        }
+      }
+    }
+
+    // new bytes with correct matching string length
+    bytes memory _bytesStringTrimmed = new bytes(_stringLength);
+    // loop through _bytesStringTrimmed throwing in
+    // non empty data from _bytesString
+    for (_bytesCounter = 0; _bytesCounter < _stringLength; _bytesCounter++) {
+      _bytesStringTrimmed[_bytesCounter] = _bytesString[_bytesCounter];
+    }
+    // return trimmed bytes array converted to string
+    return string(_bytesStringTrimmed);
+  }
+
+  // returns fiat value in cents of given wei amount
+  function weiToFiatCents(uint256 _wei)
+    public
+    view
+    returns (uint256)
+  {
+    // get eth to fiat rate in cents from ExchangeRates
+    return _wei.mul(getFiatRate()).div(1e18);
+  }
+
+  // returns wei value from fiat cents
+  function fiatCentsToWei(uint256 _cents)
+    public
+    view
+    returns (uint256)
+  {
+    return _cents.mul(1e18).div(getFiatRate());
+  }
+
+  // get funded amount in cents
+  function fundedAmountInCents()
+    external
+    view
+    returns (uint256)
+  {
+    return weiToFiatCents(fundedAmountInWei());
+  }
+
+  // get fundingGoal in wei
+  function fundingGoalInWei()
+    external
+    view
+    returns (uint256)
+  {
+    return fiatCentsToWei(fundingGoalInCents);
+  }
+
+  // pay fee to FeeManager
+  function payFee(uint256 _value)
+    internal
+    returns (bool)
+  {
+    require(
+      // solium-disable-next-line security/no-call-value
+      getContractAddress("FeeManager")
+        .call.value(_value)(bytes4(keccak256("payFee()")))
+    );
+  }
+
+  // public utility function to allow checking of required fee for a given amount
+  function calculateFee(uint256 _value)
+    public
+    pure
+    returns (uint256)
+  {
+    // divide by 1000 because feeRate permille
+    return feeRate.mul(_value).div(1000);
+  }
+
+  function isFiatInvestor(
+    address _buyer
+  )
+    internal
+    view
+    returns(bool)
+  {
+    return fiatInvestmentPerUserInTokens(_buyer) != 0;
+  }
+
+  //
+  // end utility functions
+  //
+
+  //
+  // start regular getters
+  //
+
+  function fiatCurrency()
+    public
+    view
+    returns (string)
+  {
+    return to32LengthString(fiatCurrency32);
+  }
+
+  function proofOfCustody()
+    public
+    view
+    returns (string)
+  {
+    return to64LengthString(proofOfCustody32());
+  }
+
+  //
+  // end regular getters
+  //
+
+  //
+  // start hashed pointer getters
+  //
+
+  function stage()
+    public
+    view
+    returns (Stages _stage)
+  {
+    bytes32 _stageSlot = stageSlot;
+    assembly {
+      _stage := sload(_stageSlot)
+    }
+  }
+
+  function custodian()
+    public
+    view
+    returns (address _custodian)
+  {
+    bytes32 _custodianSlot = custodianSlot;
+    assembly {
+      _custodian := sload(_custodianSlot)
+    }
+  }
+
+  function proofOfCustody32()
+    public
+    view
+    returns (bytes32[2] _proofOfCustody32)
+  {
+    bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
+    assembly {
+      _proofOfCustody32 := sload(_proofOfCustody32Slot)
+    }
+  }
+
+  function totalSupply()
+    public
+    view
+    returns (uint256 _totalSupply)
+  {
+    bytes32 _totalSupplySlot = totalSupplySlot;
+    assembly {
+      _totalSupply := sload(_totalSupplySlot)
+    }
+  }
+
+  function fundedAmountInTokensDuringFiatFunding()
+    public
+    view
+    returns (uint256 _fundedAmountInTokensDuringFiatFunding)
+  {
+    bytes32 _fundedAmountInTokensDuringFiatFundingSlot = fundedAmountInTokensDuringFiatFundingSlot;
+    assembly {
+      _fundedAmountInTokensDuringFiatFunding := sload(
+        _fundedAmountInTokensDuringFiatFundingSlot
+      )
+    }
+  }
+
+  // mimics mapping storage method of storing/getting entries
+  function fiatInvestmentPerUserInTokens(
+    address _address
+  )
+    public
+    view
+    returns (uint256 _fiatInvested)
+  {
+    bytes32 _entrySlot = keccak256(
+      abi.encodePacked(fiatInvestmentPerUserInTokensSlot, _address)
+    );
+    assembly {
+      _fiatInvested := sload(_entrySlot)
+    }
+  }
+
+  function fundedAmountInWei()
+    public
+    view
+    returns (uint256 _fundedAmountInWei)
+  {
+    bytes32 _fundedAmountInWeiSlot = fundedAmountInWeiSlot;
+    assembly {
+      _fundedAmountInWei := sload(_fundedAmountInWeiSlot)
+    }
+  }
+
+  function investmentAmountPerUserInWei(
+    address _address
+  )
+    public
+    view
+    returns (uint256 _investmentAmountPerUserInWei)
+  {
+    bytes32 _entrySlot = keccak256(
+      abi.encodePacked(investmentAmountPerUserInWeiSlot, _address)
+    );
+    assembly {
+      _investmentAmountPerUserInWei := sload(_entrySlot)
+    }
+  }
+
+  function registry()
+    public
+    view
+    returns (address _registry)
+  {
+    bytes32 _registrySlot = registrySlot;
+    assembly {
+      _registry := sload(_registrySlot)
+    }
+  }
+
+  function unclaimedPayoutTotals(
+    address _address
+  )
+    public
+    view
+    returns (uint256 _unclaimedPayoutTotals)
+  {
+    bytes32 _entrySlot = keccak256(
+      abi.encodePacked(unclaimedPayoutTotalsSlot, _address)
+    );
+    assembly {
+      _unclaimedPayoutTotals := sload(_entrySlot)
+    }
+  }
+
+  function broker()
+    public
+    view
+    returns (address _broker)
+  {
+    bytes32 _brokerSlot = brokerSlot;
+    assembly {
+      _broker := sload(_brokerSlot)
+    }
+  }
+
+  //
+  // end hashed pointer getters
+  //
+
+  //
+  // start hashed pointer setters
+  //
+
+  function setStage(
+    Stages _stage
+  )
+    internal
+  {
+    bytes32 _stageSlot = stageSlot;
+    assembly {
+      sstore(_stageSlot, _stage)
+    }
+  }
+
+  function setProofOfCustody32(
+    bytes32[2] _proofOfCustody32
+  )
+    internal
+  {
+    bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
+    assembly {
+      sstore(_proofOfCustody32Slot, _proofOfCustody32)
+    }
+  }
+
+  function setTotalSupply(uint256 _totalSupply)
+    internal
+  {
+    bytes32 _totalSupplySlot = totalSupplySlot;
+    assembly {
+      sstore(_totalSupplySlot, _totalSupply)
+    }
+  }
+
+  function setFundedAmountInTokensDuringFiatFunding(
+    uint256 _amount
+  )
+    internal
+  {
+    bytes32 _fundedAmountInTokensDuringFiatFundingSlot = fundedAmountInTokensDuringFiatFundingSlot;
+    assembly {
+      sstore(
+        _fundedAmountInTokensDuringFiatFundingSlot,
+        _amount
+      )
+    }
+  }
+
+  // mimics mapping storage method of storing/getting entries
+  function setFiatInvestmentPerUserInTokens(
+    address _address, 
+    uint256 _fiatInvestment
+  )
+    internal
+  {
+    bytes32 _entrySlot = keccak256(
+      abi.encodePacked(fiatInvestmentPerUserInTokensSlot, _address)
+    );
+    assembly {
+      sstore(_entrySlot, _fiatInvestment)
+    }
+  }
+
+  function setFundedAmountInWei(
+    uint256 _fundedAmountInWei
+  )
+    internal
+  {
+    bytes32 _fundedAmountInWeiSlot = fundedAmountInWeiSlot;
+    assembly {
+      sstore(_fundedAmountInWeiSlot, _fundedAmountInWei)
+    }
+  }
+
+  function setInvestmentAmountPerUserInWei(
+    address _address,
+    uint256 _amount
+  )
+    internal
+  {
+    bytes32 _entrySlot = keccak256(
+      abi.encodePacked(investmentAmountPerUserInWeiSlot, _address)
+    );
+    assembly {
+      sstore(_entrySlot, _amount)
+    }
+  }
+
+  function setUnclaimedPayoutTotals(
+    address _address,
+    uint256 _amount
+  )
+    internal
+  {
+    bytes32 _entrySlot = keccak256(
+      abi.encodePacked(unclaimedPayoutTotalsSlot, _address)
+    );
+    assembly {
+      sstore(_entrySlot, _amount)
+    }
+  }
+
+  function setBroker(
+    address _address
+  )
+    internal
+  {
+    bytes32 _brokerSlot = brokerSlot;
+    assembly {
+      sstore(_brokerSlot, _address)
+    }
+  }
+
+  function setPaused(
+    bool _paused
+  )
+    internal
+  {
+    bytes32 _pausedSlot = pausedSlot;
+    assembly {
+      sstore(_pausedSlot, _paused)
+    }
+  }
+
+  //
+  // end hashed pointer setters
+  //
+
 }
