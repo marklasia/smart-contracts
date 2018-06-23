@@ -1,9 +1,9 @@
 pragma solidity 0.4.23;
 
+import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+
 /* solium-disable security/no-block-members */
 /* solium-disable security/no-low-level-calls */
-
-import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 
 
 contract PoaCrowdsale {
@@ -49,7 +49,6 @@ contract PoaCrowdsale {
   bytes32 private constant registrySlot = keccak256("registry");
   // represents slot for: mapping(address => uint256)
   bytes32 private constant unclaimedPayoutTotalsSlot = keccak256("unclaimedPayoutTotals");
-  bytes32 private constant brokerSlot = keccak256("broker");
   bytes32 private constant pausedSlot = keccak256("paused");
 
   
@@ -77,6 +76,8 @@ contract PoaCrowdsale {
   uint256 public fundingGoalInCents;
   // used to keep track of actual funded amount in fiat during FiatFunding stage
   uint256 public fundedAmountInCentsDuringFiatFunding;
+  // broker who is selling property, whitelisted on PoaManager
+  address public broker;
 
 
   //
@@ -318,8 +319,8 @@ contract PoaCrowdsale {
     // can now be claimed by broker via claim function
     // should only be buy()s - fee. this ensures buy() dust is cleared
     setUnclaimedPayoutTotals(
-      broker(), 
-      unclaimedPayoutTotals(broker()).add(address(this).balance)
+      broker, 
+      unclaimedPayoutTotals(broker).add(address(this).balance)
     );
     // allow trading of tokens
     setPaused(false);
@@ -813,17 +814,6 @@ contract PoaCrowdsale {
     }
   }
 
-  function broker()
-    public
-    view
-    returns (address _broker)
-  {
-    bytes32 _brokerSlot = brokerSlot;
-    assembly {
-      _broker := sload(_brokerSlot)
-    }
-  }
-
   //
   // end hashed pointer getters
   //
@@ -928,17 +918,6 @@ contract PoaCrowdsale {
     );
     assembly {
       sstore(_entrySlot, _amount)
-    }
-  }
-
-  function setBroker(
-    address _address
-  )
-    internal
-  {
-    bytes32 _brokerSlot = brokerSlot;
-    assembly {
-      sstore(_brokerSlot, _address)
     }
   }
 

@@ -48,11 +48,14 @@ contract PoaToken is StandardToken, Ownable {
   bytes32 private constant registrySlot = keccak256("registry");
   // represents slot for: mapping(address => uint256)
   bytes32 private constant unclaimedPayoutTotalsSlot = keccak256("unclaimedPayoutTotals");
-  bytes32 private constant brokerSlot = keccak256("broker");
   bytes32 private constant pausedSlot = keccak256("paused");
 
   //
   // end special hashed common storage pointers
+  //
+
+  //
+  // start poaToken specific storage variables
   //
 
   // ERC20 name of the token
@@ -61,8 +64,6 @@ contract PoaToken is StandardToken, Ownable {
   bytes32 private symbol32;
   // delegatecall address for all crowdsale functions
   address public poaCrowdsaleMaster;
-  // broker who is selling property, whitelisted on PoaManager
-  address public broker;
   // ERC0 decimals
   uint256 public constant decimals = 18;
   // ‰ permille NOT percent: fee paid to BBK holders through ACT
@@ -74,8 +75,6 @@ contract PoaToken is StandardToken, Ownable {
 
   // used to deduct already claimed payouts on a per token basis
   mapping(address => uint256) private claimedPerTokenPayouts;
-  // fallback for when a transfer happens with payouts remaining
-  mapping(address => uint256) public unclaimedPayoutTotals;
   // used to calculate balanceOf by deducting spent balances
   mapping(address => uint256) private spentBalances;
   // used to calculate balanceOf by adding received balances
@@ -83,8 +82,17 @@ contract PoaToken is StandardToken, Ownable {
   // hide balances to ensure that only balanceOf is being used
   mapping(address => uint256) private balances;
 
+  //
+  // end poaToken specific storage variables
+  //
+
+  // TODO: perhaps move these to Logger contract since Pausable is no longer taken from openzeppelin
   event Pause();
   event Unpause();
+
+  //
+  // start modifiers
+  //
 
   modifier eitherCustodianOrOwner() {
     owner = getContractAddress("PoaManager");
@@ -147,25 +155,63 @@ contract PoaToken is StandardToken, Ownable {
     _;
   }
 
-  function pause() 
-    onlyOwner 
-    whenNotPaused 
-    public 
-  {
-    setPaused(true);
+  //
+  // start lifecycle functions
+  //
 
-    emit Pause();
+  // used to enter a new stage of the contract
+  function enterStage(Stages _stage)
+    internal
+  {
+    setStage(_stage);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logStageEvent(uint256)")),
+      _stage
+    );
   }
 
-  function unpause() 
-    onlyOwner 
-    whenPaused 
+  // function to change custodianship of poa
+  function changeCustodianAddress(address _newCustodian)
+    external
+    onlyCustodian
+    returns (bool)
+  {
+    require(_newCustodian != address(0));
+    require(_newCustodian != custodian());
+    address _oldCustodian = custodian();
+    setCustodian(_newCustodian);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logCustodianChangedEvent(address,address)")),
+      _oldCustodian,
+      _newCustodian
+    );
+    return true;
+  }
+
+  // used when property no longer exists etc. allows for winding down via payouts
+  // can no longer be traded after function is run
+  function terminate()
+    external
+    eitherCustodianOrOwner
     atStage(Stages.Active)
-    public 
+    returns (bool)
   {
-    setPaused(false);
-    emit Unpause();
+    // set Stage to terminated
+    enterStage(Stages.Terminated);
+    // pause. Cannot be unpaused now that in Stages.Terminated
+    setPaused(true);
+    getContractAddress("Logger")
+      .call(bytes4(keccak256("logTerminatedEvent()")));
+    return true;
   }
+
+  //
+  // end lifecycle functions
+  //
+
+  //
+  // start utility functions
+  //
 
   // public utility function to allow checking of required fee for a given amount
   function calculateFee(uint256 _value)
@@ -270,42 +316,6 @@ contract PoaToken is StandardToken, Ownable {
     return string(_bytesStringTrimmed);
   }
 
-  //
-  // start getter functions
-  //
-
-  function name()
-    external
-    view
-    returns (string)
-  {
-    return to32LengthString(name32);
-  }
-
-  function symbol()
-    external
-    view
-    returns (string)
-  {
-    return to32LengthString(symbol32);
-  }
-
-  function proofOfCustody()
-    public
-    view
-    returns (string)
-  {
-    return to64LengthString(proofOfCustody32());
-  }
-
-  //
-  // end getter functions
-  //
-
-  //
-  // start utility functions
-  //
-
   function isFiatInvestor(
     address _buyer
   )
@@ -405,6 +415,30 @@ contract PoaToken is StandardToken, Ownable {
   // end utility functions
   //
 
+  //
+  // start owner functions
+  //
+
+  function pause() 
+    onlyOwner 
+    whenNotPaused 
+    public 
+  {
+    setPaused(true);
+
+    emit Pause();
+  }
+
+  function unpause() 
+    onlyOwner 
+    whenPaused 
+    atStage(Stages.Active)
+    public 
+  {
+    setPaused(false);
+    emit Unpause();
+  }
+
   // enables whitelisted transfers/transferFroms
   function toggleWhitelistTransfers()
     external
@@ -416,57 +450,39 @@ contract PoaToken is StandardToken, Ownable {
   }
 
   //
-  // start lifecycle functions
+  // end owner functions
   //
 
-  // used to enter a new stage of the contract
-  function enterStage(Stages _stage)
-    internal
+  //
+  // start getter functions
+  //
+
+  function name()
+    external
+    view
+    returns (string)
   {
-    setStage(_stage);
-    getContractAddress("Logger").call(
-      bytes4(keccak256("logStageEvent(uint256)")),
-      _stage
-    );
+    return to32LengthString(name32);
   }
 
-  // function to change custodianship of poa
-  function changeCustodianAddress(address _newCustodian)
+  function symbol()
     external
-    onlyCustodian
-    returns (bool)
+    view
+    returns (string)
   {
-    require(_newCustodian != address(0));
-    require(_newCustodian != custodian());
-    address _oldCustodian = custodian();
-    setCustodian(_newCustodian);
-    getContractAddress("Logger").call(
-      bytes4(keccak256("logCustodianChangedEvent(address,address)")),
-      _oldCustodian,
-      _newCustodian
-    );
-    return true;
+    return to32LengthString(symbol32);
   }
 
-  // used when property no longer exists etc. allows for winding down via payouts
-  // can no longer be traded after function is run
-  function terminate()
-    external
-    eitherCustodianOrOwner
-    atStage(Stages.Active)
-    returns (bool)
+  function proofOfCustody()
+    public
+    view
+    returns (string)
   {
-    // set Stage to terminated
-    enterStage(Stages.Terminated);
-    // pause. Cannot be unpaused now that in Stages.Terminated
-    setPaused(true);
-    getContractAddress("Logger")
-      .call(bytes4(keccak256("logTerminatedEvent()")));
-    return true;
+    return to64LengthString(proofOfCustody32());
   }
 
   //
-  // end lifecycle functions
+  // end getter functions
   //
 
   //
@@ -502,7 +518,7 @@ contract PoaToken is StandardToken, Ownable {
     unclaimedPayoutTotals are stored as actual Ξ value no need for rate * balance
     */
     return _includeUnclaimed
-      ? _totalPerTokenUnclaimedConverted.add(unclaimedPayoutTotals[_address])
+      ? _totalPerTokenUnclaimedConverted.add(unclaimedPayoutTotals(_address))
       : _totalPerTokenUnclaimedConverted;
 
   }
@@ -514,11 +530,17 @@ contract PoaToken is StandardToken, Ownable {
     returns (bool)
   {
     // add perToken balance to unclaimedPayoutTotals which will not be affected by transfers
-    unclaimedPayoutTotals[_from] = unclaimedPayoutTotals[_from].add(currentPayout(_from, false));
+    setUnclaimedPayoutTotals(
+      _from,
+      unclaimedPayoutTotals(_from).add(currentPayout(_from, false))
+    );
     // max out claimedPerTokenPayouts in order to effectively make perToken balance 0
     claimedPerTokenPayouts[_from] = totalPerTokenPayout;
     // same as above for to
-    unclaimedPayoutTotals[_to] = unclaimedPayoutTotals[_to].add(currentPayout(_to, false));
+    setUnclaimedPayoutTotals(
+      _from,
+      unclaimedPayoutTotals(_to).add(currentPayout(_to, false))
+    );
     // same as above for to
     claimedPerTokenPayouts[_to] = totalPerTokenPayout;
     return true;
@@ -579,7 +601,7 @@ contract PoaToken is StandardToken, Ownable {
     // 0 for sender
     claimedPerTokenPayouts[msg.sender] = totalPerTokenPayout;
     // 0 out unclaimedPayoutTotals for user
-    unclaimedPayoutTotals[msg.sender] = 0;
+    setUnclaimedPayoutTotals(msg.sender, 0);
     // transfer Ξ payable amount to sender
     msg.sender.transfer(_payoutAmount);
     getContractAddress("Logger").call(
@@ -832,6 +854,21 @@ contract PoaToken is StandardToken, Ownable {
     }
   }
 
+  function unclaimedPayoutTotals(
+    address _address
+  )
+    public
+    view
+    returns (uint256 _unclaimedPayoutTotals)
+  {
+    bytes32 _entrySlot = keccak256(
+      abi.encodePacked(unclaimedPayoutTotalsSlot, _address)
+    );
+    assembly {
+      _unclaimedPayoutTotals := sload(_entrySlot)
+    }
+  }
+
   //
   // end hashed pointer getters
   //
@@ -897,6 +934,20 @@ contract PoaToken is StandardToken, Ownable {
     bytes32 _pausedSlot = pausedSlot;
     assembly {
       sstore(_pausedSlot, _paused)
+    }
+  }
+
+  function setUnclaimedPayoutTotals(
+    address _address,
+    uint256 _amount
+  )
+    internal
+  {
+    bytes32 _entrySlot = keccak256(
+      abi.encodePacked(unclaimedPayoutTotalsSlot, _address)
+    );
+    assembly {
+      sstore(_entrySlot, _amount)
     }
   }
 
