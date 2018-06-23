@@ -1,43 +1,62 @@
 pragma solidity 0.4.23;
 
+/* solium-disable security/no-low-level-calls */
+
 
 contract PoaProxy {
   uint8 public constant version = 1;
-  bytes32 public constant proxyMasterContractSlot = keccak256("masterAddress");
+  bytes32 public constant proxyPoaTokenSlot = keccak256("PoaTokenMaster");
+  bytes32 public constant proxyPoaCrowdsaleSlot = keccak256("PoaCrowdsaleMaster");
   bytes32 public constant proxyRegistrySlot = keccak256("registry");
 
   event ProxyUpgradedEvent(address upgradedFrom, address upgradedTo);
 
   constructor(
-    address _master,
+    address _poaTokenMaster,
+    address _poaCrowdsaleMaster,
     address _registry
   )
     public
   {
-    require(_master != address(0));
+    require(_poaTokenMaster != address(0));
+    require(_poaCrowdsaleMaster != address(0));
     require(_registry != address(0));
-    bytes32 _proxyMasterContractSlot = proxyMasterContractSlot;
+
+    bytes32 _proxyPoaTokenSlot = proxyPoaTokenSlot;
+    bytes32 _proxyPoaCrowdsaleSlot = proxyPoaCrowdsaleSlot;
     bytes32 _proxyRegistrySlot = proxyRegistrySlot;
 
     // all storage locations are pre-calculated using hashes of names
     assembly {
-      sstore(_proxyMasterContractSlot, _master) // store master address in master slot
+      sstore(_proxyPoaTokenSlot, _poaTokenMaster) // store master token address
+      sstore(_proxyPoaCrowdsaleSlot, _poaCrowdsaleMaster) // store master crowdsale address
       sstore(_proxyRegistrySlot, _registry) // store registry address in registry slot
     }
   }
 
   //
-  // proxy state getters
+  // start proxy state getters
   //
 
-  function proxyMasterContract()
+  function proxyPoaTokenMaster()
     public
     view
-    returns (address _masterContract)
+    returns (address _poaTokenMaster)
   {
-    bytes32 _proxyMasterContractSlot = proxyMasterContractSlot;
+    bytes32 _proxyPoaTokenSlot = proxyPoaTokenSlot;
     assembly {
-      _masterContract := sload(_proxyMasterContractSlot)
+      _poaTokenMaster := sload(_proxyPoaTokenSlot)
+    }
+  }
+
+  function proxyPoaCrowdsaleMaster()
+    public
+    view
+    returns (address _masterCrowdsaleContract)
+  {
+    bytes32 _proxyPoaCrowdsaleSlot = proxyPoaCrowdsaleSlot;
+    assembly {
+      _masterCrowdsaleContract := sload(_proxyPoaCrowdsaleSlot)
     }
   }
 
@@ -53,7 +72,11 @@ contract PoaProxy {
   }
 
   //
-  // proxy state helpers
+  // ned proxy state getters
+  //
+
+  //
+  // start proxy state helpers
   //
 
   function getContractAddress(
@@ -104,21 +127,48 @@ contract PoaProxy {
   }
 
   //
-  // proxy state setters
+  // start proxy state helpers
   //
 
-  function proxyChangeMaster(address _newMaster)
+  //
+  // start proxy state setters
+  //
+
+  function proxyChangeTokenMaster(address _newMaster)
     public
     returns (bool)
   {
     require(msg.sender == getContractAddress("PoaManager"));
     require(_newMaster != address(0));
-    require(proxyMasterContract() != _newMaster);
+    require(proxyPoaTokenMaster() != _newMaster);
     require(proxyIsContract(_newMaster));
-    address _oldMaster = proxyMasterContract();
-    bytes32 _proxyMasterContractSlot = proxyMasterContractSlot;
+    address _oldMaster = proxyPoaTokenMaster();
+    bytes32 _proxyPoaTokenSlot = proxyPoaTokenSlot;
     assembly {
-      sstore(_proxyMasterContractSlot, _newMaster)
+      sstore(_proxyPoaTokenSlot, _newMaster)
+    }
+
+    emit ProxyUpgradedEvent(_oldMaster, _newMaster);
+    getContractAddress("Logger").call(
+      bytes4(keccak256("logProxyUpgradedEvent(address,address)")),
+      _oldMaster, _newMaster
+    );
+
+    return true;
+  }
+
+  function proxyChangeCrowdsaleMaster(address _newMaster)
+    public
+    returns (bool)
+  {
+    require(msg.sender == getContractAddress("PoaManager"));
+    require(_newMaster != address(0));
+    require(proxyPoaCrowdsaleMaster() != _newMaster);
+    require(proxyIsContract(_newMaster));
+    address _oldMaster = proxyPoaCrowdsaleMaster();
+    bytes32 _proxyPoaCrowdsaleSlot = proxyPoaCrowdsaleSlot;
+    assembly {
+      sstore(_proxyPoaCrowdsaleSlot, _newMaster)
     }
 
     emit ProxyUpgradedEvent(_oldMaster, _newMaster);
@@ -131,6 +181,10 @@ contract PoaProxy {
   }
 
   //
+  // start proxy state setters
+  //
+
+  //
   // fallback for all proxied functions
   //
 
@@ -138,10 +192,10 @@ contract PoaProxy {
     external
     payable
   {
-    bytes32 _proxyMasterContractSlot = proxyMasterContractSlot;
+    bytes32 _proxyPoaTokenSlot = proxyPoaTokenSlot;
     assembly {
       // load address from first storage pointer
-      let _master := sload(_proxyMasterContractSlot)
+      let _poaTokenMaster := sload(_proxyPoaTokenSlot)
 
       // calldatacopy(t, f, s)
       calldatacopy(
@@ -153,7 +207,7 @@ contract PoaProxy {
       // delegatecall(g, a, in, insize, out, outsize) => 0 on error 1 on success
       let success := delegatecall(
         gas, // g = gas
-        _master, // a = address
+        _poaTokenMaster, // a = address
         0x0, // in = mem in  mem[in..(in+insize)
         calldatasize, // insize = mem insize  mem[in..(in+insize)
         0x0, // out = mem out  mem[out..(out+outsize)

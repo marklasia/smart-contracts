@@ -8,7 +8,7 @@ import "openzeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
 contract PoaToken is StandardToken, Ownable {
-  uint256 public constant version = 1;
+  uint256 public constant tokenVersion = 1;
 
   enum Stages {
     PreFunding, // 0
@@ -29,8 +29,6 @@ contract PoaToken is StandardToken, Ownable {
   bytes32 private name32;
   // ERC20 symbol
   bytes32 private symbol32;
-  // delegatecall address for all crowdsale functions
-  address public poaCrowdsaleMaster;
   // ERC0 decimals
   uint256 public constant decimals = 18;
   // ‰ permille NOT percent: fee paid to BBK holders through ACT
@@ -82,12 +80,16 @@ contract PoaToken is StandardToken, Ownable {
   bytes32 private constant unclaimedPayoutTotalsSlot = keccak256("unclaimedPayoutTotals");
   bytes32 private constant pausedSlot = keccak256("paused");
   bytes32 private constant tokenInitializedSlot = keccak256("tokenInitialized");
+  bytes32 private constant poaCrowdsaleMasterSlot = keccak256("PoaCrowdsaleMaster");
 
   //
   // end special hashed common storage pointers
   //
 
-  // TODO: perhaps move these to Logger contract since Pausable is no longer taken from openzeppelin
+  /*
+    TODO: perhaps move these to Logger contract since Pausable is 
+    no longer inherited from openzeppelin
+  */
   event Pause();
   event Unpause();
 
@@ -156,7 +158,7 @@ contract PoaToken is StandardToken, Ownable {
     _;
   }
 
-  function initialize(
+  function initializeToken(
     bytes32 _name32, // bytes32 of name string
     bytes32 _symbol32, // bytes32 of symbol string
     address _custodian,
@@ -185,6 +187,8 @@ contract PoaToken is StandardToken, Ownable {
     setPaused(true);
     whitelistTransfers = false;
     owner = getContractAddress("PoaManager");
+
+    return true;
   }
 
   //
@@ -912,6 +916,17 @@ contract PoaToken is StandardToken, Ownable {
     }
   }
 
+  function poaCrowdsaleMaster()
+    public
+    view
+    returns (address _poaCrowdsaleMaster)
+  {
+    bytes32 _poaCrowdsaleMasterSlot = poaCrowdsaleMasterSlot;
+    assembly {
+      _poaCrowdsaleMaster := sload(_poaCrowdsaleMasterSlot)
+    }
+  }
+
   //
   // end hashed pointer getters
   //
@@ -1014,9 +1029,8 @@ contract PoaToken is StandardToken, Ownable {
     external
     payable
   {
+    address _poaCrowdsaleMaster = poaCrowdsaleMaster();
     assembly {
-      // load address from storage variable using _slot suffix
-      let _master := sload(poaCrowdsaleMaster_slot)
 
       // calldatacopy(t, f, s)
       calldatacopy(
@@ -1028,7 +1042,7 @@ contract PoaToken is StandardToken, Ownable {
       // delegatecall(g, a, in, insize, out, outsize) => 0 on error 1 on success
       let success := delegatecall(
         gas, // g = gas
-        _master, // a = address
+        _poaCrowdsaleMaster, // a = address
         0x0, // in = mem in  mem[in..(in+insize)
         calldatasize, // insize = mem insize  mem[in..(in+insize)
         0x0, // out = mem out  mem[out..(out+outsize)

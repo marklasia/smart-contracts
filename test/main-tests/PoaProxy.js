@@ -73,7 +73,7 @@
 //     })
 
 //     it('should NOT upgrade to new master if NOT PoaManager (accounts[0] for test)', async () => {
-//       await testWillThrow(pxy.proxyChangeMaster, [
+//       await testWillThrow(pxy.proxyChangeTokenMaster, [
 //         upoam.address,
 //         { from: accounts[1] }
 //       ])
@@ -82,7 +82,7 @@
 //     it('should upgrade to new master with additional functionality and storage', async () => {
 //       const preMaster = await pxy.proxyMasterContract()
 
-//       await pxy.proxyChangeMaster(upoam.address)
+//       await pxy.proxyChangeTokenMaster(upoam.address)
 
 //       const postMaster = await pxy.proxyMasterContract()
 

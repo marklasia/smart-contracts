@@ -6,7 +6,9 @@ const FeeManager = artifacts.require('FeeManager')
 const Logger = artifacts.require('CentralLogger')
 const PoaManager = artifacts.require('PoaManager')
 const PoaToken = artifacts.require('PoaToken')
+const PoaCrowdsale = artifacts.require('PoaCrowdsale')
 const Whitelist = artifacts.require('Whitelist')
+const IPoaTokenCrowdsale = artifacts.require('IPoaTokenCrowdsale')
 
 const assert = require('assert')
 
@@ -216,18 +218,20 @@ const setupPoaProxyAndEcosystem = async () => {
   })
 
   // deploy poa master in order to allow proxies to use it's code
-  const poam = await PoaToken.new()
-  // add to registry for use by PoaManager and PoaToken proxies
-  await reg.updateContractAddress('PoaTokenMaster', poam.address)
+  const poatm = await PoaToken.new()
+  const poacm = await PoaCrowdsale.new()
 
+  // add to registry for use by PoaManager and PoaToken proxies
+  await reg.updateContractAddress('PoaTokenMaster', poatm.address)
+  await reg.updateContractAddress('PoaCrowdsaleMaster', poacm.address)
   // add broker to allow for adding a new token from PoaManager
   await pmr.addBroker(broker)
 
   // Poa PoaProxy contract
   const poaTx = await pmr.addToken(
-    defaultName,
-    defaultSymbol,
-    defaultFiatCurrency,
+    defaultName32,
+    defaultSymbol32,
+    defaultFiatCurrency32,
     custodian,
     defaultTotalSupply,
     await getDefaultStartTime(),
@@ -256,7 +260,7 @@ const setupPoaProxyAndEcosystem = async () => {
     wht,
     pmr,
     poa,
-    poam,
+    poatm,
     log
   }
 }
@@ -264,18 +268,43 @@ const setupPoaProxyAndEcosystem = async () => {
 const testProxyInitialization = async (reg, pmr, args) => {
   // list broker
   await pmr.addBroker(broker)
-  // create new master poa
-  const poam = await PoaToken.new()
+
+  // create new master poa contracts
+  const poatm = await PoaToken.new()
+  const poacm = await PoaCrowdsale.new()
+
   // add poa master to registry
-  await reg.updateContractAddress('PoaTokenMaster', poam.address)
+  await reg.updateContractAddress('PoaTokenMaster', poatm.address)
+  await reg.updateContractAddress('PoaCrowdsaleMaster', poacm.address)
 
   const defaultStartTime = await getDefaultStartTime()
 
+  console.log('before pmr deployment')
   // Poa PoaProxy contract tx
   const poaTx = await pmr.addToken.apply(null, args)
+  console.log('after pmr deployment')
+
+  //
+  // start messing around
+  //
 
   // wrap the proxied PoA in PoaToken ABI to call as if regular PoA
-  const poa = await PoaToken.at(poaTx.logs[0].args.token)
+  const poa = await IPoaTokenCrowdsale.at(poaTx.logs[0].args.token)
+  const poaTokenMaster = await poa.proxyPoaTokenMaster()
+  const proxyPoaCrowdsaleMaster = await poa.proxyPoaCrowdsaleMaster()
+  const poaCrowdsaleMaster = await poa.poaCrowdsaleMaster()
+  console.log(
+    'token',
+    poaTokenMaster,
+    'proxy crowdsale',
+    proxyPoaCrowdsaleMaster,
+    'crowdsale',
+    poaCrowdsaleMaster
+  )
+
+  //
+  // end messing around
+  //
 
   const name = await poa.name()
   const symbol = await poa.symbol()

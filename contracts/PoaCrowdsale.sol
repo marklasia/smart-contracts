@@ -9,7 +9,9 @@ import "openzeppelin-solidity/contracts/math/SafeMath.sol";
 contract PoaCrowdsale {
   using SafeMath for uint256;
 
-  uint256 public constant version = 1;
+  uint256 public constant crowdsaleVersion = 1;
+  // ‰ permille NOT percent: fee paid to BBK holders through ACT
+  uint256 public constant feeRate = 5;
 
   enum Stages {
     PreFunding, // 0
@@ -21,35 +23,6 @@ contract PoaCrowdsale {
     Terminated, // 6
     Cancelled // 7
   }
-
-  //
-  // start crowdsale specific storage variables
-  //
-
-  bool public crowdsaleInitialized;
-  // ‰ permille NOT percent: fee paid to BBK holders through ACT
-  uint256 public constant feeRate = 5;
-  // used to check when contract should move from PreFunding to Funding stage
-  uint256 public startTime;
-  // amount of seconds until moving to Failed from
-  // Funding stage after startTime
-  uint256 public fundingTimeout;
-  // amount of seconds until moving to Failed from
-  // Pending stage after startTime + fundingTimeout
-  uint256 public activationTimeout;
-  // fiat currency symbol used to get rate
-  bytes32 private fiatCurrency32;
-  // amount needed before moving to pending calculated in fiat
-  uint256 public fundingGoalInCents;
-  // used to keep track of actual funded amount in fiat during FiatFunding stage
-  uint256 public fundedAmountInCentsDuringFiatFunding;
-  // broker who is selling property, whitelisted on PoaManager
-  address public broker;
-
-
-  //
-  // end crowdsale specific storage variabls
-  // 
   
   //
   // start special hashed common storage pointers
@@ -81,6 +54,17 @@ contract PoaCrowdsale {
   bytes32 private constant pausedSlot = keccak256("paused");
   bytes32 private constant tokenInitializedSlot = keccak256("tokenInitialized");
 
+
+  bytes32 private constant crowdsaleInitializedPointer = keccak256("crowdsaleInitialized");
+  bytes32 private constant startTimePointer = keccak256("startTime");
+  bytes32 private constant fundingTimeoutPointer = keccak256("fundingTimeout");
+  bytes32 private constant activationTimeoutPointer = keccak256("activationTimeout");
+  bytes32 private constant fiatCurrency32Pointer = keccak256("fiatCurrency32");
+  bytes32 private constant fundingGoalInCentsPointer = keccak256("fundingGoalInCents");
+  bytes32 private constant fundedAmountInCentsDuringFiatFundingPointer
+  = keccak256("fundedAmountInCentsDuringFiatFunding");
+  bytes32 private constant brokerPointer = keccak256("broker");
+
   //
   // end special hashed common storage pointers
   //
@@ -107,10 +91,10 @@ contract PoaCrowdsale {
   }
 
   modifier checkTimeout() {
-    uint256 fundingTimeoutDeadline = startTime.add(fundingTimeout);
-    uint256 activationTimeoutDeadline = startTime
-      .add(fundingTimeout)
-      .add(activationTimeout);
+    uint256 fundingTimeoutDeadline = startTime().add(fundingTimeout());
+    uint256 activationTimeoutDeadline = startTime()
+      .add(fundingTimeout())
+      .add(activationTimeout());
 
     if (
       (uint256(stage()) < 3 && block.timestamp >= fundingTimeoutDeadline) ||
@@ -144,7 +128,7 @@ contract PoaCrowdsale {
   // end modifiers
   //
 
-  function initialize(
+  function initializeCrowdsale(
     bytes32 _fiatCurrency32, // bytes32 of fiat currency string
     address _broker,
     uint256 _startTime, // unix timestamp
@@ -158,7 +142,7 @@ contract PoaCrowdsale {
     // ensure that token has already been initialized
     require(tokenInitialized());
     // ensure that crowdsale has not already been initialized
-    require(!crowdsaleInitialized);
+    require(!crowdsaleInitialized());
 
     // validate initialize parameters
     require(_fiatCurrency32 != bytes32(0));
@@ -170,15 +154,17 @@ contract PoaCrowdsale {
     require(totalSupply() > _fundingGoalInCents);
 
     // initialize storage
-    fiatCurrency32 = _fiatCurrency32;
-    broker = _broker;
-    startTime = _startTime;
-    fundingTimeout = _fundingTimeout;
-    activationTimeout = _activationTimeout;
-    fundingGoalInCents = _fundingGoalInCents;
+    setFiatCurrency32(_fiatCurrency32);
+    setBroker(_broker);
+    setStartTime(_startTime);
+    setFundingTimeout(_fundingTimeout);
+    setActivationTimeout(_activationTimeout);
+    setFundingGoalInCents(_fundingGoalInCents);
 
     // run getRate once in order to see if rate is initialized, throws if not
     require(getFiatRate() > 0);
+
+    return true;
   }
 
   //
@@ -212,29 +198,36 @@ contract PoaCrowdsale {
     atEitherStage(Stages.PreFunding, Stages.FiatFunding)
     returns (bool)
   {
-    require(block.timestamp >= startTime);
+    require(block.timestamp >= startTime());
     enterStage(Stages.EthFunding);
     return true;
   }
 
   // Buy with FIAT
-  function buyFiat(address _contributor, uint256 _amountInCents)
+  function buyFiat(
+    address _contributor, 
+    uint256 _amountInCents
+  )
     external
     atStage(Stages.FiatFunding)
     onlyCustodian
     returns (bool)
   {
     //if the amount is bigger than funding goal, reject the transaction
-    if (fundedAmountInCentsDuringFiatFunding >= fundingGoalInCents) {
+    if (fundedAmountInCentsDuringFiatFunding() >= fundingGoalInCents()) {
       return false;
     } else {
-      uint256 _newFundedAmount = fundedAmountInCentsDuringFiatFunding.add(_amountInCents);
+      uint256 _newFundedAmount = fundedAmountInCentsDuringFiatFunding().add(_amountInCents);
 
-      if (fundingGoalInCents.sub(_newFundedAmount) > 0) {
-        fundedAmountInCentsDuringFiatFunding = fundedAmountInCentsDuringFiatFunding.add(_amountInCents);
-        uint256 _percentOfFundingGoal = fundingGoalInCents.mul(100).div(_amountInCents);
+      if (fundingGoalInCents().sub(_newFundedAmount) > 0) {
+        setFundedAmountInCentsDuringFiatFunding(
+          fundedAmountInCentsDuringFiatFunding().add(_amountInCents)
+        );
+        uint256 _percentOfFundingGoal = fundingGoalInCents().mul(100).div(_amountInCents);
         uint256 _tokenAmount = totalSupply().mul(_percentOfFundingGoal).div(100);
-        setFundedAmountInTokensDuringFiatFunding(fundedAmountInTokensDuringFiatFunding().add(_tokenAmount));
+        setFundedAmountInTokensDuringFiatFunding(
+          fundedAmountInTokensDuringFiatFunding().add(_tokenAmount)
+        );
         setFiatInvestmentPerUserInTokens(
           _contributor, 
           fiatInvestmentPerUserInTokens(_contributor).add(_tokenAmount)
@@ -264,7 +257,7 @@ contract PoaCrowdsale {
 
     // prevent case where buying after reaching fundingGoal results in buyer
     // earning money on a buy
-    if (weiToFiatCents(fundedAmountInWei()) > fundingGoalInCents) {
+    if (weiToFiatCents(fundedAmountInWei()) > fundingGoalInCents()) {
       enterStage(Stages.Pending);
       if (msg.value > 0) {
         msg.sender.transfer(msg.value);
@@ -275,11 +268,11 @@ contract PoaCrowdsale {
     // get current funded amount + sent value in cents
     // with most current rate available
     uint256 _currentFundedCents = weiToFiatCents(fundedAmountInWei().add(msg.value))
-      .add(fundedAmountInCentsDuringFiatFunding);
+      .add(fundedAmountInCentsDuringFiatFunding());
     // check if balance has met funding goal to move on to Pending
-    if (_currentFundedCents < fundingGoalInCents) {
+    if (_currentFundedCents < fundingGoalInCents()) {
       // give a range due to fun fun integer division
-      if (fundingGoalInCents.sub(_currentFundedCents) > 1) {
+      if (fundingGoalInCents().sub(_currentFundedCents) > 1) {
         // continue sale if more than 1 cent from goal in fiat
         return buyAndContinueFunding(msg.value);
       } else {
@@ -322,7 +315,7 @@ contract PoaCrowdsale {
     // let the world know that the token is in Pending Stage
     enterStage(Stages.Pending);
     uint256 _refundAmount = _shouldRefund ?
-      fundedAmountInWei().add(msg.value).sub(fiatCentsToWei(fundingGoalInCents)) :
+      fundedAmountInWei().add(msg.value).sub(fiatCentsToWei(fundingGoalInCents())) :
       0;
     // transfer refund amount back to user
     msg.sender.transfer(_refundAmount);
@@ -357,8 +350,8 @@ contract PoaCrowdsale {
     // can now be claimed by broker via claim function
     // should only be buy()s - fee. this ensures buy() dust is cleared
     setUnclaimedPayoutTotals(
-      broker, 
-      unclaimedPayoutTotals(broker).add(address(this).balance)
+      broker(), 
+      unclaimedPayoutTotals(broker()).add(address(this).balance)
     );
     // allow trading of tokens
     setPaused(false);
@@ -660,7 +653,7 @@ contract PoaCrowdsale {
     view
     returns (uint256)
   {
-    return fiatCentsToWei(fundingGoalInCents);
+    return fiatCentsToWei(fundingGoalInCents());
   }
 
   // pay fee to FeeManager
@@ -708,7 +701,7 @@ contract PoaCrowdsale {
     view
     returns (string)
   {
-    return to32LengthString(fiatCurrency32);
+    return to32LengthString(fiatCurrency32());
   }
 
   function proofOfCustody()
@@ -863,8 +856,96 @@ contract PoaCrowdsale {
     }
   }
 
+  function crowdsaleInitialized()
+    public
+    view
+    returns (bool _crowdsaleInitialized)
+  {
+    bytes32 _crowdsaleInitializedPointer = crowdsaleInitializedPointer;
+    assembly {
+      _crowdsaleInitialized := sload(_crowdsaleInitializedPointer)
+    }
+  }
+
+  function startTime()
+    public
+    view
+    returns (uint256 _startTime)
+  {
+    bytes32 _startTimePointer = startTimePointer;
+    assembly {
+      _startTime := sload(_startTimePointer)
+    }
+  }
+
+  function fundingTimeout()
+    public
+    view
+    returns (uint256 _fundingTimeout)
+  {
+    bytes32 _fundingTimeoutPointer = fundingTimeoutPointer;
+    assembly {
+      _fundingTimeout := sload(_fundingTimeoutPointer)
+    }
+  }
+
+  function activationTimeout()
+    public
+    view
+    returns (uint256 _activationTimeout)
+  {
+    bytes32 _activationTimeoutPointer = activationTimeoutPointer;
+    assembly {
+      _activationTimeout := sload(_activationTimeoutPointer)
+    }
+  }
+
+  function fiatCurrency32()
+    internal
+    view
+    returns (bytes32 _fiatCurrency32)
+  {
+    bytes32 _fiatCurrency32Pointer = fiatCurrency32Pointer;
+    assembly {
+      _fiatCurrency32 := sload(_fiatCurrency32Pointer)
+    }
+  }
+
+  function fundingGoalInCents()
+    public
+    view
+    returns (uint256 _fundingGoalInCents)
+  {
+    bytes32 _fundingGoalInCentsPointer = fundingGoalInCentsPointer;
+    assembly {
+      _fundingGoalInCents := sload(_fundingGoalInCentsPointer)
+    }
+  }
+
+  function fundedAmountInCentsDuringFiatFunding()
+    public
+    view
+    returns (uint256 _fundedAmountInCentsDuringFiatFunding)
+  {
+    bytes32 _fundedAmountInCentsDuringFiatFundingPointer = fundedAmountInCentsDuringFiatFundingPointer;
+    assembly {
+      _fundedAmountInCentsDuringFiatFunding := sload(_fundedAmountInCentsDuringFiatFundingPointer)
+    }
+  }
+
+  function broker()
+    public
+    view
+    returns (address _broker)
+  {
+    bytes32 _brokerPointer = brokerPointer;
+    assembly {
+      _broker := sload(_brokerPointer)
+    }
+  }
+
   //
-  // end hashed pointer getters
+  // end  hashed pointer getters
   //
 
   //
@@ -978,6 +1059,94 @@ contract PoaCrowdsale {
     bytes32 _pausedSlot = pausedSlot;
     assembly {
       sstore(_pausedSlot, _paused)
+    }
+  }
+
+  function setCrowdsaleInitialized(
+    bool _crowdsaleInitialized
+  )
+    internal
+  {
+    bytes32 _crowdsaleInitializedPointer = crowdsaleInitializedPointer;
+    assembly {
+      sstore(_crowdsaleInitializedPointer, _crowdsaleInitialized)
+    }
+  }
+
+  function setStartTime(
+    uint256 _startTime
+  )
+    internal
+  {
+    bytes32 _startTimePointer = startTimePointer;
+    assembly {
+      sstore(_startTimePointer, _startTime)
+    }
+  }
+
+  function setFundingTimeout(
+    uint256 _fundingTimeout
+  )
+    internal
+  {
+    bytes32 _fundingTimeoutPointer = fundingTimeoutPointer;
+    assembly {
+      sstore(_fundingTimeoutPointer, _fundingTimeout)
+    }
+  }
+
+  function setActivationTimeout(
+    uint256 _activationTimeout
+  )
+    internal
+  {
+    bytes32 _activationTimeoutPointer = activationTimeoutPointer;
+    assembly {
+      sstore(_activationTimeoutPointer, _activationTimeout)
+    }
+  }
+
+  function setFiatCurrency32(
+    bytes32 _fiatCurrency32
+  )
+    internal
+  {
+    bytes32 _fiatCurrency32Pointer = fiatCurrency32Pointer;
+    assembly {
+      sstore(_fiatCurrency32Pointer, _fiatCurrency32)
+    }
+  }
+
+  function setFundingGoalInCents(
+    uint256 _fundingGoalInCents
+  )
+    internal
+  {
+    bytes32 _fundingGoalInCentsPointer = fundingGoalInCentsPointer;
+    assembly {
+      sstore(_fundingGoalInCentsPointer, _fundingGoalInCents)
+    }
+  }
+
+  function setFundedAmountInCentsDuringFiatFunding(
+    uint256 _fundedAmountInCentsDuringFiatFunding
+  )
+    internal
+  {
+    bytes32 _fundedAmountInCentsDuringFiatFundingPointer = fundedAmountInCentsDuringFiatFundingPointer;
+    assembly {
+      sstore(_fundedAmountInCentsDuringFiatFundingPointer, _fundedAmountInCentsDuringFiatFunding)
+    }
+  }
+
+  function setBroker(
+    address _broker
+  )
+    internal
+  {
+    bytes32 _brokerPointer = brokerPointer;
+    assembly {
+      sstore(_brokerPointer, _broker)
     }
   }
 
