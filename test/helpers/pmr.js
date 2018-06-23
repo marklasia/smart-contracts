@@ -29,12 +29,12 @@ const owner = accounts[0]
 const custodian = accounts[2]
 
 const setupPoaManager = async () => {
-  const poam = await PoaToken.new()
+  const poatm = await PoaToken.new()
   const { reg, exr, exp, fmr } = await setupEcosystem()
   const pmr = await PoaManager.new(reg.address)
 
   await reg.updateContractAddress('PoaManager', pmr.address)
-  await reg.updateContractAddress('PoaTokenMaster', poam.address)
+  await reg.updateContractAddress('PoaTokenMaster', poatm.address)
 
   await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
     from: owner,
@@ -42,7 +42,7 @@ const setupPoaManager = async () => {
   })
 
   return {
-    poam,
+    poatm,
     reg,
     pmr,
     fmr

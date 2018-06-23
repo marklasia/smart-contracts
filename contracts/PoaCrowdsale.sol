@@ -21,6 +21,35 @@ contract PoaCrowdsale {
     Terminated, // 6
     Cancelled // 7
   }
+
+  //
+  // start crowdsale specific storage variables
+  //
+
+  bool public crowdsaleInitialized;
+  // ‰ permille NOT percent: fee paid to BBK holders through ACT
+  uint256 public constant feeRate = 5;
+  // used to check when contract should move from PreFunding to Funding stage
+  uint256 public startTime;
+  // amount of seconds until moving to Failed from
+  // Funding stage after startTime
+  uint256 public fundingTimeout;
+  // amount of seconds until moving to Failed from
+  // Pending stage after startTime + fundingTimeout
+  uint256 public activationTimeout;
+  // fiat currency symbol used to get rate
+  bytes32 private fiatCurrency32;
+  // amount needed before moving to pending calculated in fiat
+  uint256 public fundingGoalInCents;
+  // used to keep track of actual funded amount in fiat during FiatFunding stage
+  uint256 public fundedAmountInCentsDuringFiatFunding;
+  // broker who is selling property, whitelisted on PoaManager
+  address public broker;
+
+
+  //
+  // end crowdsale specific storage variabls
+  // 
   
   //
   // start special hashed common storage pointers
@@ -50,39 +79,11 @@ contract PoaCrowdsale {
   // represents slot for: mapping(address => uint256)
   bytes32 private constant unclaimedPayoutTotalsSlot = keccak256("unclaimedPayoutTotals");
   bytes32 private constant pausedSlot = keccak256("paused");
+  bytes32 private constant tokenInitializedSlot = keccak256("tokenInitialized");
 
-  
   //
   // end special hashed common storage pointers
   //
-
-  //
-  // start crowdsale specific storage variables
-  //
-
-  // ‰ permille NOT percent: fee paid to BBK holders through ACT
-  uint256 public constant feeRate = 5;
-  // used to check when contract should move from PreFunding to Funding stage
-  uint256 public startTime;
-  // amount of seconds until moving to Failed from
-  // Funding stage after startTime
-  uint256 public fundingTimeout;
-  // amount of seconds until moving to Failed from
-  // Pending stage after startTime + fundingTimeout
-  uint256 public activationTimeout;
-  // fiat currency symbol used to get rate
-  bytes32 private fiatCurrency32;
-  // amount needed before moving to pending calculated in fiat
-  uint256 public fundingGoalInCents;
-  // used to keep track of actual funded amount in fiat during FiatFunding stage
-  uint256 public fundedAmountInCentsDuringFiatFunding;
-  // broker who is selling property, whitelisted on PoaManager
-  address public broker;
-
-
-  //
-  // end crowdsale specific storage variabls
-  // 
 
   event Unpause();
 
@@ -142,6 +143,43 @@ contract PoaCrowdsale {
   //
   // end modifiers
   //
+
+  function initialize(
+    bytes32 _fiatCurrency32, // bytes32 of fiat currency string
+    address _broker,
+    uint256 _startTime, // unix timestamp
+    uint256 _fundingTimeout, // seconds after startTime
+    uint256 _activationTimeout, // seconds after startTime + fundingTimeout
+    uint256 _fundingGoalInCents // fiat cents
+  )
+    external
+    returns (bool)
+  {
+    // ensure that token has already been initialized
+    require(tokenInitialized());
+    // ensure that crowdsale has not already been initialized
+    require(!crowdsaleInitialized);
+
+    // validate initialize parameters
+    require(_fiatCurrency32 != bytes32(0));
+    require(_broker != address(0));
+    require(_startTime > block.timestamp);
+    require(_fundingTimeout >= 60 * 60 * 24);
+    require(_activationTimeout >= 60 * 60 * 24 * 7);
+    require(_fundingGoalInCents > 0);
+    require(totalSupply() > _fundingGoalInCents);
+
+    // initialize storage
+    fiatCurrency32 = _fiatCurrency32;
+    broker = _broker;
+    startTime = _startTime;
+    fundingTimeout = _fundingTimeout;
+    activationTimeout = _activationTimeout;
+    fundingGoalInCents = _fundingGoalInCents;
+
+    // run getRate once in order to see if rate is initialized, throws if not
+    require(getFiatRate() > 0);
+  }
 
   //
   // start lifecycle functions
@@ -811,6 +849,17 @@ contract PoaCrowdsale {
     );
     assembly {
       _unclaimedPayoutTotals := sload(_entrySlot)
+    }
+  }
+
+  function tokenInitialized()
+    public
+    view
+    returns (bool _tokenInitialized)
+  {
+    bytes32 _tokenInitializedSlot = tokenInitializedSlot;
+    assembly {
+      _tokenInitialized := sload(_tokenInitializedSlot)
     }
   }
 

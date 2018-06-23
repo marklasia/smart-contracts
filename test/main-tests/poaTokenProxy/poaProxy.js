@@ -10,13 +10,13 @@ const { addToken } = require('../../helpers/pmr')
 
 describe('when using PoaToken as a master for proxies', () => {
   contract('PoaToken proxy/master', () => {
-    let poam
+    let poatm
     let pmr
     let reg
 
     beforeEach('setup contracts', async () => {
       const contracts = await setupPoaProxyAndEcosystem()
-      poam = contracts.poam
+      poatm = contracts.poatm
       pmr = contracts.pmr
       reg = contracts.reg
     })
@@ -28,7 +28,7 @@ describe('when using PoaToken as a master for proxies', () => {
       // collect data on current proxy state
       const state = await testProxyUnchanged(poa, true, null)
       // need the stub in order to set this up...
-      await poam.setupContract(
+      await poatm.setupContract(
         'MASTER',
         'MST',
         'EUR',

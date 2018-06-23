@@ -21,7 +21,7 @@
 
 // describe.only('when using PoaProxy contract to proxy a PoaToken', () => {
 //   contract('PoaProxy/PoaToken', accounts => {
-//     let poam
+//     let poatm
 //     let upoam
 //     let pmr
 //     let pxy
@@ -35,9 +35,9 @@
 //       reg = contracts.reg
 //       pmr = contracts.pmr
 //       fmr = contracts.fmr
-//       poam = await PoaToken.new()
+//       poatm = await PoaToken.new()
 //       upoam = await UpgradedPoa.new()
-//       pxy = await PoaProxy.new(poam.address, reg.address)
+//       pxy = await PoaProxy.new(poatm.address, reg.address)
 //       poa = await PoaToken.at(pxy.address)
 //       assert.equal(
 //         poa.address,
@@ -88,8 +88,8 @@
 
 //       assert.equal(
 //         preMaster,
-//         poam.address,
-//         'old master should be equal to poam.address'
+//         poatm.address,
+//         'old master should be equal to poatm.address'
 //       )
 //       assert.equal(
 //         postMaster,

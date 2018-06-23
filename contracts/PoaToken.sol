@@ -22,39 +22,6 @@ contract PoaToken is StandardToken, Ownable {
   }
 
   //
-  // start special hashed common storage pointers
-  //
-
-  // represents slot for: Stage
-  bytes32 private constant stageSlot = keccak256("stage");
-  // represents slot for: address
-  bytes32 private constant custodianSlot = keccak256("custodian");
-  // represents slot for: bytes32[2] TODO: probably need to fix getters/setters
-  bytes32 private constant proofOfCustody32Slot = keccak256("proofOfCustody32Slot");
-  // represents slot for: uint256
-  bytes32 private constant totalSupplySlot = keccak256("totalSupply");
-  // represents slot for: uint256
-  bytes32 private constant fundedAmountInTokensDuringFiatFundingSlot = 
-  keccak256("fundedAmountInTokensDuringFiatFunding");
-  // represents slot for: mapping(address => uint256)
-  bytes32 private constant fiatInvestmentPerUserInTokensSlot = 
-  keccak256("fiatInvestmentPerUserInTokens");
-  // represents slot for: uint256
-  bytes32 private constant fundedAmountInWeiSlot = keccak256("fundedAmountInWei");
-  // represents slot for: mapping(address => uint256)
-  bytes32 private constant investmentAmountPerUserInWeiSlot = 
-  keccak256("investmentAmountPerUserInWei");
-  // represents slot for: address
-  bytes32 private constant registrySlot = keccak256("registry");
-  // represents slot for: mapping(address => uint256)
-  bytes32 private constant unclaimedPayoutTotalsSlot = keccak256("unclaimedPayoutTotals");
-  bytes32 private constant pausedSlot = keccak256("paused");
-
-  //
-  // end special hashed common storage pointers
-  //
-
-  //
   // start poaToken specific storage variables
   //
 
@@ -84,6 +51,40 @@ contract PoaToken is StandardToken, Ownable {
 
   //
   // end poaToken specific storage variables
+  //
+
+  //
+  // start special hashed common storage pointers
+  //
+
+  // represents slot for: Stage
+  bytes32 private constant stageSlot = keccak256("stage");
+  // represents slot for: address
+  bytes32 private constant custodianSlot = keccak256("custodian");
+  // represents slot for: bytes32[2] TODO: probably need to fix getters/setters
+  bytes32 private constant proofOfCustody32Slot = keccak256("proofOfCustody32Slot");
+  // represents slot for: uint256
+  bytes32 private constant totalSupplySlot = keccak256("totalSupply");
+  // represents slot for: uint256
+  bytes32 private constant fundedAmountInTokensDuringFiatFundingSlot = 
+  keccak256("fundedAmountInTokensDuringFiatFunding");
+  // represents slot for: mapping(address => uint256)
+  bytes32 private constant fiatInvestmentPerUserInTokensSlot = 
+  keccak256("fiatInvestmentPerUserInTokens");
+  // represents slot for: uint256
+  bytes32 private constant fundedAmountInWeiSlot = keccak256("fundedAmountInWei");
+  // represents slot for: mapping(address => uint256)
+  bytes32 private constant investmentAmountPerUserInWeiSlot = 
+  keccak256("investmentAmountPerUserInWei");
+  // represents slot for: address
+  bytes32 private constant registrySlot = keccak256("registry");
+  // represents slot for: mapping(address => uint256)
+  bytes32 private constant unclaimedPayoutTotalsSlot = keccak256("unclaimedPayoutTotals");
+  bytes32 private constant pausedSlot = keccak256("paused");
+  bytes32 private constant tokenInitializedSlot = keccak256("tokenInitialized");
+
+  //
+  // end special hashed common storage pointers
   //
 
   // TODO: perhaps move these to Logger contract since Pausable is no longer taken from openzeppelin
@@ -153,6 +154,37 @@ contract PoaToken is StandardToken, Ownable {
   modifier whenPaused() {
     require(paused());
     _;
+  }
+
+  function initialize(
+    bytes32 _name32, // bytes32 of name string
+    bytes32 _symbol32, // bytes32 of symbol string
+    address _custodian,
+    address _registry,
+    uint256 _totalSupply // token total supply
+  )
+    external
+    returns (bool)
+  {
+    // ensure initialize has not been called already
+    require(!tokenInitialized());
+
+    // validate initialize parameters
+    require(_name32 != bytes32(0));
+    require(_symbol32 != bytes32(0));
+    require(_custodian != address(0));
+    require(_registry != address(0));
+    require(_totalSupply >= 1e18);
+
+    // initialize storage
+    name32 = _name32;
+    symbol32 = _symbol32;
+    setCustodian(_custodian);
+    setRegistry(_registry);
+    setTotalSupply(_totalSupply);
+    setPaused(true);
+    whitelistTransfers = false;
+    owner = getContractAddress("PoaManager");
   }
 
   //
@@ -869,6 +901,17 @@ contract PoaToken is StandardToken, Ownable {
     }
   }
 
+  function tokenInitialized()
+    public
+    view
+    returns (bool _tokenInitialized)
+  {
+    bytes32 _tokenInitializedSlot = tokenInitializedSlot;
+    assembly {
+      _tokenInitialized := sload(_tokenInitializedSlot)
+    }
+  }
+
   //
   // end hashed pointer getters
   //
@@ -948,6 +991,17 @@ contract PoaToken is StandardToken, Ownable {
     );
     assembly {
       sstore(_entrySlot, _amount)
+    }
+  }
+
+  function setTokenInitialized(
+    bool _tokenInitialized
+  )
+    internal
+  {
+    bytes32 _tokenInitializedSlot = tokenInitializedSlot;
+    assembly {
+      sstore(_tokenInitializedSlot, _tokenInitialized)
     }
   }
 
