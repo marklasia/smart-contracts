@@ -282,16 +282,8 @@ const testProxyInitialization = async (reg, pmr, args) => {
   // Poa PoaProxy contract tx
   const poaTx = await pmr.addToken.apply(null, args)
 
-  //
-  // start messing around
-  //
-
   // wrap the proxied PoA in PoaToken ABI to call as if regular PoA
   const poa = await IPoaTokenCrowdsale.at(poaTx.logs[0].args.token)
-
-  //
-  // end messing around
-  //
 
   const name = await poa.name()
   const symbol = await poa.symbol()
