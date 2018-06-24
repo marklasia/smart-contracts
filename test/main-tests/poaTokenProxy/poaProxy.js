@@ -1,4 +1,4 @@
-const PoaToken = artifacts.require('PoaToken')
+const IPoaTokenCrowdsale = artifacts.require('IPoaTokenCrowdsale')
 const BigNumber = require('bignumber.js')
 const {
   owner,
@@ -24,7 +24,7 @@ describe('when using PoaToken as a master for proxies', () => {
     it('should not affect proxy storage when master is changed', async () => {
       const newToken = await addToken(pmr, { from: broker })
       // wrap proxy in PoaToken definition
-      const poa = await PoaToken.at(newToken.tokenAddress)
+      const poa = await IPoaTokenCrowdsale.at(newToken.tokenAddress)
       // collect data on current proxy state
       const state = await testProxyUnchanged(poa, true, null)
       // need the stub in order to set this up...

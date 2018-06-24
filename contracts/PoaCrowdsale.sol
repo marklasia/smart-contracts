@@ -53,8 +53,6 @@ contract PoaCrowdsale {
   bytes32 private constant unclaimedPayoutTotalsSlot = keccak256("unclaimedPayoutTotals");
   bytes32 private constant pausedSlot = keccak256("paused");
   bytes32 private constant tokenInitializedSlot = keccak256("tokenInitialized");
-
-
   bytes32 private constant crowdsaleInitializedPointer = keccak256("crowdsaleInitialized");
   bytes32 private constant startTimePointer = keccak256("startTime");
   bytes32 private constant fundingTimeoutPointer = keccak256("fundingTimeout");

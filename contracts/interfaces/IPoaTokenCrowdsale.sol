@@ -123,6 +123,23 @@ interface IPoaTokenCrowdsale {
     view
     returns (bool _paused);
 
+  function allowance
+  (
+    address _owner, 
+    address _spender
+  ) 
+    external 
+    view 
+    returns (uint256);
+
+  function approve(
+    address _spender, 
+    uint256 _value
+  ) 
+    external 
+    returns (bool);
+  
+
   //
   // end token functionality
   //
@@ -289,7 +306,6 @@ interface IPoaTokenCrowdsale {
     view
     returns (string);
 
-  // TODO: check that this works as uint256 rather than enum
   function stage()
     external
     view

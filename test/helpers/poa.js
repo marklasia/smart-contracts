@@ -244,7 +244,7 @@ const setupPoaProxyAndEcosystem = async () => {
   )
 
   // wrap the proxied PoA in PoaToken ABI to call as if regular PoA
-  const poa = await PoaToken.at(poaTx.logs[0].args.token)
+  const poa = await IPoaTokenCrowdsale.at(poaTx.logs[0].args.token)
   // trick the proxyPoa into thinking that PoaManager is owner
   // this makes it easier to test with a regular account
   // PoaManager only functions are tested in PoaManager tests as
@@ -396,7 +396,6 @@ const testProxyInitialization = async (reg, pmr, args) => {
     areInRange(startTime, defaultStartTime, 1),
     'startTime should match startTime given in constructor'
   )
-
   return poa
 }
 
@@ -688,6 +687,7 @@ const testBuyTokens = async (poa, config) => {
   const preTokenBalance = await poa.balanceOf(buyer)
   const preFundedAmount = await poa.fundedAmountInWei()
   const preUserWeiInvested = await poa.investmentAmountPerUserInWei(buyer)
+
   const tx = await poa.buy(config)
   const gasUsed = await getGasUsed(tx)
   const gasCost = new BigNumber(gasUsed).mul(config.gasPrice)
