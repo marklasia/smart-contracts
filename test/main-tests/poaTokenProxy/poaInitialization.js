@@ -79,7 +79,7 @@ describe('when initializing PoaToken', () => {
       )
     })
 
-    it.only('should start with the right values', async () => {
+    it('should start with the right values', async () => {
       await testSetCurrencyRate(
         exr,
         exp,

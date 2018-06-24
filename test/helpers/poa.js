@@ -279,10 +279,8 @@ const testProxyInitialization = async (reg, pmr, args) => {
 
   const defaultStartTime = await getDefaultStartTime()
 
-  console.log('before pmr deployment')
   // Poa PoaProxy contract tx
   const poaTx = await pmr.addToken.apply(null, args)
-  console.log('after pmr deployment')
 
   //
   // start messing around
@@ -290,17 +288,6 @@ const testProxyInitialization = async (reg, pmr, args) => {
 
   // wrap the proxied PoA in PoaToken ABI to call as if regular PoA
   const poa = await IPoaTokenCrowdsale.at(poaTx.logs[0].args.token)
-  const poaTokenMaster = await poa.proxyPoaTokenMaster()
-  const proxyPoaCrowdsaleMaster = await poa.proxyPoaCrowdsaleMaster()
-  const poaCrowdsaleMaster = await poa.poaCrowdsaleMaster()
-  console.log(
-    'token',
-    poaTokenMaster,
-    'proxy crowdsale',
-    proxyPoaCrowdsaleMaster,
-    'crowdsale',
-    poaCrowdsaleMaster
-  )
 
   //
   // end messing around

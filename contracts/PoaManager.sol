@@ -243,14 +243,14 @@ contract PoaManager is Ownable {
       _totalSupply
     );
 
-    // IPoaCrowdsale(_tokenAddress).initializeCrowdsale(
-    //   _fiatCurrency32,
-    //   msg.sender,
-    //   _startTime,
-    //   _fundingTimeout,
-    //   _activationTimeout,
-    //   _fundingGoalInCents
-    // );
+    IPoaCrowdsale(_tokenAddress).initializeCrowdsale(
+      _fiatCurrency32,
+      msg.sender,
+      _startTime,
+      _fundingTimeout,
+      _activationTimeout,
+      _fundingGoalInCents
+    );
 
     tokenMap[_tokenAddress] = addEntity(
       _tokenAddress,

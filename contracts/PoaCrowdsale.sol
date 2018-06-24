@@ -163,6 +163,7 @@ contract PoaCrowdsale {
 
     // run getRate once in order to see if rate is initialized, throws if not
     require(getFiatRate() > 0);
+    setCrowdsaleInitialized(true);
 
     return true;
   }
@@ -204,7 +205,8 @@ contract PoaCrowdsale {
   }
 
   // Buy with FIAT
-  function buyFiat(
+  function buyFiat
+  (
     address _contributor, 
     uint256 _amountInCents
   )
@@ -328,7 +330,10 @@ contract PoaCrowdsale {
 
   // activate token with proofOfCustody fee is taken from contract balance
   // brokers must work this into their funding goals
-  function activate(bytes32[2] _ipfsHash)
+  function activate
+  (
+    bytes32[2] _ipfsHash
+  )
     external
     checkTimeout
     onlyCustodian
@@ -419,7 +424,8 @@ contract PoaCrowdsale {
   //
 
   // gets a given contract address by bytes32 saving gas
-  function getContractAddress(
+  function getContractAddress
+  (
     string _name
   )
     public

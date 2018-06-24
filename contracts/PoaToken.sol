@@ -117,17 +117,26 @@ contract PoaToken is StandardToken, Ownable {
     _;
   }
 
-  modifier atStage(Stages _stage) {
+  modifier atStage
+  (
+    Stages _stage
+  ) {
     require(stage() == _stage);
     _;
   }
 
-  modifier atEitherStage(Stages _stage, Stages _orStage) {
+  modifier atEitherStage
+  (
+    Stages _stage, Stages _orStage
+  ) {
     require(stage() == _stage || stage() == _orStage);
     _;
   }
 
-  modifier isTransferWhitelisted(address _address) {
+  modifier isTransferWhitelisted
+  (
+    address _address
+  ) {
     if (whitelistTransfers) {
       require(checkIsWhitelisted(_address));
     }
@@ -135,7 +144,10 @@ contract PoaToken is StandardToken, Ownable {
     _;
   }
 
-  modifier validIpfsHash(bytes32[2] _ipfsHash) {
+  modifier validIpfsHash
+  (
+    bytes32[2] _ipfsHash
+  ) {
     // check that the most common hashing algo is used sha256
     // and that the length is correct. In theory it could be different
     // but use of this functionality is limited to only custodian
@@ -188,6 +200,8 @@ contract PoaToken is StandardToken, Ownable {
     whitelistTransfers = false;
     owner = getContractAddress("PoaManager");
 
+    setTokenInitialized(true);
+
     return true;
   }
 
@@ -196,7 +210,9 @@ contract PoaToken is StandardToken, Ownable {
   //
 
   // used to enter a new stage of the contract
-  function enterStage(Stages _stage)
+  function enterStage(
+    Stages _stage
+  )
     internal
   {
     setStage(_stage);
@@ -207,7 +223,10 @@ contract PoaToken is StandardToken, Ownable {
   }
 
   // function to change custodianship of poa
-  function changeCustodianAddress(address _newCustodian)
+  function changeCustodianAddress
+  (
+    address _newCustodian
+  )
     external
     onlyCustodian
     returns (bool)
@@ -250,7 +269,10 @@ contract PoaToken is StandardToken, Ownable {
   //
 
   // public utility function to allow checking of required fee for a given amount
-  function calculateFee(uint256 _value)
+  function calculateFee
+  (
+    uint256 _value
+  )
     public
     pure
     returns (uint256)
@@ -260,7 +282,10 @@ contract PoaToken is StandardToken, Ownable {
   }
 
   // takes a single bytes32 and returns a max 32 char long string
-  function to32LengthString(bytes32 _data)
+  function to32LengthString
+  (
+    bytes32 _data
+  )
     pure
     private
     returns (string)
@@ -305,7 +330,10 @@ contract PoaToken is StandardToken, Ownable {
   }
 
   // takes a dynamically sized array of bytes32. needed for longer strings
-  function to64LengthString(bytes32[2] _data)
+  function to64LengthString
+  (
+    bytes32[2] _data
+  )
     pure
     private
     returns (string)
@@ -401,7 +429,10 @@ contract PoaToken is StandardToken, Ownable {
 
   // use assembly in order to avoid gas usage which is too high
   // used to check if whitelisted at Whitelist contract
-  function checkIsWhitelisted(address _address)
+  function checkIsWhitelisted
+  (
+    address _address
+  )
     public
     view
     returns (bool _isWhitelisted)
@@ -436,7 +467,10 @@ contract PoaToken is StandardToken, Ownable {
   }
 
   // pay fee to FeeManager
-  function payFee(uint256 _value)
+  function payFee
+  (
+    uint256 _value
+  )
     internal
     returns (bool)
   {
@@ -526,7 +560,11 @@ contract PoaToken is StandardToken, Ownable {
   //
 
   // get current payout for perTokenPayout and unclaimed
-  function currentPayout(address _address, bool _includeUnclaimed)
+  function currentPayout
+  (
+    address _address, 
+    bool _includeUnclaimed
+  )
     public
     view
     returns (uint256)
@@ -561,7 +599,11 @@ contract PoaToken is StandardToken, Ownable {
 
   // settle up perToken balances and move into unclaimedPayoutTotals in order
   // to ensure that token transfers will not result in inaccurate balances
-  function settleUnclaimedPerTokenPayouts(address _from, address _to)
+  function settleUnclaimedPerTokenPayouts
+  (
+    address _from, 
+    address _to
+  )
     internal
     returns (bool)
   {
@@ -649,7 +691,10 @@ contract PoaToken is StandardToken, Ownable {
   }
 
   // allow ipfs hash to be updated when audit etc occurs
-  function updateProofOfCustody(bytes32[2] _ipfsHash)
+  function updateProofOfCustody
+  (
+    bytes32[2] _ipfsHash
+  )
     external
     atEitherStage(Stages.Active, Stages.Terminated)
     onlyCustodian
@@ -673,7 +718,10 @@ contract PoaToken is StandardToken, Ownable {
   //
 
   // used for calculating starting balance once activated
-  function startingBalance(address _address)
+  function startingBalance
+  (
+    address _address
+  )
     internal
     view
     returns (uint256)
@@ -694,7 +742,10 @@ contract PoaToken is StandardToken, Ownable {
   }
 
   // ERC20 override uses NoobCoin pattern
-  function balanceOf(address _address)
+  function balanceOf
+  (
+    address _address
+  )
     public
     view
     returns (uint256)
