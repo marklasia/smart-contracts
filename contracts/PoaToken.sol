@@ -46,7 +46,7 @@ contract PoaToken is PoaBase, StandardToken, Ownable {
   //
   bytes32 private constant poaCrowdsaleMasterSlot = keccak256("PoaCrowdsaleMaster");
 
- 
+
   //
   // end special hashed common storage pointers
   //
@@ -607,6 +607,16 @@ contract PoaToken is PoaBase, StandardToken, Ownable {
     receivedBalances[_to] = receivedBalances[_to].add(_value);
     allowed[_from][msg.sender] = allowed[_from][msg.sender].sub(_value);
     emit Transfer(_from, _to, _value);
+    return true;
+  }
+
+  function approve(address _spender, uint256 _value)
+    public
+    whenNotPaused
+    returns (bool)
+  {
+    allowed[msg.sender][_spender] = _value;
+    emit Approval(msg.sender, _spender, _value);
     return true;
   }
 
