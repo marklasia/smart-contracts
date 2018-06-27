@@ -10,6 +10,16 @@ const deployedContractsByNetwork = require('../config/deployed-contracts.js')
 // truffle compiles and then saves artifacts here
 const contractBuildDirectory = path.resolve(__dirname, '../build/contracts')
 
+// here is what is included in the published npm module
+const deployedContractsDirectory = path.resolve(
+  __dirname,
+  '../deployed-contracts'
+)
+
+// ensure this directory exists since we do not check this into git
+if (!fs.existsSync(deployedContractsDirectory))
+  fs.mkdirSync(deployedContractsDirectory)
+
 // we group by contract name; seems more natural in the JSON file to organize by network
 const deployedAddressesGroupedByContractName = R.toPairs(
   deployedContractsByNetwork
@@ -43,7 +53,7 @@ const deployedAddressesGroupedByContractName = R.toPairs(
 // hopefully we never need to use CustomPOAToken and this can be removed soon
 const customPoaAddressFilename = path.resolve(
   __dirname,
-  '../build/CustomPOAToken-addresses.json'
+  '../deployed-contracts/CustomPOAToken-addresses.json'
 )
 const customPoaTokenAddresses =
   deployedAddressesGroupedByContractName.CustomPOAToken
@@ -54,33 +64,47 @@ fs.writeFileSync(
 )
 // end TODO: hope we remove real soon
 
-// add the addresses into the build artifact
-R.keys(deployedAddressesGroupedByContractName).forEach(contractName => {
-  const contractArtifactFilename = path.join(
-    contractBuildDirectory,
-    `${contractName}.json`
-  )
-  const contractArtifact = JSON.parse(fs.readFileSync(contractArtifactFilename))
-
-  // TODO:
-  // we use `truffle-contract` in platform, and it must have all events in each network property...
-  // ideally this would be read from the ABI but somehow this lib does its own weird thing
-  const events = contractArtifact.abi
-    .filter(item => item.type === 'event')
-    .map(event => {
-      const key =
-        '0x' +
-        sha3(
-          `${event.name}(${event.inputs.map(input => input.type).join(',')})`
-        ).hexSlice()
-      return { [key]: event }
-    })
-
-  // keys existing in both objects, the values from second object is used
-  contractArtifact.networks = R.merge(
-    deployedAddressesGroupedByContractName[contractName],
-    { events, updated_at: Date.now() }
+fs.readdirSync(contractBuildDirectory).forEach(contractArtifactFilename => {
+  // this is the output from truffle compile
+  const contractArtifact = JSON.parse(
+    fs.readFileSync(path.join(contractBuildDirectory, contractArtifactFilename))
   )
 
-  fs.writeFileSync(contractArtifactFilename, JSON.stringify(contractArtifact))
+  // this is the minimal data needed to work with the contract
+  // if something wants to deploy an instance of the contract, should use truffle compiled output
+  const deployedContractArtifact = R.pick(['abi'], contractArtifact)
+
+  const contractName = contractArtifactFilename.replace('.json', '')
+
+  // add the addresses into the build artifact
+  if (!R.isNil(deployedAddressesGroupedByContractName[contractName])) {
+    deployedContractArtifact.networks =
+      deployedAddressesGroupedByContractName[contractName]
+
+    // TODO:
+    // we use `truffle-contract` in platform, and it must have all events in each network property...
+    // ideally this would be read from the ABI but somehow this lib does its own weird thing
+    const events = contractArtifact.abi
+      .filter(item => item.type === 'event')
+      .map(event => {
+        const key =
+          '0x' +
+          sha3(
+            `${event.name}(${event.inputs.map(input => input.type).join(',')})`
+          ).hexSlice()
+        return { [key]: event }
+      })
+
+    deployedContractArtifact.networks = R.merge(
+      deployedContractArtifact.networks,
+      { events }
+    )
+    // end TODO: if we ever stop using truffle-contract this block can go away
+  }
+
+  // write the deployed contract to be used by consuming applications
+  fs.writeFileSync(
+    path.join(deployedContractsDirectory, contractArtifactFilename),
+    JSON.stringify(deployedContractArtifact)
+  )
 })
