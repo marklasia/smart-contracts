@@ -28,7 +28,7 @@ module.exports = {
     devGeth: {
       host: 'localhost',
       port: 8545,
-      network_id: 4447,
+      network_id: 4448,
       // Values below 6000000 fail often because of the required minimum block gas amount.
       gas: 6300000
     },

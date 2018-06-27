@@ -133,7 +133,11 @@ const sendTransaction = (web3, args) => {
 const testWillThrow = async (fn, args) => {
   try {
     const txHash = await fn.apply(null, args)
-    await waitForReceiptStatusSuccessOrThrow(txHash)
+
+    if (web3.version.network === 4448) {
+      // if network is devGeth
+      await waitForReceiptStatusSuccessOrThrow(txHash)
+    }
 
     assert(false, 'the contract should throw here')
   } catch (error) {
