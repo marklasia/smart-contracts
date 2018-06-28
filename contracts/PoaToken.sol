@@ -60,7 +60,7 @@ contract PoaToken is StandardToken, Ownable {
   // represents slot for: address
   bytes32 private constant custodianSlot = keccak256("custodian");
   // represents slot for: bytes32[2] TODO: probably need to fix getters/setters
-  bytes32 private constant proofOfCustody32Slot = keccak256("proofOfCustody32Slot");
+  bytes32 private constant proofOfCustody32Slot = keccak256("proofOfCustody32");
   // represents slot for: uint256
   bytes32 private constant totalSupplySlot = keccak256("totalSupply");
   // represents slot for: uint256
@@ -810,6 +810,42 @@ contract PoaToken is StandardToken, Ownable {
     return true;
   }
 
+  function approve
+  (
+    address _spender, 
+    uint256 _value
+  ) 
+    public 
+    whenNotPaused 
+    returns (bool) 
+  {
+    return super.approve(_spender, _value);
+  }
+
+  function increaseApproval
+  (
+    address _spender, 
+    uint _addedValue
+  ) 
+    public 
+    whenNotPaused 
+    returns (bool success)
+  {
+    return super.increaseApproval(_spender, _addedValue);
+  }
+
+  function decreaseApproval
+  (
+    address _spender, 
+    uint _subtractedValue
+  )
+    public 
+    whenNotPaused 
+    returns (bool success) 
+  {
+    return super.decreaseApproval(_spender, _subtractedValue);
+  }
+
   //
   // end ERC20 overrides
   //
@@ -846,8 +882,10 @@ contract PoaToken is StandardToken, Ownable {
     returns (bytes32[2] _proofOfCustody32)
   {
     bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
+
     assembly {
-      _proofOfCustody32 := sload(_proofOfCustody32Slot)
+      mstore(_proofOfCustody32, sload(_proofOfCustody32Slot))
+      mstore(add(_proofOfCustody32, 0x20), sload(add(_proofOfCustody32Slot, 0x01)))
     }
   }
 
@@ -1004,12 +1042,25 @@ contract PoaToken is StandardToken, Ownable {
     }
   }
 
-  function setProofOfCustody32(bytes32[2] _proofOfCustody32)
+  function setProofOfCustody32(
+    bytes32[2] _proofOfCustody32
+  )
     internal
   {
     bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
     assembly {
-      sstore(_proofOfCustody32Slot, _proofOfCustody32)
+      // store first slot from memory
+      sstore(
+        _proofOfCustody32Slot, 
+        mload(_proofOfCustody32)
+      )
+      // store second slot from memory
+      sstore(
+        add(_proofOfCustody32Slot, 0x01), 
+        mload(
+          add(_proofOfCustody32, 0x20)
+        )
+      )
     }
   }
 

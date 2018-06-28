@@ -33,7 +33,7 @@ contract PoaCrowdsale {
   // represents slot for: address
   bytes32 private constant custodianSlot = keccak256("custodian");
   // represents slot for: bytes32[2] TODO: probably need to fix getters/setters
-  bytes32 private constant proofOfCustody32Slot = keccak256("proofOfCustody32Slot");
+  bytes32 private constant proofOfCustody32Slot = keccak256("proofOfCustody32");
   // represents slot for: uint256
   bytes32 private constant totalSupplySlot = keccak256("totalSupply");
   // represents slot for: uint256
@@ -442,7 +442,7 @@ contract PoaCrowdsale {
       // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
       let success := staticcall(
         gas,    // g = gas: whatever was passed already
-        sload(_registry),  // a = address: address in storage
+        _registry,  // a = address: address in storage
         _call,  // in = mem in  mem[in..(in+insize): set to free memory pointer
         0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
         _call,   // out = mem out  mem[out..(out+outsize): output assigned to this storage address
@@ -746,14 +746,27 @@ contract PoaCrowdsale {
     }
   }
 
+  // function proofOfCustody32()
+  //   public
+  //   view
+  //   returns (bytes32[2] _proofOfCustody32)
+  // {
+  //   bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
+  //   assembly {
+  //     _proofOfCustody32 := sload(_proofOfCustody32Slot)
+  //   }
+  // }
+
   function proofOfCustody32()
     public
     view
     returns (bytes32[2] _proofOfCustody32)
   {
     bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
+
     assembly {
-      _proofOfCustody32 := sload(_proofOfCustody32Slot)
+      mstore(_proofOfCustody32, sload(_proofOfCustody32Slot))
+      mstore(add(_proofOfCustody32, 0x20), sload(add(_proofOfCustody32Slot, 0x01)))
     }
   }
 
@@ -974,7 +987,18 @@ contract PoaCrowdsale {
   {
     bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
     assembly {
-      sstore(_proofOfCustody32Slot, _proofOfCustody32)
+      // store first slot from memory
+      sstore(
+        _proofOfCustody32Slot, 
+        mload(_proofOfCustody32)
+      )
+      // store second slot from memory
+      sstore(
+        add(_proofOfCustody32Slot, 0x01), 
+        mload(
+          add(_proofOfCustody32, 0x20)
+        )
+      )
     }
   }
 

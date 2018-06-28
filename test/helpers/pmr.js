@@ -1,11 +1,14 @@
 const PoaManager = artifacts.require('PoaManager.sol')
 const PoaToken = artifacts.require('PoaToken.sol')
+const PoaCrowdsale = artifacts.require('PoaCrowdsale')
+
 const {
   setupEcosystem,
   testSetCurrencyRate,
-  defaultName,
-  defaultSymbol,
+  defaultName32,
+  defaultSymbol32,
   defaultFiatCurrency,
+  defaultFiatCurrency32,
   defaultTotalSupply,
   defaultFundingTimeout,
   defaultActivationTimeout,
@@ -30,11 +33,13 @@ const custodian = accounts[2]
 
 const setupPoaManager = async () => {
   const poatm = await PoaToken.new()
+  const poacm = await PoaCrowdsale.new()
   const { reg, exr, exp, fmr } = await setupEcosystem()
   const pmr = await PoaManager.new(reg.address)
 
   await reg.updateContractAddress('PoaManager', pmr.address)
   await reg.updateContractAddress('PoaTokenMaster', poatm.address)
+  await reg.updateContractAddress('PoaCrowdsaleMaster', poacm.address)
 
   await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
     from: owner,
@@ -53,9 +58,9 @@ const addToken = async (pmr, config) => {
   const defaultStartTime = await getDefaultStartTime()
 
   const txReceipt = await pmr.addToken(
-    defaultName,
-    defaultSymbol,
-    defaultFiatCurrency,
+    defaultName32,
+    defaultSymbol32,
+    defaultFiatCurrency32,
     custodian,
     defaultTotalSupply,
     defaultStartTime,

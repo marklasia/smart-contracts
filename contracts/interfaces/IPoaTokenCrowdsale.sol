@@ -125,7 +125,7 @@ interface IPoaTokenCrowdsale {
 
   function allowance
   (
-    address _owner, 
+    address _owner,
     address _spender
   ) 
     external 
@@ -314,7 +314,7 @@ interface IPoaTokenCrowdsale {
   function proofOfCustody32()
     external
     view
-    returns (bytes32[2] _proofOfCustody32);
+    returns (bytes32[2]);
 
   function totalSupply()
     external
