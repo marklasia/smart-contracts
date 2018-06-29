@@ -39,11 +39,11 @@ contract PoaToken is StandardToken, Ownable {
   bool public whitelistTransfers;
 
   // used to deduct already claimed payouts on a per token basis
-  mapping(address => uint256) private claimedPerTokenPayouts;
+  mapping(address => uint256) public claimedPerTokenPayouts;
   // used to calculate balanceOf by deducting spent balances
-  mapping(address => uint256) private spentBalances;
+  mapping(address => uint256) public spentBalances;
   // used to calculate balanceOf by adding received balances
-  mapping(address => uint256) private receivedBalances;
+  mapping(address => uint256) public receivedBalances;
   // hide balances to ensure that only balanceOf is being used
   mapping(address => uint256) private balances;
 
@@ -616,7 +616,7 @@ contract PoaToken is StandardToken, Ownable {
     claimedPerTokenPayouts[_from] = totalPerTokenPayout;
     // same as above for to
     setUnclaimedPayoutTotals(
-      _from,
+      _to,
       unclaimedPayoutTotals(_to).add(currentPayout(_to, false))
     );
     // same as above for to

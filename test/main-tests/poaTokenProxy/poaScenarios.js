@@ -254,7 +254,8 @@ describe('when trying various scenarios involving payout, transfer, approve, and
 
         assert(
           areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
-          'sender currentPayout should match expectedPayout'
+          `receiver currentPayout ${senderAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
           areInRange(
@@ -262,7 +263,8 @@ describe('when trying various scenarios involving payout, transfer, approve, and
             expectedReceiverPayout,
             1e2
           ),
-          'receiver currentPayout should match expectedPayout'
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testTransfer(poa, receiver, senderAccount.tokenBalance, {
@@ -299,7 +301,8 @@ describe('when trying various scenarios involving payout, transfer, approve, and
 
         assert(
           areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
-          'sender currentPayout should match expectedPayout'
+          `receiver currentPayout ${senderAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
           areInRange(
@@ -307,7 +310,8 @@ describe('when trying various scenarios involving payout, transfer, approve, and
             expectedReceiverPayout,
             1e2
           ),
-          'receiver currentPayout should match expectedPayout'
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testClaimAllPayouts(poa, whitelistedPoaBuyers)
@@ -349,7 +353,8 @@ describe('when trying various scenarios involving payout, transfer, approve, and
 
         assert(
           areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
-          'sender currentPayout should match expectedPayout'
+          `receiver currentPayout ${senderAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
           areInRange(
@@ -357,7 +362,8 @@ describe('when trying various scenarios involving payout, transfer, approve, and
             expectedReceiverPayout,
             1e2
           ),
-          'receiver currentPayout should match expectedPayout'
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testTransfer(
@@ -399,7 +405,8 @@ describe('when trying various scenarios involving payout, transfer, approve, and
 
         assert(
           areInRange(senderAccount.currentPayout, expectedSenderPayout, 1e2),
-          'sender currentPayout should match expectedPayout'
+          `receiver currentPayout ${senderAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedSenderPayout.toString()}`
         )
         assert(
           areInRange(
@@ -407,7 +414,8 @@ describe('when trying various scenarios involving payout, transfer, approve, and
             expectedReceiverPayout,
             1e2
           ),
-          'receiver currentPayout should match expectedPayout'
+          `receiver currentPayout ${receiverAccount.currentPayout.toString()}
+          should match expectedPayout ${expectedReceiverPayout.toString()}`
         )
 
         await testClaimAllPayouts(poa, whitelistedPoaBuyers)
