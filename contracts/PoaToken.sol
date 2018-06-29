@@ -59,7 +59,7 @@ contract PoaToken is StandardToken, Ownable {
   bytes32 private constant stageSlot = keccak256("stage");
   // represents slot for: address
   bytes32 private constant custodianSlot = keccak256("custodian");
-  // represents slot for: bytes32[2] TODO: probably need to fix getters/setters
+  // represents slot for: bytes32[2]
   bytes32 private constant proofOfCustody32Slot = keccak256("proofOfCustody32");
   // represents slot for: uint256
   bytes32 private constant totalSupplySlot = keccak256("totalSupply");

@@ -30,8 +30,7 @@ const {
   getGasUsed,
   sendTransaction,
   testWillThrow,
-  timeTravel,
-  toBytes32
+  timeTravel
 } = require('./general')
 const { finalizedBBK } = require('./bbk')
 const { testApproveAndLockMany } = require('./act')
@@ -165,48 +164,6 @@ const testSetCurrencyRate = async (exr, exp, currencyType, rate, config) => {
   await testFetchRate(exr, exp, currencyType, config)
 
   await testSetRate(exr, exp, rate, false)
-}
-
-const setupPoaAndEcosystem = async () => {
-  const { reg, act, bbk, exr, exp, fmr, wht, pmr, log } = await setupEcosystem()
-
-  await testSetCurrencyRate(exr, exp, defaultFiatCurrency, defaultFiatRate, {
-    from: owner,
-    value: 1e18
-  })
-  const poa = await PoaToken.new()
-
-  await poa.setupContract(
-    toBytes32(defaultName),
-    toBytes32(defaultSymbol),
-    toBytes32(defaultFiatCurrency),
-    broker,
-    custodian,
-    reg.address,
-    defaultTotalSupply,
-    await getDefaultStartTime(),
-    defaultFundingTimeout,
-    defaultActivationTimeout,
-    defaultFundingGoal
-  )
-
-  // we change the PoaManager to owner address in registry in order to "trick"
-  // the only owner function so that testing is easier registry address
-  // in the contract remains the same
-  await reg.updateContractAddress('PoaManager', owner)
-
-  return {
-    act,
-    bbk,
-    exp,
-    exr,
-    fmr,
-    log,
-    pmr,
-    poa,
-    reg,
-    wht
-  }
 }
 
 const setupPoaProxyAndEcosystem = async () => {
@@ -1522,7 +1479,6 @@ module.exports = {
   getDefaultStartTime,
   owner,
   setupEcosystem,
-  setupPoaAndEcosystem,
   setupPoaProxyAndEcosystem,
   testActivate,
   testActiveBalances,

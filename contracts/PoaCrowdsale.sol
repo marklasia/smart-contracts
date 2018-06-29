@@ -32,7 +32,7 @@ contract PoaCrowdsale {
   bytes32 private constant stageSlot = keccak256("stage");
   // represents slot for: address
   bytes32 private constant custodianSlot = keccak256("custodian");
-  // represents slot for: bytes32[2] TODO: probably need to fix getters/setters
+  // represents slot for: bytes32[2]
   bytes32 private constant proofOfCustody32Slot = keccak256("proofOfCustody32");
   // represents slot for: uint256
   bytes32 private constant totalSupplySlot = keccak256("totalSupply");
@@ -53,18 +53,27 @@ contract PoaCrowdsale {
   bytes32 private constant unclaimedPayoutTotalsSlot = keccak256("unclaimedPayoutTotals");
   bytes32 private constant pausedSlot = keccak256("paused");
   bytes32 private constant tokenInitializedSlot = keccak256("tokenInitialized");
-  bytes32 private constant crowdsaleInitializedPointer = keccak256("crowdsaleInitialized");
-  bytes32 private constant startTimePointer = keccak256("startTime");
-  bytes32 private constant fundingTimeoutPointer = keccak256("fundingTimeout");
-  bytes32 private constant activationTimeoutPointer = keccak256("activationTimeout");
-  bytes32 private constant fiatCurrency32Pointer = keccak256("fiatCurrency32");
-  bytes32 private constant fundingGoalInCentsPointer = keccak256("fundingGoalInCents");
-  bytes32 private constant fundedAmountInCentsDuringFiatFundingPointer
-  = keccak256("fundedAmountInCentsDuringFiatFunding");
-  bytes32 private constant brokerPointer = keccak256("broker");
 
   //
   // end special hashed common storage pointers
+  //
+
+  //
+  // start special hashed PoaCrowdsale pointers
+  //
+
+  bytes32 private constant crowdsaleInitializedSlot = keccak256("crowdsaleInitialized");
+  bytes32 private constant startTimeSlot = keccak256("startTime");
+  bytes32 private constant fundingTimeoutSlot = keccak256("fundingTimeout");
+  bytes32 private constant activationTimeoutSlot = keccak256("activationTimeout");
+  bytes32 private constant fiatCurrency32Slot = keccak256("fiatCurrency32");
+  bytes32 private constant fundingGoalInCentsSlot = keccak256("fundingGoalInCents");
+  bytes32 private constant fundedAmountInCentsDuringFiatFundingSlot
+  = keccak256("fundedAmountInCentsDuringFiatFunding");
+  bytes32 private constant brokerSlot = keccak256("broker");
+
+  //
+  // end special hashed PoaCrowdsale pointers
   //
 
   event Unpause();
@@ -878,9 +887,9 @@ contract PoaCrowdsale {
     view
     returns (bool _crowdsaleInitialized)
   {
-    bytes32 _crowdsaleInitializedPointer = crowdsaleInitializedPointer;
+    bytes32 _crowdsaleInitializedSlot = crowdsaleInitializedSlot;
     assembly {
-      _crowdsaleInitialized := sload(_crowdsaleInitializedPointer)
+      _crowdsaleInitialized := sload(_crowdsaleInitializedSlot)
     }
   }
 
@@ -889,9 +898,9 @@ contract PoaCrowdsale {
     view
     returns (uint256 _startTime)
   {
-    bytes32 _startTimePointer = startTimePointer;
+    bytes32 _startTimeSlot = startTimeSlot;
     assembly {
-      _startTime := sload(_startTimePointer)
+      _startTime := sload(_startTimeSlot)
     }
   }
 
@@ -900,9 +909,9 @@ contract PoaCrowdsale {
     view
     returns (uint256 _fundingTimeout)
   {
-    bytes32 _fundingTimeoutPointer = fundingTimeoutPointer;
+    bytes32 _fundingTimeoutSlot = fundingTimeoutSlot;
     assembly {
-      _fundingTimeout := sload(_fundingTimeoutPointer)
+      _fundingTimeout := sload(_fundingTimeoutSlot)
     }
   }
 
@@ -911,9 +920,9 @@ contract PoaCrowdsale {
     view
     returns (uint256 _activationTimeout)
   {
-    bytes32 _activationTimeoutPointer = activationTimeoutPointer;
+    bytes32 _activationTimeoutSlot = activationTimeoutSlot;
     assembly {
-      _activationTimeout := sload(_activationTimeoutPointer)
+      _activationTimeout := sload(_activationTimeoutSlot)
     }
   }
 
@@ -922,9 +931,9 @@ contract PoaCrowdsale {
     view
     returns (bytes32 _fiatCurrency32)
   {
-    bytes32 _fiatCurrency32Pointer = fiatCurrency32Pointer;
+    bytes32 _fiatCurrency32Slot = fiatCurrency32Slot;
     assembly {
-      _fiatCurrency32 := sload(_fiatCurrency32Pointer)
+      _fiatCurrency32 := sload(_fiatCurrency32Slot)
     }
   }
 
@@ -933,9 +942,9 @@ contract PoaCrowdsale {
     view
     returns (uint256 _fundingGoalInCents)
   {
-    bytes32 _fundingGoalInCentsPointer = fundingGoalInCentsPointer;
+    bytes32 _fundingGoalInCentsSlot = fundingGoalInCentsSlot;
     assembly {
-      _fundingGoalInCents := sload(_fundingGoalInCentsPointer)
+      _fundingGoalInCents := sload(_fundingGoalInCentsSlot)
     }
   }
 
@@ -944,9 +953,9 @@ contract PoaCrowdsale {
     view
     returns (uint256 _fundedAmountInCentsDuringFiatFunding)
   {
-    bytes32 _fundedAmountInCentsDuringFiatFundingPointer = fundedAmountInCentsDuringFiatFundingPointer;
+    bytes32 _fundedAmountInCentsDuringFiatFundingSlot = fundedAmountInCentsDuringFiatFundingSlot;
     assembly {
-      _fundedAmountInCentsDuringFiatFunding := sload(_fundedAmountInCentsDuringFiatFundingPointer)
+      _fundedAmountInCentsDuringFiatFunding := sload(_fundedAmountInCentsDuringFiatFundingSlot)
     }
   }
 
@@ -955,9 +964,9 @@ contract PoaCrowdsale {
     view
     returns (address _broker)
   {
-    bytes32 _brokerPointer = brokerPointer;
+    bytes32 _brokerSlot = brokerSlot;
     assembly {
-      _broker := sload(_brokerPointer)
+      _broker := sload(_brokerSlot)
     }
   }
 
@@ -1095,9 +1104,9 @@ contract PoaCrowdsale {
   )
     internal
   {
-    bytes32 _crowdsaleInitializedPointer = crowdsaleInitializedPointer;
+    bytes32 _crowdsaleInitializedSlot = crowdsaleInitializedSlot;
     assembly {
-      sstore(_crowdsaleInitializedPointer, _crowdsaleInitialized)
+      sstore(_crowdsaleInitializedSlot, _crowdsaleInitialized)
     }
   }
 
@@ -1106,9 +1115,9 @@ contract PoaCrowdsale {
   )
     internal
   {
-    bytes32 _startTimePointer = startTimePointer;
+    bytes32 _startTimeSlot = startTimeSlot;
     assembly {
-      sstore(_startTimePointer, _startTime)
+      sstore(_startTimeSlot, _startTime)
     }
   }
 
@@ -1117,9 +1126,9 @@ contract PoaCrowdsale {
   )
     internal
   {
-    bytes32 _fundingTimeoutPointer = fundingTimeoutPointer;
+    bytes32 _fundingTimeoutSlot = fundingTimeoutSlot;
     assembly {
-      sstore(_fundingTimeoutPointer, _fundingTimeout)
+      sstore(_fundingTimeoutSlot, _fundingTimeout)
     }
   }
 
@@ -1128,9 +1137,9 @@ contract PoaCrowdsale {
   )
     internal
   {
-    bytes32 _activationTimeoutPointer = activationTimeoutPointer;
+    bytes32 _activationTimeoutSlot = activationTimeoutSlot;
     assembly {
-      sstore(_activationTimeoutPointer, _activationTimeout)
+      sstore(_activationTimeoutSlot, _activationTimeout)
     }
   }
 
@@ -1139,9 +1148,9 @@ contract PoaCrowdsale {
   )
     internal
   {
-    bytes32 _fiatCurrency32Pointer = fiatCurrency32Pointer;
+    bytes32 _fiatCurrency32Slot = fiatCurrency32Slot;
     assembly {
-      sstore(_fiatCurrency32Pointer, _fiatCurrency32)
+      sstore(_fiatCurrency32Slot, _fiatCurrency32)
     }
   }
 
@@ -1150,9 +1159,9 @@ contract PoaCrowdsale {
   )
     internal
   {
-    bytes32 _fundingGoalInCentsPointer = fundingGoalInCentsPointer;
+    bytes32 _fundingGoalInCentsSlot = fundingGoalInCentsSlot;
     assembly {
-      sstore(_fundingGoalInCentsPointer, _fundingGoalInCents)
+      sstore(_fundingGoalInCentsSlot, _fundingGoalInCents)
     }
   }
 
@@ -1161,9 +1170,9 @@ contract PoaCrowdsale {
   )
     internal
   {
-    bytes32 _fundedAmountInCentsDuringFiatFundingPointer = fundedAmountInCentsDuringFiatFundingPointer;
+    bytes32 _fundedAmountInCentsDuringFiatFundingSlot = fundedAmountInCentsDuringFiatFundingSlot;
     assembly {
-      sstore(_fundedAmountInCentsDuringFiatFundingPointer, _fundedAmountInCentsDuringFiatFunding)
+      sstore(_fundedAmountInCentsDuringFiatFundingSlot, _fundedAmountInCentsDuringFiatFunding)
     }
   }
 
@@ -1172,9 +1181,9 @@ contract PoaCrowdsale {
   )
     internal
   {
-    bytes32 _brokerPointer = brokerPointer;
+    bytes32 _brokerSlot = brokerSlot;
     assembly {
-      sstore(_brokerPointer, _broker)
+      sstore(_brokerSlot, _broker)
     }
   }
 
