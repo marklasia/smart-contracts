@@ -24,7 +24,7 @@ const {
   owner
 } = require('../helpers/poa')
 
-describe.only('when using PoaProxy contract to proxy a PoaToken', () => {
+describe('when using PoaProxy contract to proxy a PoaToken', () => {
   contract('PoaProxy/PoaToken', accounts => {
     let poatm
     let poacm
@@ -105,19 +105,19 @@ describe.only('when using PoaProxy contract to proxy a PoaToken', () => {
     })
 
     it('should upgrade to new master with additional functionality and storage', async () => {
-      const preMaster = await pxy.proxyMasterContract()
+      const preTokenMaster = await pxy.proxyPoaTokenMaster()
 
       await pxy.proxyChangeTokenMaster(upoam.address)
 
-      const postMaster = await pxy.proxyMasterContract()
+      const postTokenMaster = await pxy.proxyPoaTokenMaster()
 
       assert.equal(
-        preMaster,
+        preTokenMaster,
         poatm.address,
         'old master should be equal to poatm.address'
       )
       assert.equal(
-        postMaster,
+        postTokenMaster,
         upoam.address,
         'new master should be equal to upoam.address'
       )

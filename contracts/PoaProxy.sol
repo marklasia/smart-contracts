@@ -52,11 +52,11 @@ contract PoaProxy {
   function proxyPoaCrowdsaleMaster()
     public
     view
-    returns (address _masterCrowdsaleContract)
+    returns (address _poaCrowdsaleMaster)
   {
     bytes32 _proxyPoaCrowdsaleSlot = proxyPoaCrowdsaleSlot;
     assembly {
-      _masterCrowdsaleContract := sload(_proxyPoaCrowdsaleSlot)
+      _poaCrowdsaleMaster := sload(_proxyPoaCrowdsaleSlot)
     }
   }
 

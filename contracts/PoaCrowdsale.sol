@@ -838,7 +838,7 @@ contract PoaCrowdsale {
     returns (uint256 _investmentAmountPerUserInWei)
   {
     bytes32 _entrySlot = keccak256(
-      abi.encodePacked(investmentAmountPerUserInWeiSlot, _address)
+      abi.encodePacked(_address, investmentAmountPerUserInWeiSlot)
     );
     assembly {
       _investmentAmountPerUserInWei := sload(_entrySlot)
@@ -1067,7 +1067,7 @@ contract PoaCrowdsale {
     internal
   {
     bytes32 _entrySlot = keccak256(
-      abi.encodePacked(investmentAmountPerUserInWeiSlot, _address)
+      abi.encodePacked(_address, investmentAmountPerUserInWeiSlot)
     );
     assembly {
       sstore(_entrySlot, _amount)
