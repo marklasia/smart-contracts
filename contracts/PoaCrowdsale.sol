@@ -517,17 +517,6 @@ contract PoaCrowdsale is PoaBase {
     }
   }
 
-  function proofOfCustody32()
-    public
-    view
-    returns (bytes32[2] _proofOfCustody32)
-  {
-    bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
-    assembly {
-      _proofOfCustody32 := sload(_proofOfCustody32Slot)
-    }
-  }
-
   function totalSupply()
     public
     view
@@ -587,7 +576,7 @@ contract PoaCrowdsale is PoaBase {
     returns (uint256 _investmentAmountPerUserInWei)
   {
     bytes32 _entrySlot = keccak256(
-      abi.encodePacked(investmentAmountPerUserInWeiSlot, _address)
+      abi.encodePacked(_address, investmentAmountPerUserInWeiSlot)
     );
     assembly {
       _investmentAmountPerUserInWei := sload(_entrySlot)
