@@ -551,7 +551,7 @@ contract PoaCrowdsale is PoaBase {
     returns (uint256 _unclaimedPayoutTotals)
   {
     bytes32 _entrySlot = keccak256(
-      abi.encodePacked(unclaimedPayoutTotalsSlot, _address)
+      abi.encodePacked(_address, unclaimedPayoutTotalsSlot)
     );
     assembly {
       _unclaimedPayoutTotals := sload(_entrySlot)
@@ -707,7 +707,7 @@ contract PoaCrowdsale is PoaBase {
     internal
   {
     bytes32 _entrySlot = keccak256(
-      abi.encodePacked(fiatInvestmentPerUserInTokensSlot, _address)
+      abi.encodePacked(_address, fiatInvestmentPerUserInTokensSlot)
     );
     assembly {
       sstore(_entrySlot, _fiatInvestment)
@@ -746,7 +746,7 @@ contract PoaCrowdsale is PoaBase {
     internal
   {
     bytes32 _entrySlot = keccak256(
-      abi.encodePacked(unclaimedPayoutTotalsSlot, _address)
+      abi.encodePacked(_address, unclaimedPayoutTotalsSlot)
     );
     assembly {
       sstore(_entrySlot, _amount)

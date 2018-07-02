@@ -164,7 +164,7 @@ contract PoaBase {
   {
     bytes32 _fiatInvestmentPerUserInTokensSlot = fiatInvestmentPerUserInTokensSlot;
     bytes32 _entrySlot = keccak256(
-      abi.encodePacked(_fiatInvestmentPerUserInTokensSlot, _address)
+      abi.encodePacked(_address, _fiatInvestmentPerUserInTokensSlot)
     );
     assembly {
       _fiatInvested := sload(_entrySlot)
@@ -270,7 +270,7 @@ contract PoaBase {
     internal
   {
     bytes32 _entrySlot = keccak256(
-      abi.encodePacked(unclaimedPayoutTotalsSlot, _address)
+      abi.encodePacked(_address, unclaimedPayoutTotalsSlot)
     );
     assembly {
       sstore(_entrySlot, _amount)
