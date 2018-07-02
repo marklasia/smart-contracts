@@ -189,9 +189,8 @@ contract PoaBase {
     view
     returns (uint256 _investmentAmountPerUserInWei)
   {
-    bytes32 _investmentAmountPerUserInWeiSlot = investmentAmountPerUserInWeiSlot;
     bytes32 _entrySlot = keccak256(
-      abi.encodePacked(_investmentAmountPerUserInWeiSlot, _address)
+      abi.encodePacked(_address, investmentAmountPerUserInWeiSlot)
     );
     assembly {
       _investmentAmountPerUserInWei := sload(_entrySlot)

@@ -542,57 +542,6 @@ contract PoaCrowdsale is PoaBase {
   }
 
   // mimics mapping storage method of storing/getting entries
-  function fiatInvestmentPerUserInTokens(
-    address _address
-  )
-    public
-    view
-    returns (uint256 _fiatInvested)
-  {
-    bytes32 _entrySlot = keccak256(
-      abi.encodePacked(fiatInvestmentPerUserInTokensSlot, _address)
-    );
-    assembly {
-      _fiatInvested := sload(_entrySlot)
-    }
-  }
-
-  function fundedAmountInWei()
-    public
-    view
-    returns (uint256 _fundedAmountInWei)
-  {
-    bytes32 _fundedAmountInWeiSlot = fundedAmountInWeiSlot;
-    assembly {
-      _fundedAmountInWei := sload(_fundedAmountInWeiSlot)
-    }
-  }
-
-  function investmentAmountPerUserInWei(
-    address _address
-  )
-    public
-    view
-    returns (uint256 _investmentAmountPerUserInWei)
-  {
-    bytes32 _entrySlot = keccak256(
-      abi.encodePacked(_address, investmentAmountPerUserInWeiSlot)
-    );
-    assembly {
-      _investmentAmountPerUserInWei := sload(_entrySlot)
-    }
-  }
-
-  function registry()
-    public
-    view
-    returns (address _registry)
-  {
-    bytes32 _registrySlot = registrySlot;
-    assembly {
-      _registry := sload(_registrySlot)
-    }
-  }
 
   function unclaimedPayoutTotals(
     address _address
