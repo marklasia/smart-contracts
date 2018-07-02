@@ -235,45 +235,6 @@ contract PoaToken is PoaBase, StandardToken, Ownable {
     return fiatInvestmentPerUserInTokens(_buyer) != 0;
   }
 
-  // use assembly in order to avoid gas usage which is too high
-  // used to check if whitelisted at Whitelist contract
-  function checkIsWhitelisted
-  (
-    address _address
-  )
-    public
-    view
-    returns (bool _isWhitelisted)
-  {
-    bytes4 _sig = bytes4(keccak256("whitelisted(address)"));
-    address _whitelistContract = getContractAddress("Whitelist");
-    address _arg = _address;
-
-    assembly {
-      let _call := mload(0x40) // set _call to free memory pointer
-      mstore(_call, _sig) // store _sig at _call pointer
-      mstore(add(_call, 0x04), _arg) // store _arg at _call offset by 4 bytes for pre-existing _sig
-
-      // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
-      let success := staticcall(
-        gas,    // g = gas: whatever was passed already
-        _whitelistContract,  // a = address: _whitelist address assigned from getContractAddress()
-        _call,  // in = mem in  mem[in..(in+insize): set to _call pointer
-        0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
-        _call,   // out = mem out  mem[out..(out+outsize): output assigned to this storage address
-        0x20    // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (bool size = 0x01 < slot size 0x20)
-      )
-
-      // revert if not successful
-      if iszero(success) {
-        revert(0, 0)
-      }
-
-      _isWhitelisted := mload(_call) // assign result to returned value
-      mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
-    }
-  }
-
   // pay fee to FeeManager
   function payFee
   (

@@ -14,39 +14,6 @@ contract PoaCrowdsale is PoaBase {
   // ‰ permille NOT percent: fee paid to BBK holders through ACT
   uint256 public constant feeRate = 5;
   
-  //
-  // start special hashed common storage pointers
-  //
-
-  // represents slot for: Stage
-  bytes32 private constant stageSlot = keccak256("stage");
-  // represents slot for: address
-  bytes32 private constant custodianSlot = keccak256("custodian");
-  // represents slot for: bytes32[2] TODO: probably need to fix getters/setters
-  bytes32 private constant proofOfCustody32Slot = keccak256("proofOfCustody32Slot");
-  // represents slot for: uint256
-  bytes32 private constant totalSupplySlot = keccak256("totalSupply");
-  // represents slot for: uint256
-  bytes32 private constant fundedAmountInTokensDuringFiatFundingSlot = 
-  keccak256("fundedAmountInTokensDuringFiatFunding");
-  // represents slot for: mapping(address => uint256)
-  bytes32 private constant fiatInvestmentPerUserInTokensSlot = 
-  keccak256("fiatInvestmentPerUserInTokens");
-  // represents slot for: uint256
-  bytes32 private constant fundedAmountInWeiSlot = keccak256("fundedAmountInWei");
-  // represents slot for: mapping(address => uint256)
-  bytes32 private constant investmentAmountPerUserInWeiSlot = 
-  keccak256("investmentAmountPerUserInWei");
-  // represents slot for: address
-  bytes32 private constant registrySlot = keccak256("registry");
-  // represents slot for: mapping(address => uint256)
-  bytes32 private constant unclaimedPayoutTotalsSlot = keccak256("unclaimedPayoutTotals");
-  bytes32 private constant pausedSlot = keccak256("paused");
-  bytes32 private constant tokenInitializedSlot = keccak256("tokenInitialized");
-
-  //
-  // end special hashed common storage pointers
-  //
 
   //
   // start special hashed PoaCrowdsale pointers
@@ -72,11 +39,6 @@ contract PoaCrowdsale is PoaBase {
   // start modifiers
   //
 
-  modifier onlyCustodian() {
-    require(msg.sender == custodian());
-    _;
-  }
-
   modifier checkTimeout() {
     uint256 fundingTimeoutDeadline = startTime().add(fundingTimeout());
     uint256 activationTimeoutDeadline = startTime()
@@ -90,19 +52,6 @@ contract PoaCrowdsale is PoaBase {
       enterStage(Stages.Failed);
     }
     
-    _;
-  }
-
-  modifier validIpfsHash(bytes32[2] _ipfsHash) {
-    // check that the most common hashing algo is used sha256
-    // and that the length is correct. In theory it could be different
-    // but use of this functionality is limited to only custodian
-    // so this validation should suffice
-    bytes memory _ipfsHashBytes = bytes(to64LengthString(_ipfsHash));
-    require(_ipfsHashBytes.length == 46);
-    require(_ipfsHashBytes[0] == 0x51);
-    require(_ipfsHashBytes[1] == 0x6D);
-    require(keccak256(_ipfsHashBytes) != keccak256(bytes(proofOfCustody())));
     _;
   }
 
@@ -441,42 +390,6 @@ contract PoaCrowdsale is PoaBase {
       }
 
       _fiatRate := mload(_call) // assign result to return value
-      mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
-    }
-  }
-
-  // use assembly in order to avoid gas usage which is too high
-  // used to check if whitelisted at Whitelist contract
-  function checkIsWhitelisted(address _address)
-    public
-    view
-    returns (bool _isWhitelisted)
-  {
-    bytes4 _sig = bytes4(keccak256("whitelisted(address)"));
-    address _whitelistContract = getContractAddress("Whitelist");
-    address _arg = _address;
-
-    assembly {
-      let _call := mload(0x40) // set _call to free memory pointer
-      mstore(_call, _sig) // store _sig at _call pointer
-      mstore(add(_call, 0x04), _arg) // store _arg at _call offset by 4 bytes for pre-existing _sig
-
-      // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
-      let success := staticcall(
-        gas,    // g = gas: whatever was passed already
-        _whitelistContract,  // a = address: _whitelist address assigned from getContractAddress()
-        _call,  // in = mem in  mem[in..(in+insize): set to _call pointer
-        0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
-        _call,   // out = mem out  mem[out..(out+outsize): output assigned to this storage address
-        0x20    // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (bool size = 0x01 < slot size 0x20)
-      )
-
-      // revert if not successful
-      if iszero(success) {
-        revert(0, 0)
-      }
-
-      _isWhitelisted := mload(_call) // assign result to returned value
       mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
     }
   }
