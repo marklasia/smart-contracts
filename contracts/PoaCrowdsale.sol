@@ -1,28 +1,18 @@
 pragma solidity 0.4.23;
 
 import "openzeppelin-solidity/contracts/math/SafeMath.sol";
+import "./PoaBase.sol";
 
 /* solium-disable security/no-block-members */
 /* solium-disable security/no-low-level-calls */
 
 
-contract PoaCrowdsale {
+contract PoaCrowdsale is PoaBase {
   using SafeMath for uint256;
 
   uint256 public constant crowdsaleVersion = 1;
   // ‰ permille NOT percent: fee paid to BBK holders through ACT
   uint256 public constant feeRate = 5;
-
-  enum Stages {
-    PreFunding, // 0
-    FiatFunding, // 1
-    EthFunding, // 2
-    Pending, // 3
-    Failed,  // 4
-    Active, // 5
-    Terminated, // 6
-    Cancelled // 7
-  }
   
   //
   // start special hashed common storage pointers
@@ -84,16 +74,6 @@ contract PoaCrowdsale {
 
   modifier onlyCustodian() {
     require(msg.sender == custodian());
-    _;
-  }
-
-  modifier atStage(Stages _stage) {
-    require(stage() == _stage);
-    _;
-  }
-
-  modifier atEitherStage(Stages _stage, Stages _orStage) {
-    require(stage() == _stage || stage() == _orStage);
     _;
   }
 
@@ -430,44 +410,6 @@ contract PoaCrowdsale {
   // start utility functions
   //
 
-  // gets a given contract address by bytes32 saving gas
-  function getContractAddress
-  (
-    string _name
-  )
-    public
-    view
-    returns (address _contractAddress)
-  {
-    bytes4 _sig = bytes4(keccak256("getContractAddress32(bytes32)"));
-    bytes32 _name32 = keccak256(_name);
-    address _registry = registry();
-
-    assembly {
-      let _call := mload(0x40)          // set _call to free memory pointer
-      mstore(_call, _sig)               // store _sig at _call pointer
-      mstore(add(_call, 0x04), _name32) // store _name32 at _call offset by 4 bytes for pre-existing _sig
-
-      // staticcall(g, a, in, insize, out, outsize) => 0 on error 1 on success
-      let success := staticcall(
-        gas,    // g = gas: whatever was passed already
-        sload(_registry),  // a = address: address in storage
-        _call,  // in = mem in  mem[in..(in+insize): set to free memory pointer
-        0x24,   // insize = mem insize  mem[in..(in+insize): size of sig (bytes4) + bytes32 = 0x24
-        _call,   // out = mem out  mem[out..(out+outsize): output assigned to this storage address
-        0x20    // outsize = mem outsize  mem[out..(out+outsize): output should be 32byte slot (address size = 0x14 <  slot size 0x20)
-      )
-
-      // revert if not successful
-      if iszero(success) {
-        revert(0, 0)
-      }
-
-      _contractAddress := mload(_call) // assign result to return value
-      mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
-    }
-  }
-
   // gas saving call to get fiat rate without interface
   function getFiatRate()
     public
@@ -537,99 +479,6 @@ contract PoaCrowdsale {
       _isWhitelisted := mload(_call) // assign result to returned value
       mstore(0x40, add(_call, 0x24)) // advance free memory pointer by largest _call size
     }
-  }
-
-  // takes a single bytes32 and returns a max 32 char long string
-  function to32LengthString(bytes32 _data)
-    pure
-    private
-    returns (string)
-  {
-    // create new empty bytes array with same length as input
-    bytes memory _bytesString = new bytes(32);
-    // keep track of string length for later usage in trimming
-    uint256 _stringLength;
-
-    // loop through each byte in bytes32
-    for (uint _bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
-      /*
-      convert bytes32 data to uint in order to increase the number enough to
-      shift bytes further left while pushing out leftmost bytes
-      then convert uint256 data back to bytes32
-      then convert to bytes1 where everything but the leftmost hex value (byte)
-      is cutoff leaving only the leftmost byte
-
-      TLDR: takes a single character from bytes based on counter
-      */
-      bytes1 _char = bytes1(
-        bytes32(
-          uint(_data) * 2 ** (8 * _bytesCounter)
-        )
-      );
-      // add the character if not empty
-      if (_char != 0) {
-        _bytesString[_stringLength] = _char;
-        _stringLength += 1;
-      }
-    }
-
-    // new bytes with correct matching string length
-    bytes memory _bytesStringTrimmed = new bytes(_stringLength);
-    // loop through _bytesStringTrimmed throwing in
-    // non empty data from _bytesString
-    for (_bytesCounter = 0; _bytesCounter < _stringLength; _bytesCounter++) {
-      _bytesStringTrimmed[_bytesCounter] = _bytesString[_bytesCounter];
-    }
-    // return trimmed bytes array converted to string
-    return string(_bytesStringTrimmed);
-  }
-
-  // takes a dynamically sized array of bytes32. needed for longer strings
-  function to64LengthString(bytes32[2] _data)
-    pure
-    private
-    returns (string)
-  {
-    // create new empty bytes array with same length as input
-    bytes memory _bytesString = new bytes(_data.length * 32);
-    // keep track of string length for later usage in trimming
-    uint256 _stringLength;
-
-    // loop through each bytes32 in array
-    for (uint _arrayCounter = 0; _arrayCounter < _data.length; _arrayCounter++) {
-      // loop through each byte in bytes32
-      for (uint _bytesCounter = 0; _bytesCounter < 32; _bytesCounter++) {
-        /*
-        convert bytes32 data to uint in order to increase the number enough to
-        shift bytes further left while pushing out leftmost bytes
-        then convert uint256 data back to bytes32
-        then convert to bytes1 where everything but the leftmost hex value (byte)
-        is cutoff leaving only the leftmost byte
-
-        TLDR: takes a single character from bytes based on counter
-        */
-        bytes1 _char = bytes1(
-          bytes32(
-            uint(_data[_arrayCounter]) * 2 ** (8 * _bytesCounter)
-          )
-        );
-        // add the character if not empty
-        if (_char != 0) {
-          _bytesString[_stringLength] = _char;
-          _stringLength += 1;
-        }
-      }
-    }
-
-    // new bytes with correct matching string length
-    bytes memory _bytesStringTrimmed = new bytes(_stringLength);
-    // loop through _bytesStringTrimmed throwing in
-    // non empty data from _bytesString
-    for (_bytesCounter = 0; _bytesCounter < _stringLength; _bytesCounter++) {
-      _bytesStringTrimmed[_bytesCounter] = _bytesString[_bytesCounter];
-    }
-    // return trimmed bytes array converted to string
-    return string(_bytesStringTrimmed);
   }
 
   // returns fiat value in cents of given wei amount
@@ -973,17 +822,6 @@ contract PoaCrowdsale {
     bytes32 _stageSlot = stageSlot;
     assembly {
       sstore(_stageSlot, _stage)
-    }
-  }
-
-  function setProofOfCustody32(
-    bytes32[2] _proofOfCustody32
-  )
-    internal
-  {
-    bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
-    assembly {
-      sstore(_proofOfCustody32Slot, _proofOfCustody32)
     }
   }
 

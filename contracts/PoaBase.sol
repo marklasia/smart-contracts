@@ -33,7 +33,7 @@ contract PoaBase {
   // represents slot for: address
   bytes32 internal constant custodianSlot = keccak256("custodian");
   // represents slot for: bytes32[2] TODO: probably need to fix getters/setters
-  bytes32 internal constant proofOfCustody32Slot = keccak256("proofOfCustody32Slot");
+  bytes32 internal constant proofOfCustody32Slot = keccak256("proofOfCustody32");
   // represents slot for: uint256
   bytes32 internal constant totalSupplySlot = keccak256("totalSupply");
   // represents slot for: uint256
@@ -118,8 +118,10 @@ contract PoaBase {
     returns (bytes32[2] _proofOfCustody32)
   {
     bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
+
     assembly {
-      _proofOfCustody32 := sload(_proofOfCustody32Slot)
+      mstore(_proofOfCustody32, sload(_proofOfCustody32Slot))
+      mstore(add(_proofOfCustody32, 0x20), sload(add(_proofOfCustody32Slot, 0x01)))
     }
   }
 
@@ -238,7 +240,18 @@ contract PoaBase {
   {
     bytes32 _proofOfCustody32Slot = proofOfCustody32Slot;
     assembly {
-      sstore(_proofOfCustody32Slot, _proofOfCustody32)
+      // store first slot from memory
+      sstore(
+        _proofOfCustody32Slot, 
+        mload(_proofOfCustody32)
+      )
+      // store second slot from memory
+      sstore(
+        add(_proofOfCustody32Slot, 0x01), 
+        mload(
+          add(_proofOfCustody32, 0x20)
+        )
+      )
     }
   }
 
@@ -308,7 +321,9 @@ contract PoaBase {
   }
 
   // takes a single bytes32 and returns a max 32 char long string
-  function to32LengthString(bytes32 _data)
+  function to32LengthString(
+    bytes32 _data
+  )
     pure
     internal
     returns (string)
@@ -353,7 +368,9 @@ contract PoaBase {
   }
 
   // takes a dynamically sized array of bytes32. needed for longer strings
-  function to64LengthString(bytes32[2] _data)
+  function to64LengthString(
+    bytes32[2] _data
+  )
     pure
     internal
     returns (string)
